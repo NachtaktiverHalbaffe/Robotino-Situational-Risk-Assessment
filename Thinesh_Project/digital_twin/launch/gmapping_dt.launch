@@ -1,0 +1,6 @@
+<launch>
+
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <rosparam file="$(find digital_twin)/param/gmapping.yaml" command="load" />
+  </node>
+</launch>

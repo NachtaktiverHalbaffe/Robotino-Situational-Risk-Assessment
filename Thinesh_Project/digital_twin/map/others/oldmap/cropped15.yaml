@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: cropped15.pgm
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -1.2400000000000002
+- -4.050000000000001
+- 0.0
+resolution: 0.015

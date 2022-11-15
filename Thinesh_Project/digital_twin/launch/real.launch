@@ -1,0 +1,26 @@
+<launch>
+
+  <!--this is for real robotino localization and navigation works, need to update params to removed obstacles in static map-->
+  <arg name="map_file" default="$(find digital_twin)/map/31may.yaml"/>
+
+  <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" >
+
+  </node>
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <remap from="scan" to="/scan"/>
+    <param name="update_min_d" value="0.5"/>
+    <param name="update_min_a" value="1.0"/>
+    <param name="odom_model_type" value="omni"/>
+  </node>
+
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find digital_twin)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find digital_twin)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find digital_twin)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find digital_twin)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find digital_twin)/param/base_local_planner_params.yaml" command="load" />
+    <rosparam file="$(find digital_twin)/param/dwa_local_planner_params.yaml" command="load" />
+    <rosparam file="$(find digital_twin)/param/move_base_params.yaml" command="load" />
+  </node>
+
+</launch>

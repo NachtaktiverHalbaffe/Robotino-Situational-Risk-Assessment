@@ -1,0 +1,40 @@
+<launch>
+
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find digital_twin)/worlds/default.world"/>
+    <!-- more default parameters can be changed here -->
+  </include>
+
+  <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
+  <param name="/use_sim_time" value="true"/>
+<!--
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+    <param name="publish_frequency" type="double" value="20.0" />
+  </node>
+  <node pkg="tf" type="static_transform_publisher" name="laser_camera_broadcaster" args="0.0 0 0.0 0 0 0 laser_link camera_depth_frame 50" />
+  <node pkg="tf" type="static_transform_publisher" name="laser_link_broadcaster" args="0 0 0.23 0 0 0 base_link laser_link 50" />
+
+-->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_camera_broadcaster" args="0.0125 -0.11627 0 0 0 0 1 robotino/base robotino/camera" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_laser_broadcaster" args="0.0125 -0.0545 0 0 0 0 1 robotino/base robotino/scan"/>
+  <node pkg="digital_twin" type="tf2_broadcaster_base" name="tf2_broadcaster_base2" required="true"/>
+
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <remap from="scan" to="robotino/scan"/>
+    <param name="update_min_d" value="0.5"/>
+    <param name="update_min_a" value="1.0"/>
+    <param name="odom_model_type" value="omni"/>
+    <param name="odom_frame_id" value="odom"/>
+  </node>
+
+<!--
+  <node name="cartographer_node" pkg="cartographer_ros"
+      type="cartographer_node" args="
+          -configuration_directory $(find cartographer_ros)/configuration_files
+          -configuration_basename backpack_2d.lua"
+      output="screen">
+  </node>
+-->
+
+</launch>

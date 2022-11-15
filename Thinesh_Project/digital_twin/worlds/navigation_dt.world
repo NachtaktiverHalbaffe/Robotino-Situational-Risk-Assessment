@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+  <world name="default">
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://robotino3</uri>
+      <!--pose></pose-->
+
+    </include>
+    <!-- Field  
+    <include>
+	    <uri>model://logistics_league_field_2017</uri>
+    </include>
+-->
+    <!-- reference to your plugin -->
+    <!--plugin name="PluginWorld" filename="libPluginWorld.so"/-->
+  </world>
+</sdf>

@@ -1,0 +1,19 @@
+<launch>
+
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find robotino_sim)/worlds/default.world"/>
+    <!-- more default parameters can be changed here -->
+  </include>
+
+  <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
+  <param name="/use_sim_time" value="true"/>
+
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+    <param name="publish_frequency" type="double" value="20.0" />
+  </node>
+  <node pkg="tf" type="static_transform_publisher" name="laser_camera_broadcaster" args="0.0 0 0.0 0 0 0 laser_link camera_depth_frame 50" />
+  <node pkg="tf" type="static_transform_publisher" name="laser_link_broadcaster" args="0 0 0.23 0 0 0 base_link laser_link 50" />
+
+
+</launch>

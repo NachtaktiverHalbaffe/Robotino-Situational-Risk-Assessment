@@ -127,4 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-.txt
+
+#dataset
+Thinesh_Project/yolov5/data
+Thinesh_Project/Error_Dataset/bbox_txt
+Thinesh_Project/Error_Dataset/images
+Thinesh_Project/ModifiedOpenLabelling-main/dataset_test
+Thinesh_Project/ModifiedOpenLabelling-main/yolo
