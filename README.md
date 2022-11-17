@@ -1,3 +1,4 @@
-# Stephan_Master_v2
+# Automated Evaluation of Situative Risk Assesment using Machine Learning
 
-Work done by Abdul Rehman.
+Name: Abdul Rehman.
+Email: st171920@stud.uin-stuttgart.de
