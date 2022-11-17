@@ -1,1 +1,0 @@
-scripts folder contains python files
