@@ -1,0 +1,36 @@
+    print("Before: ", action_index)
+        #     """ IDA code starts from here"""
+        #     if test_mode:
+        #         """ Perform IDA"""
+        #         action_index, observation_, reward, done, collision_status = expand_tree(env, config, action_index)
+        #         # #print("IDA")
+        #         # action = 0
+        #         # while (action < config['N_actions']):
+        #         #     #print(action)
+        #         #     action_index_ida = action
+
+        #         #     #t3 = time.perf_counter()
+        #         #     action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index_ida - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+
+        #         #     observation_, reward, done, collision_status, _ = env.step_adv1(action_angle_offset, create_leaf_node=False)
+        #         #     #step_total_time += time.perf_counter() - t3
+
+        #         #     """ Debugging code"""
+        #         #     if collision_status == 1:
+        #         #         #print("Action Index, collision status: ", action_index_ida, collision_status)
+        #         #         #break
+        #         #         action_index = action
+        #         #         print("After: ", action_index)
+        #         #         action += 1
+        #         #         break
+        #         #     else:
+        #         #         action += 1
+        #     #depth = input()
+        #    # depth +=1
+        #     depth = int(input())
+        #     if depth == 2:
+        #         depth = True
+        #     else: depth = False
+        #     print("Depth: ", depth)
+        #     print("After: ", action_index)
+        #     """ IDA code ends here"""

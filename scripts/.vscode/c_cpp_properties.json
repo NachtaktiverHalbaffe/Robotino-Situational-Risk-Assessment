@@ -1,0 +1,41 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/abdul/tutorials_ws/devel/include/**",
+        "/home/abdul/AbdulRehman_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/amcl/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/base_local_planner/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/carrot_planner/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/clear_costmap_recovery/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/costmap_2d/include/**",
+        "/home/abdul/tutorials_ws/src/demo/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/digital_twin/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/dwa_local_planner/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/global_planner/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/map_server/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/move_base/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/move_slow_and_clear/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/nav_core/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/navfn/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/robotino_real/robotino_node/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/robotino_real/robotino_teleop/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/rotate_recovery/include/**",
+        "/home/abdul/AbdulRehman_ws/src/thesis/include/**",
+        "/home/abdul/AbdulRehman_ws/src/IDT/navigation-noetic-devel/voxel_grid/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
