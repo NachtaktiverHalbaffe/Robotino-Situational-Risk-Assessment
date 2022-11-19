@@ -248,8 +248,8 @@ def initialize_state_adv1(map_ref, traj, relevant_segments, visualize=False):
 
     map_visu = copy.deepcopy(map_ref)
     draw_traj(map_visu, traj, forAgent=True)
-    if visualize:
-        map_visu.save('./image/new_obs0.png')
+    # if visualize:
+    #     map_visu.save('./image/new_obs0.png')
 
     init_state = StateAdv1(generate_obs_from_rgb_img(map_visu), traj[0].coordinates)
 
@@ -389,9 +389,12 @@ class Environment:
         self.visualize = visualize
         self.state_prot = initialize_state_prot(self, visualize=True)
 
-    def reset_traj(self, node_num=1):
+    def reset_traj(self, node_num=1, pos=[-1,-1]):
         self.state_adv1.traj_index = node_num
-        self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
+        if pos[0] == -1:
+            self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
+            #print("in -1 pos")
+        else: self.state_adv1.position = pos
         self.state_adv1.angle = 0
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
     def step_adv1(self, action, create_leaf_node = True, keep_searching = False):
@@ -509,7 +512,8 @@ class Environment:
                 print('\U0001F6AB - collision')
         else:
             reward = distance_reward
-
+        old_position = self.state_adv1.position
+        #print("Old Position: ", old_position)
         if create_leaf_node:
             self.state_adv1.position = pos_new
             self.state_adv1.angle = angle_new
@@ -543,7 +547,7 @@ class Environment:
         
         info = collision
 
-        return self.state_adv1.obs, reward, done, info, adv1_node2
+        return self.state_adv1.obs, reward, done, info, adv1_node2, old_position
 
     def step_prot(self, action):
         """
