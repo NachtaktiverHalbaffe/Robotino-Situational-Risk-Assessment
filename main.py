@@ -159,24 +159,6 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             #print("collision_status: ", collision_status)
             # if collision_status:
             #     print("Untried actions: ", mcts.untried_actions())
-
-            """ Calculation of 2nd max probability"""
-            #new_action_index, temp_prob, node_num, pos_prev = find_best_child(raw_probs, temp_prob, node_num, position_old)
-            # probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
-            # probs.append(probs_all)
-            # positions.append(position_old)
-            # #print("Original: Raw Probs: ", probs_all)
-            # indices = np.argsort(probs_all)
-            # #print("Indices: ", indices)
-            # probs_all.sort()
-            # print("Probs Increasing: ", probs_all)
-            # #print("2nd Max: ", probs_all[3])
-            # if probs_all[3] > temp_prob:
-            #     new_action_index = indices[3]
-            #     temp_prob = probs_all[3]
-            #     node_num+=1
-            #     pos_prev = position_old
-
             
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
@@ -221,7 +203,14 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                         observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, keep_searching=False)
                         #print("Done: ", done)
                         observation = observation_
+                        #score += reward
                         #a = input()
+                        steps_episodes_log.append(episode_counter)
+                        steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
+                        steps_val_log.append(np.round(val, 2))
+                        steps_reward_log.append(np.round(reward, 2))
+                        steps_collisions_log.append(collision_status)
+                        steps_length_ratio_log.append(0)
                         if done:
                             node_num = len(traj_vanilla)
                             if collision_status == 1:
@@ -239,6 +228,13 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                             #print(raw_probs)
                             probs.append(probs_all)
                             positions.append(position_old)
+                            steps_episodes_log.append(episode_counter)
+                            steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
+                            steps_val_log.append(np.round(val, 2))
+                            steps_reward_log.append(np.round(reward, 2))
+                            steps_collisions_log.append(collision_status)
+                            steps_length_ratio_log.append(0)
+                            #score += reward
                             #a = input()
                             if done:
                                 print(bcolors.BOLD + bcolors.OKBLUE + "Second Done" + bcolors.ENDC)
