@@ -397,7 +397,7 @@ class Environment:
         else: self.state_adv1.position = pos
         self.state_adv1.angle = 0
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
-    def step_adv1(self, action, create_leaf_node = True, keep_searching = False):
+    def step_adv1(self, action):
         """
         applies the action of the sim-gap-adv in the environment
         @param action: angle offset (action of adversary)
@@ -408,10 +408,10 @@ class Environment:
                  adv1_node2 - only used for applying the adversary after protagonist in step_prot(..)
                  -> this is the new "measured" position, resulting of the adversaries action
         """
-        if keep_searching:
-            self.state_adv1.traj_index = 1
-            self.state_adv1.position = self.trajectory_vanilla[0].coordinates 
-            self.state_adv1.angle = 0
+        # if keep_searching:
+        #     self.state_adv1.traj_index = 1
+        #     self.state_adv1.position = self.trajectory_vanilla[0].coordinates 
+        #     self.state_adv1.angle = 0
             
         done = False
         #print("self.state_adv1.traj_index: ", self.state_adv1.traj_index)
@@ -419,20 +419,21 @@ class Environment:
         #print("Position and angle: ", self.state_adv1.position, self.state_adv1.angle)
         #print("self.trajectory_vanilla[0] :", self.trajectory_vanilla[0].coordinates) 
         command_vanilla = calc_command(self.state_adv1.position, self.state_adv1.angle, self.trajectory_vanilla[self.state_adv1.traj_index].coordinates)
-        angle_comm_new = command_vanilla.angle + action
+        """ Stephan"""
+        #angle_comm_new = command_vanilla.angle+action
+        """ Swapnil"""
+        angle_comm_new = command_vanilla.angle
         v_comm_new = command_vanilla.v
         command_disturbed = Command(angle_comm_new, v_comm_new, command_vanilla.t)
 
         # t0 = time.perf_counter()
         pos_new, angle_new = calc_new_position(self.state_adv1.position, self.state_adv1.angle, command_disturbed)
-        
+        pos_new[0] = pos_new[0]+action
+
         # this block deals with the situation when the adversary coincidentally steers the robot on the position of the next node in the trajectory (which would end up in a segment with distance 0)
         if not (self.state_adv1.traj_index + 1 >= len(self.trajectory_vanilla)):
             if (pos_new == self.trajectory_vanilla[self.state_adv1.traj_index + 1].coordinates).all():
-                if create_leaf_node:
-                    self.state_adv1.traj_index += 1
-                # if depth == 2:
-                #     self.state_adv1.traj_index -= 1
+                self.state_adv1.traj_index += 1
                 if self.state_adv1.traj_index >= len(self.trajectory_vanilla):
                     # traj finished (skipping last node because we are already there
                     done = True
@@ -446,6 +447,12 @@ class Environment:
                 traj_vanilla_coordinates.append(node.coordinates)
 
         segment_adv_coordinates = [self.state_adv1.position, pos_new]
+
+        """ Swapnil: Change the position by adding pixels, once it has reached the new position"""
+        if(self.state_adv1.position[0]== pos_new[0] and self.state_adv1.position[1]== pos_new[1]  ):
+            pos_new[1]= pos_new[1]+action+1
+            pos_new[0]= pos_new[0]+1
+
         segment_adv_coordinates.extend(traj_vanilla_coordinates)
         # t3 = time.perf_counter()
         segment_adv_nodes, segments_adv = calc_adv_traj(self.map_ref, segment_adv_coordinates, self.obstacles)
@@ -514,11 +521,11 @@ class Environment:
             reward = distance_reward
         old_position = self.state_adv1.position
         #print("Old Position: ", old_position)
-        if create_leaf_node:
-            self.state_adv1.position = pos_new
-            self.state_adv1.angle = angle_new
-            """ Increment a trajectory index"""
-            self.state_adv1.traj_index += 1
+
+        self.state_adv1.position = pos_new
+        self.state_adv1.angle = angle_new
+        """ Increment a trajectory index"""
+        self.state_adv1.traj_index += 1
         #print("New Position: ", self.state_adv1.position)
         # if depth == 2:
         #     self.state_adv1.traj_index -= 1

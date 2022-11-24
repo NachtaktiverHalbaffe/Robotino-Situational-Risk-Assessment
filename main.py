@@ -13,6 +13,9 @@ from CSV_Logger import CSV_Logger
 
 from mcts import *
 
+from probability_cal import real_to_pixel , action_prob_cal , risk_calculation, cumm_risk
+from plotgraph import plt_action
+
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
 
@@ -26,6 +29,18 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+# choosing the action to take in pixel 
+def choose_action(action_index):
+    action_to_take = real_to_pixel(action_index)
+    return action_to_take
+
+# to take the probability of the action choosen
+def action_prob(action_index):
+    return(action_prob_cal(action_index))
+
+def risk_cal(action_collision):
+    return risk_calculation(action_collision)
 
 def count_parameters(model):
     """
@@ -81,6 +96,13 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     avg_score_best = 0
     score_history = []
     reward_history = []
+    thisdict = {
+        -4: 0,
+        -2: 0,
+        0: 0,
+        2: 0,
+        4: 0,
+        }
 
     learn_iters = 0
     n_steps = 0
@@ -143,7 +165,10 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             choose_action_total_time += time.perf_counter() - t1
             if mcts_eval == False:
                 t3 = time.perf_counter()
-                action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                # choosing the position offset 
+                pos_offset = choose_action(action_index)
+                action_prob_value = action_prob(action_index)
                 observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, keep_searching=False)
                 probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
                 probs.append(probs_all)
