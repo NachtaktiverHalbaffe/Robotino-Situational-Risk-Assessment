@@ -667,7 +667,8 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
 
 
 
-def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None):
+# def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [140, 123], end = [76,98]):
+def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [150, 117], end = [76,98]):
     """
     applies the whole PRM process which includes all steps like sampling nodes, building a graph and
     calculating the trajectory
@@ -695,7 +696,7 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None):
         for i in range(0, len(nodes)):
             nodes[i] = Node(nodes[i].coordinates[0], nodes[i].coordinates[1])
     else:
-        map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles)
+        map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, end)
         map_visu.save('./image/map_nodes.png')
     
     t0 = time.perf_counter()
@@ -708,7 +709,8 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None):
     nodes_copy = copy.copy(nodes)
     map_visu.save('./image/map_graph.png')
     print('time add_neighbours:', time.perf_counter()-t0)
-
+    start_node = get_node_with_coordinates(nodes, np.array(start))
+    goal_node = get_node_with_coordinates(nodes, np.array(end))
     if not (start_node and goal_node):
         start_node = nodes[0]
         goal_node = nodes[1]

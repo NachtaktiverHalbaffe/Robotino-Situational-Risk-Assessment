@@ -238,7 +238,7 @@ def get_conf_and_model():
     limg = cv2.imread('./data/bb/img1.png')
 
     # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    args.extend(['--weights', 'epoch_096.pt'])
+    args.extend(['--weights', 'yolov7/weights/epoch_074.pt'])
     args.extend(['--conf', '0.50','--view-img', '--no-trace'])
     args.extend(['--img-size', '640'])
     # i am currently edditing this in the file better to use sources?
@@ -251,19 +251,19 @@ def get_conf_and_model():
     return conf
 
 if __name__ == '__main__':
-    args = []
+    # args = []
 
-    limg = cv2.imread('./data/bb/img1.png')
+    # limg = cv2.imread('./data/bb/img1.png')
 
-    # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    args.extend(['--weights', 'epoch_096.pt'])
-    args.extend(['--conf', '0.50','--view-img', '--no-trace'])
-    args.extend(['--img-size', '640'])
-    # i am currently edditing this in the file better to use sources?
-    args.extend(['--source', './yolov7/data/val/10/'])
-    #args.extend(['--save-txt', ])
-    # args.extend(['--nosave', True])
-    # args.extend(['--view-img', False])
+    # # args.extend(['--weights', 'yolov7_robo_first.pt'])
+    # args.extend(['--weights', 'yolov7/weights/epoch_096.pt'])
+    # args.extend(['--conf', '0.50','--view-img', '--no-trace'])
+    # args.extend(['--img-size', '640'])
+    # # i am currently edditing this in the file better to use sources?
+    # args.extend(['--source', './yolov7/data/val/10/'])
+    # #args.extend(['--save-txt', ])
+    # # args.extend(['--nosave', True])
+    # # args.extend(['--view-img', False])
 
-    detect_args_parse(args)
+    # detect_args_parse(args)
 

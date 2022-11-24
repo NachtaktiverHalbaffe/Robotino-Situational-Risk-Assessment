@@ -8,7 +8,7 @@ config_1 = {
     'anneal_lr': True,
     'N_actions': 5,  # 160*160
     'state_size': (200, 200),   # this config parameter is not used!
-    'n_games': 100,     # 80000
+    'n_games': 5000,     # 80000
     'gamma': 0.70, #0.99
     'epsilon': -1,  # if epsilon is -1 the categorical distribution approach is used for exploration
     'entropy_coef': 0.01,
@@ -16,7 +16,8 @@ config_1 = {
     'model_arch': 'normal',
     'log_interval': 20,
     'log_name': 'adv_1',    # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
-    'map_path': './maps/FinalGridMapv2.png',
+    # 'map_path': './maps/FinalGridMapv2.png',
+    'map_path': './maps/FinalScannerMap1_gimp5.png',
     #'map_path': './maps/map_y.png'
 }
 

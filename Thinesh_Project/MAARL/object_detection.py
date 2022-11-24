@@ -374,7 +374,7 @@ def apply_object_detection(map_path):
                      cv.imread('./representations/scanner/workstation3.png', 0),
                      cv.imread('./representations/scanner/workstation4.png', 0),
                      cv.imread('./representations/scanner/workstation5.png', 0),]
-    thresholds = [0.70, 0.49,0.70,0.7,0.8,0.8]  # 0.54
+    thresholds = [0.85, 0.50,0.70,0.7,0.8,0.8]  # 0.54
     
     obstacles = []
     a = 1

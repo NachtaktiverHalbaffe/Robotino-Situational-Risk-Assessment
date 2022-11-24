@@ -442,7 +442,7 @@ def get_base_info():
     x5_3_p = x5_p-x3_p
     return x3,y3,x5_3,x5_3_p,y5_3,y5_3_p
 
-def convert_robo_to_grid(x_r,y_r, rot):
+def convert_robo_to_cam(x_r,y_r, rot):
     "applies the roation of -69° to the robo cords to get the crods in the grind we measure on"
     x_g = x_r*np.cos(rot)-y_r*np.sin(rot)
     y_g = x_r*np.sin(rot)+y_r*np.cos(rot)
@@ -465,10 +465,10 @@ def distance_to_ws(bot,top):
     #     rot = -1.204-((2-real_data[3])-0.9831301592470502)*np.pi
     #     rot = np.arcsin(1+real_data[3])+np.arcsin(1-0.9831301592470502)
 
-    # print('distance to bot/top corner',convert_robo_to_grid(dist_bot[0],dist_bot[1],rot),convert_robo_to_grid(dist_top[0],dist_top[1],rot))
+    # print('distance to bot/top corner',convert_robo_to_cam(dist_bot[0],dist_bot[1],rot),convert_robo_to_cam(dist_top[0],dist_top[1],rot))
     # print(2*np.arcsin(real_data[3]), end = '\r')
-    # print('distance to top corner',convert_robo_to_grid(dist_top[0],dist_top[1],rot))
-    return convert_robo_to_grid(dist_bot[0],dist_bot[1],rot),convert_robo_to_grid(dist_top[0],dist_top[1],rot)
+    # print('distance to top corner',convert_robo_to_cam(dist_top[0],dist_top[1],rot))
+    return convert_robo_to_cam(dist_bot[0],dist_bot[1],rot),convert_robo_to_cam(dist_top[0],dist_top[1],rot)
 
         
 

@@ -12,6 +12,12 @@ from Environment import Environment, obstacle_adversary
 from object_detection import Obstacle
 from ppo import Agent
 from CSV_Logger import CSV_Logger
+from geometry_msgs.msg import PoseWithCovarianceStamped
+
+
+from Move.move_kai_yolov5_agent import get_amcl_from_pixel_location, get_base_info, navigate_to_point
+import rospy
+
 
 ACTION_SPACE_STEP_ADVERSARY = 3
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
@@ -35,26 +41,23 @@ def count_parameters(model):
     return total_params
 
 def risk_calculation(action_index):
-    action_list= [-8,-4,0,4,8]
-    real_probability = [0.03,0.15,0.39,0.42,0.01]
-    probaility_1 = []
-    for items in action_list:
-        res = action_index.count(items)
-        probaility_1.append(res)
-    fact = 1
-    for items in probaility_1:
-        fact = fact *np.math.factorial(items)
-    action_len = len(action_index)
-    advance_func = np.math.factorial(action_len)/fact
-
-    res= [pow(a,b) for a,b in zip(real_probability,probaility_1)]
-    result = 1
-    for items in res:
-        result = result *items
-    final_probability = result *advance_func
+    # action_list= [-8,-4,0,4,8]
+    # real_probability = [0.03,0.15,0.39,0.42,0.01]
+    action_list= [-4,-2,0,2,4]
+    real_probability = [0.055,0.098,0.306,0.225,0.183]
+    real_probability = np.array(real_probability)
+    final_probability = real_probability[np.argwhere(np.array(action_list)==action_index)]
+    final_probability = final_probability[0,0]
+    if action_index == -2:
+        final_probability = final_probability+real_probability[0]
+    if action_index == 2:
+        final_probability = final_probability+real_probability[3]
+    if action_index == 0:
+        final_probability = -1
+        
     return final_probability
 
-def run_session_adv(config, test_mode):
+def run_session_adv(config, test_mode, robo_real_demo = False):
     """
     this function starts the training or evaluation process of the simulation-gap-adversary
     be sure to pass the right path to your map in Environment.
@@ -128,7 +131,7 @@ def run_session_adv(config, test_mode):
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones,  = [], [], [], [], [], [], []
         action_list = []
         action_value = []
-
+        base_info = get_base_info()
         while not done:
             step_counter += 1
 
@@ -139,30 +142,62 @@ def run_session_adv(config, test_mode):
             t3 = time.perf_counter()
             #converting the action from 0 to 100 into angle
             if action_index == 0:
-                obstacle_localization_offset = -8
-                probability = 0.03
-            elif action_index == 1:
                 obstacle_localization_offset = -4
-                probability = 0.15  
+                probability = 0.055
+            elif action_index == 1:
+                obstacle_localization_offset = -2
+                probability = 0.098  
             elif action_index == 2:
                 obstacle_localization_offset = 0
-                probability = 0.39  
+                probability = 0.306  
             elif action_index == 3:
-                obstacle_localization_offset = 4
-                probability = 0.42
+                obstacle_localization_offset = 2
+                probability = 0.225
             elif action_index == 4:
-                obstacle_localization_offset = 8
-                probability = 0.01
+                obstacle_localization_offset = 4
+                probability = 0.183
             else:
                 obstacle_localization_offset = 1
                 probability = 0
-            
+            # Old action space and probs, used in thesis paper eval
+            # action_index == 0:  
+            #     obstacle_localization_offset = -8
+            #     probability = 0.03
+            # elif action_index == 1:
+            #     obstacle_localization_offset = -4
+            #     probability = 0.15  
+            # elif action_index == 2:
+            #     obstacle_localization_offset = 0
+            #     probability = 0.39  
+            # elif action_index == 3:
+            #     obstacle_localization_offset = 4
+            #     probability = 0.42
+            # elif action_index == 4:
+            #     obstacle_localization_offset = 8
+            #     probability = 0.01
+            # else:
+            #     obstacle_localization_offset = 1
+            #     probability            
             #action_list.append(obstacle_localization_offset)
             #action = int(sum(action_list)/len(action_list))
             #print(action)
             ##action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+            # observation_, reward, done, collision_status, _ = env.step_adv1(obstacle_localization_offset, probability,env)
             observation_, reward, done, collision_status, _ = env.step_adv1(obstacle_localization_offset, probability,env)
             step_total_time += time.perf_counter() - t3
+
+
+            if robo_real_demo:
+                global real_data
+
+                navigate_to_point(get_amcl_from_pixel_location(env.trajectory_vanilla[step_counter].x,env.trajectory_vanilla[step_counter].y,*base_info), real_data)
+                if done:
+                    for step_rev in range(step_counter,-1,-1):
+                        navigate_to_point(get_amcl_from_pixel_location(env.trajectory_vanilla[step_rev].x,env.trajectory_vanilla[step_rev].y,*base_info), real_data)
+                # if done
+                #     if collision_status
+                #         wait 
+                #     walk reversed
 
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
@@ -185,9 +220,10 @@ def run_session_adv(config, test_mode):
             action_value.append(obstacle_localization_offset )
             if done:
                 if collision_status == 1:
-                    risk_value = risk_calculation(action_value)
+                    risk_value = risk_calculation(action_value[-1])
                     collisions.append(1)
                 else:
+
                     risk_value= 0
                     collisions.append(0)
                 adv1.remember(ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones)
@@ -256,11 +292,32 @@ def run_session_adv(config, test_mode):
         #print('choose_action_total_time:', choose_action_total_time)
         # print('step_total_time:', step_total_time)
 
+def realCallback(data):
+  
+    global real_data
+    real_data = ['real_data',
+                 data.pose.pose.position.x, 
+                 data.pose.pose.position.y,
+                 data.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
+                 data.header.stamp]
+    
+    print("--------------------------------------------------------------------")
+    print(real_data[1], real_data[2])
+
 
 def main():
-    print(config.configs[0])
-    run_session_adv(config.configs[0], test_mode=True)
 
+    print(config.configs[0])
+    robo_real_demo = False
+    if robo_real_demo:
+        rospy.init_node('test_thinesh', anonymous=True)
+        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, realCallback, queue_size=10)
+        while not rospy.is_shutdown():
+            rospy.sleep(1)
+            global real_data
+            print(real_data)
+            run_session_adv(config.configs[0], test_mode=False,robo_real_demo=robo_real_demo)
+    run_session_adv(config.configs[0], test_mode=False)
     print('training/evaluation finished')
 
 

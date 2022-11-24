@@ -8,10 +8,11 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 from PRM import apply_PRM, apply_PRM_init, draw_traj, calc_adv_traj, Node, get_traj_edges, get_node_with_coordinates, calc_nearest_dist
-from object_detection import apply_object_detection
+from object_detection import Obstacle, apply_object_detection
 import copy
-
+from copy import deepcopy
 sys.setrecursionlimit(2000)
+from time import sleep
 
 ACTION_SPACE_STEP_ADVERSARY = 5
 N_ACTIONS_ADVERSARY = 5
@@ -146,6 +147,8 @@ def generate_obs_from_rgb_img(img_grey):
     v3 = 100
     v4 = 205
     v5 = 210
+    # new_map = Image.fromarray(pixels.astype('uint8'), mode='L')
+    # new_map.show()
 
     pixels[pixels == v1] = 0.6
     pixels[pixels == v2] = 0.2
@@ -175,15 +178,33 @@ def initialize_map(map_path):
     @return: reference map and the detected obstacles (with its borders)
     """
     map_ref, obstacles = apply_object_detection(map_path)
-
+    # adding the box that the detection does not see
+    order = [0,1,3,2]
+    order = [3,0,1,2]
+    obstacles[0].corners = [obstacles[0].corners[i] for i in order]
+    add = [(1,1),(1,-1),(-1,-1),(-1,1)]
+    corners_hand = [(102,123),(103,117),(94,115),(92,120)]
+    corners_hand = [tuple(map(lambda i,j:i+j,corners_hand[i],add[i])) for i in range(4)]
+    obst_hand = Obstacle(corners_hand)
+    obstacles.append(obst_hand)
     # --- only for test we use the already processed map ---
     # obstacles = None
     # ref_map_path = 'map_ref.png'
     # map_ref = Image.open(ref_map_path)
-    obstacle_adversary(obstacles,2)
+    # obstacle_adversary(obstacles,2)
   
 
     return map_ref, obstacles
+
+def convert_grid_to_pix(x_r,y_r):
+    """
+    change from grid cords into pixel cords so that we only move the objects sideways relative to their orientation
+    @param cords of the movement in grid cords
+    @return tuple of the movement in pixel cords
+    """
+    x_g = x_r*np.cos(-1.204)-y_r*np.sin(-1.204)
+    y_g = x_r*np.sin(-1.204)+y_r*np.cos(-1.204)
+    return (x_g,y_g)
 
 def obstacle_adversary(obstacles,action_index):
     """
@@ -192,17 +213,21 @@ def obstacle_adversary(obstacles,action_index):
     @param action_index: action of the adversary
     @return: modified obstacles
     """
+    action_index = convert_grid_to_pix(*action_index)
     obstacles_disturbed =  obstacles
     #print(obstacles_disturbed)
-    for o in range(0,2):
+    for o in range(0,len(obstacles)):
         for i in range(0,len(obstacles[o].corners)):
-            obstacles_disturbed[o].corners[i] = tuple(map(lambda j,k : j + k, obstacles_disturbed[o].corners[i], (action_index*np.cos(0.48),action_index*np.sin(0.48))))
+            obstacles_disturbed[o].corners[i] = tuple(map(lambda j,k : j + k, obstacles_disturbed[o].corners[i], action_index))
         for i in range(0,len(obstacles[o].borders)):
-            obstacles_disturbed[o].borders[i][0] = tuple(map(lambda j,k : j + k*np.cos(0.48), obstacles_disturbed[o].borders[i][0], (action_index*np.cos(0.48),action_index*np.sin(0.48))))
-            obstacles_disturbed[o].borders[i][1] = tuple(map(lambda j,k : j + k*np.cos(0.48), obstacles_disturbed[o].borders[i][1], (action_index*np.cos(0.48),action_index*np.sin(0.48))))
-    #print(obstacles_disturbed)
-  
+            obstacles_disturbed[o].borders[i][0] = tuple(map(lambda j,k : j + k*np.cos(0), obstacles_disturbed[o].borders[i][0], action_index))
+            obstacles_disturbed[o].borders[i][1] = tuple(map(lambda j,k : j + k*np.cos(0), obstacles_disturbed[o].borders[i][1], action_index))
 
+        #     obstacles_disturbed[o].corners[i] = tuple(map(lambda j,k : j + k, obstacles_disturbed[o].corners[i], action_index[o]))
+        # for i in range(0,len(obstacles[o].borders)):
+        #     obstacles_disturbed[o].borders[i][0] = tuple(map(lambda j,k : j + k*np.cos(0), obstacles_disturbed[o].borders[i][0], action_index[o]))
+        #     obstacles_disturbed[o].borders[i][1] = tuple(map(lambda j,k : j + k*np.cos(0), obstacles_disturbed[o].borders[i][1], action_index[o]))
+    #print(obstacles_disturbed)
     return obstacles_disturbed
 
 def initialize_traj(map_ref, obstacles=None, nodes=None, visualize=False, edges_all=None, env=None):
@@ -238,12 +263,12 @@ def initialize_traj(map_ref, obstacles=None, nodes=None, visualize=False, edges_
     else:
         #import pdb; pdb.set_trace()
         # for specific start / goal location: ------------------
-        #start_node = get_node_with_coordinates(nodes, (66, 69))
-        #goal_node = get_node_with_coordinates(nodes, (116, 102))
+        start_node = get_node_with_coordinates(nodes,(140,123)) #(66, 69))
+        goal_node = get_node_with_coordinates(nodes, (76,98))#(116, 102))
         #traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize, start_node=start_node, goal_node=goal_node)
         # ------------------------------------------------------
-
-        traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
+        # TODO make this part of the config to pass the start and end
+        traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize,start_node= start_node, goal_node = goal_node)
     # print('fresh trajectory:', traj)
 
     return traj, nodes, edges_all
@@ -396,6 +421,8 @@ class Environment:
         # self.observation_space = gym.spaces.Box(low=np.full((160, 160), 0), high=np.full((160, 160), 1), shape=(160, 160), dtype=int) # 0: empty, 1: object, 2: trajectory segment (planned), 3: current position
         self.adversary = adversary
         self.map_ref, self.obstacles = initialize_map(map_path)
+        self.obstacles_org = copy.deepcopy(self.obstacles)
+        self.map_ref_adv = copy.deepcopy(self.map_ref)
         self.observation_space = self.map_ref.size
         self.trajectory_vanilla, self.nodes_vanilla, self.edges_all_vanilla = initialize_traj(self.map_ref, self.obstacles, nodes=None)
         #self.nodes_prot, self.edges_all_prot = copy_nodes(self.edges_all_vanilla)
@@ -404,8 +431,30 @@ class Environment:
         self.edges_vanilla = get_traj_edges(self.trajectory_vanilla)
         self.done_after_collision = done_after_collision
         self.visualize = visualize
+        self.trajectory_adv = []
         self.action_list = []
         #self.state_prot = initialize_state_prot(self, visualize=True)
+
+    
+    def modify_map(self):
+        self.map_ref_adv = deepcopy(self.map_ref)
+        self.map_ref_adv = self.map_ref_adv.convert('RGB')
+        map_ref_adv_draw = ImageDraw.Draw(self.map_ref_adv)
+        add = [(2,2),(2,-2),(-2,-2),(-2,2)]
+        for obstacle in self.obstacles_org:
+            # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='black')
+            # increase the size of the obstacle by one pixel
+            corners = [tuple(map(lambda i,j:i+j,obstacle.corners[i],add[i])) for i in range(4)]
+            map_ref_adv_draw.polygon(corners,fill=(0,0,0),outline=(0,0,0))
+        add = [(0,0),(0,-0),(-1,-1),(-0,0)]
+        for obstacle in self.obstacles:
+            # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='white')
+            corners = [tuple(map(lambda i,j:i+j,obstacle.corners[i],add[i])) for i in range(4)]
+            map_ref_adv_draw.polygon(obstacle.corners,fill=(255,255,255),outline=(255,255,255))
+        self.map_ref_adv = self.map_ref_adv.convert('L')
+        # self.map_ref.show()
+        # self.map_ref_adv.show()
+        # sleep(2)
 
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
     def step_adv1(self, action, probability,env):
@@ -434,8 +483,10 @@ class Environment:
         
         #print(self.obstacles)
         self.action_list.append(action)
-        obstacles_disturbed = obstacle_adversary(self.obstacles,action)
-        
+        # TODO 
+        # make this change based on amount of obstacles
+        obstacles_disturbed = obstacle_adversary(self.obstacles,(action,0))
+        #obstacles_disturbed = obstacle_adversary(self.obstacles,(action,action))
         
         #print(self.obstacles
         #print(obstacles_disturbed)
@@ -463,8 +514,14 @@ class Environment:
         segment_adv_coordinates = [self.state_adv1.position, pos_new]
         segment_adv_coordinates.extend(traj_vanilla_coordinates)
         # t3 = time.perf_counter()
-        segment_adv_nodes, segments_adv = calc_adv_traj(self.map_ref, segment_adv_coordinates, obstacles_disturbed)
+
+        self.modify_map()
+        segment_adv_nodes, segments_adv = calc_adv_traj(self.map_ref_adv, segment_adv_coordinates, obstacles_disturbed)
         
+        if not self.trajectory_adv:
+            self.trajectory_adv.append(segments_adv[0].node1)        
+        self.trajectory_adv.append(segments_adv[-1].node2)
+
         # calc_adv_traj_time = time.perf_counter()-t3
         cost_adv_segments = 0
 
@@ -529,11 +586,12 @@ class Environment:
         if cost_difference >= 9999:   # colission occured
             reward = 1  # 1
             collision = 1
-            '''if os.path.isfile('./image/adv_trajectory.png'):
+            if os.path.isfile('./image/adv_trajectory.png'):
                 visu_adv_traj_map = Image.open('./image/adv_trajectory.png')
             else:
                 #visu_adv_traj_map = copy.deepcopy(Image.open('./image/map_traj.png'))
-                visu_adv_traj_map = copy.deepcopy(self.map_ref)
+                # visu_adv_traj_map = copy.deepcopy(self.map_ref)
+                visu_adv_traj_map = copy.deepcopy(self.map_ref_adv)
                 
             visu_adv_traj_map = visu_adv_traj_map.convert('RGB')
             visu_adv_traj_map_draw = ImageDraw.Draw(visu_adv_traj_map)
@@ -542,8 +600,13 @@ class Environment:
                 visu_adv_traj_map_draw.line([(self.trajectory_vanilla[i].coordinates[0], self.trajectory_vanilla[i].coordinates[1]), (self.trajectory_vanilla[i+1].coordinates[0], self.trajectory_vanilla[i+1].coordinates[1])], fill=(255, 255, 0))
                 visu_adv_traj_map_draw.point([(self.trajectory_vanilla[i].coordinates[0], self.trajectory_vanilla[i].coordinates[1])], fill=(200, 255, 0))
                 visu_adv_traj_map_draw.point([(self.trajectory_vanilla[i+1].coordinates[0], self.trajectory_vanilla[i+1].coordinates[1])], fill=(200, 255, 0))
+           
+            for i in range(0,self.state_adv1.traj_index-1):
+                visu_adv_traj_map_draw.line([(self.trajectory_adv[i].coordinates[0], self.trajectory_adv[i].coordinates[1]), (self.trajectory_adv[i+1].coordinates[0], self.trajectory_adv[i+1].coordinates[1])], fill=(0, 0, 255))
+                visu_adv_traj_map_draw.point([(self.trajectory_adv[i].coordinates[0], self.trajectory_adv[i].coordinates[1])], fill=(0, 0, 255))
+                visu_adv_traj_map_draw.point([(self.trajectory_adv[i+1].coordinates[0], self.trajectory_adv[i+1].coordinates[1])], fill=(0, 0, 255))
             
-            for i in range(0,2):
+            '''for i in range(0,2):
                 for j in range(0, len(obstacles_disturbed[i].corners)):
                     visu_adv_traj_map_draw.point([(obstacles_disturbed[i].corners[j])], fill=(255, 0, 0))
             for i in range(0,2):
@@ -553,22 +616,58 @@ class Environment:
                                
                 #visu_adv_traj_map_draw.line([(self.traj_adversary[i][0], self.traj_adversary[i][1]), (self.traj_adversary[i+1][0], self.traj_adversary[i+1][1])], fill=(255, 255, 0))
                 #visu_adv_traj_map_draw.point([(self.traj_adversary[i][0], self.traj_adversary[i][1])], fill=(255, 255, 0))
-                #visu_adv_traj_map_draw.point([(self.traj_adversary[i+1][0], self.traj_adversary[i+1][1])], fill=(255, 255, 0))
+                #visu_adv_traj_map_draw.point([(self.traj_adversary[i+1][0], self.traj_adversary[i+1][1])], fill=(255, 255, 0))'''
             try:
                 visu_adv_traj_map.save('./image/adv_trajectory.png')
                 visu_adv_traj_map.save('./image/adv_trajectory_DEBUG.png')
             except PermissionError:
-                print('permissionError when saving file')'''
+                print('permissionError when saving file')
             if self.done_after_collision:
                 done = True
                 action_sum=  sum(self.action_list)
                 print(self.action_list)
-                self.obstacles = obstacle_adversary(obstacles_disturbed, -action_sum)
+                # self.obstacles = obstacle_adversary(obstacles_disturbed, (-action_sum,0))
+                #self.obstacles = obstacle_adversary(obstacles_disturbed, (-action_sum,-action_sum))
                 self.action_list = []
 
                 # print('collision')
         else:
             reward = distance_reward
+        
+
+        update_map_each_step = False
+        if update_map_each_step:
+            visu_adv_traj_map = copy.deepcopy(self.map_ref_adv)
+                
+            visu_adv_traj_map = visu_adv_traj_map.convert('RGB')
+            visu_adv_traj_map_draw = ImageDraw.Draw(visu_adv_traj_map)
+            #visu_adv_traj_map_draw.line([(adv1_node1.coordinates[0], adv1_node1.coordinates[1]), (adv1_node2.coordinates[0], adv1_node2.coordinates[1])], fill=(255, 0, 0))
+            for i in range(0,self.state_adv1.traj_index):
+                visu_adv_traj_map_draw.line([(self.trajectory_vanilla[i].coordinates[0], self.trajectory_vanilla[i].coordinates[1]), (self.trajectory_vanilla[i+1].coordinates[0], self.trajectory_vanilla[i+1].coordinates[1])], fill=(255, 255, 0))
+                visu_adv_traj_map_draw.point([(self.trajectory_vanilla[i].coordinates[0], self.trajectory_vanilla[i].coordinates[1])], fill=(200, 255, 0))
+                visu_adv_traj_map_draw.point([(self.trajectory_vanilla[i+1].coordinates[0], self.trajectory_vanilla[i+1].coordinates[1])], fill=(200, 255, 0))
+            
+            for i in range(0,self.state_adv1.traj_index-1):
+                visu_adv_traj_map_draw.line([(self.trajectory_adv[i].coordinates[0], self.trajectory_adv[i].coordinates[1]), (self.trajectory_adv[i+1].coordinates[0], self.trajectory_adv[i+1].coordinates[1])], fill=(0, 0, 255))
+                visu_adv_traj_map_draw.point([(self.trajectory_adv[i].coordinates[0], self.trajectory_adv[i].coordinates[1])], fill=(0, 0, 255))
+                visu_adv_traj_map_draw.point([(self.trajectory_adv[i+1].coordinates[0], self.trajectory_adv[i+1].coordinates[1])], fill=(0, 0, 255))
+            
+            '''for i in range(0,2):
+                for j in range(0, len(obstacles_disturbed[i].corners)):
+                    visu_adv_traj_map_draw.point([(obstacles_disturbed[i].corners[j])], fill=(255, 0, 0))
+            for i in range(0,2):
+                for j in range(0, len(obstacles_disturbed[i].borders)):
+                    
+                    visu_adv_traj_map_draw.line([obstacles_disturbed[i].borders[j][0], obstacles_disturbed[i].borders[j][1]], fill=(255, 0, 0))
+                                
+                #visu_adv_traj_map_draw.line([(self.traj_adversary[i][0], self.traj_adversary[i][1]), (self.traj_adversary[i+1][0], self.traj_adversary[i+1][1])], fill=(255, 255, 0))
+                #visu_adv_traj_map_draw.point([(self.traj_adversary[i][0], self.traj_adversary[i][1])], fill=(255, 255, 0))
+                #visu_adv_traj_map_draw.point([(self.traj_adversary[i+1][0], self.traj_adversary[i+1][1])], fill=(255, 255, 0))'''
+            try:
+                visu_adv_traj_map.save('./image/adv_trajectory.png')
+                visu_adv_traj_map.save('./image/adv_trajectory_DEBUG.png')
+            except PermissionError:
+                print('permissionError when saving file')
 
         self.state_adv1.position = pos_new
         self.state_adv1.angle = angle_new
@@ -579,7 +678,9 @@ class Environment:
             done = True
             action_sum=  sum(self.action_list)
             print(self.action_list)
-            self.obstacles = obstacle_adversary(obstacles_disturbed, -action_sum)
+            # self.obstacles = obstacle_adversary(obstacles_disturbed, (-action_sum,0))
+            #self.obstacles = obstacle_adversary(obstacles_disturbed, (-action_sum,-action_sum))
+
             self.action_list = []
 
         if not done:
@@ -597,6 +698,7 @@ class Environment:
             
         info = collision
         
+        self.obstacles = obstacle_adversary(obstacles_disturbed, (-action,0))
 
         return self.state_adv1.obs, reward, done, info, adv1_node2
 
@@ -628,6 +730,7 @@ class Environment:
             self.state_adv1.traj_index = 1
             self.state_prot = initialize_state_prot(self)
             obs_ret = self.state_prot.obs
+        self.trajectory_adv = []
         # print('Fresh:', self.trajectory_vanilla)
 
         return obs_ret

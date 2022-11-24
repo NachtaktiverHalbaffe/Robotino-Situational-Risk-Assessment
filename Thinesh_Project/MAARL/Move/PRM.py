@@ -667,7 +667,9 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
 
 
 
-def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [119, 134], end = [85,80]):
+# def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [140, 123], end = [76,98]):
+def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [150, 117], end = [76,98]):
+# def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None):
     """
     applies the whole PRM process which includes all steps like sampling nodes, building a graph and
     calculating the trajectory
