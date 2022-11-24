@@ -91,14 +91,14 @@ class MonteCarloTreeSearch:
                # print("action index: ", action_index)
                 """ Step Function"""
                 action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                observation_, reward, done, collision_status, _ = self.env.step_adv1(action_angle_offset, create_leaf_node=False, keep_searching=False)
+                observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, create_leaf_node=False, keep_searching=False)
                 if collision_status:
                     n_collisions+=1
                     if done_after_collision == True:
                         return observation_, reward, True, collision_status, _
                 else:
                     n_successes+=1
-            observation_, reward, done, collision_status, _ = self.env.step_adv1(action_angle_offset, keep_searching=False)
+            observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
                 #return observation_, reward, True, collision_status, _ 
         else:
             print("reset environment")
@@ -113,7 +113,7 @@ class MonteCarloTreeSearch:
                         action_index = full_tree[j][i]
                         #print("action index: ", action_index)
                         action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                        observation_, reward, done, collision_status, _ = self.env.step_adv1(action_angle_offset, keep_searching=False)
+                        observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
                         if collision_status:
                             n_collisions+=1
                             if done_after_collision == True:
@@ -132,7 +132,7 @@ class MonteCarloTreeSearch:
                     action_index = full_tree[j][i]
                     #print("action index: ", action_index)
                     action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                    observation_, reward, done, collision_status, _ = self.env.step_adv1(action_angle_offset, keep_searching=False)
+                    observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
                     #a = input()
                     if collision_status:
                         n_collisions+=1

@@ -14,7 +14,7 @@ config_1 = {
     'entropy_coef': 0.01,
     'value_loss_coef': 0.5,
     'model_arch': 'normal',
-    'log_interval': 1,
+    'log_interval': 10,
     'log_name': 'adv_1',    # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
     'map_path': './maps/map_y.png',
     'geo_path': './maps/map_g.png',

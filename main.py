@@ -95,7 +95,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     mcts_total_time = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
-        n_episodes_eval = 1000
+        n_episodes_eval = 100
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
         choose_action_total_time = 0
@@ -153,7 +153,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             if test_mode:
                 if mcts_eval:
                     t4 = time.perf_counter()
-                    observation_, reward, done, collision_status, _ = mcts.take_action(action_space, False)
+                    observation_, reward, done, collision_status, _ = mcts.take_action(action_space, done_after_collision= False)
                     mcts_total_time += time.perf_counter() - t4
 
             #print("collision_status: ", collision_status)
@@ -180,10 +180,10 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             ep_dones.append(done)
 
             if done:
-                if len(traj_vanilla) == 2:
-                    new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
-                new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
-                print("Left over edges: ", len(traj_vanilla) - node_num)
+                # if len(traj_vanilla) == 2:
+                #     new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
+                # new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
+                #print("Left over edges: ", len(traj_vanilla) - node_num)
                 if collision_status == 1:
                     collisions.append(1)
                     print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
@@ -192,6 +192,10 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                     print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)      
 
                 if (mcts_eval == False): 
+                    print("Left over edges: ", len(traj_vanilla) - node_num)
+                    new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
+                    if len(traj_vanilla) == 2:
+                        new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
                     while (len(traj_vanilla) - node_num-1)>0:
                         done = False
                         env.reset_traj(node_num, pos=pos_prev)
@@ -394,7 +398,7 @@ def mains(mode=True):
     done = False
 
     for i in range(0, n_sessions):
-        run_session_adv(config.configs[i], test_mode=mode, mcts_eval=False)
+        run_session_adv(config.configs[i], test_mode=mode, mcts_eval=True)
 
     print('training/evaluation finished')
     done = True

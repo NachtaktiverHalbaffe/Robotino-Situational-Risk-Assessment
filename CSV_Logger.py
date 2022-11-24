@@ -77,6 +77,8 @@ class CSV_Reader:
 
         with open((logs_path+self.path), newline='') as csvfile:
             reader = csv.reader(csvfile, delimiter=';')
+            #row_count = sum(1 for row in reader)
+            #print("Rows: ", row_count)
             i = 0
             step_index = self.data_labels.index('step')
             reward_index = self.data_labels.index('reward')
@@ -91,6 +93,7 @@ class CSV_Reader:
                     continue
                 # if i % 2:   # only take every second data point
                 #     continue
+                #print(int(row[step_index]))
                 self.steps.append(int(row[step_index]))
                 self.rewards.append(float(row[reward_index]))
                 self.actions_0.append(np.float(row[action_0_index]))
@@ -101,12 +104,18 @@ class CSV_Reader:
                 self.values.append(np.float(row[value_index]))
                 self.collisions.append(np.float(row[collision_index]))
                 self.length_ratios.append(np.float(row[length_ratio_index]))
+                if i == 8512:
+                    break
 
             avg = np.mean(self.rewards)
             var = np.var(self.rewards)
             print('read data.')
-            print('mean:', np.mean(self.rewards))
+            print('mean reward:', np.mean(self.rewards))
             print('variance:', np.var(self.rewards))
+
+            print('mean collision', np.mean(self.collisions))
+            print('mean action 0:', np.mean(self.actions_0))
+            print('mean action 1:', np.mean(self.actions_1))
 
             if self.test_mode:
                 with open((logs_path+self.path), 'a', newline='') as csvfile:
