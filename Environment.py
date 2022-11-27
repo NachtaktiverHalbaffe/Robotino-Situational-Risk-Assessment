@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw
 from PRM import apply_PRM, apply_PRM_init, draw_traj, calc_adv_traj, Node, get_traj_edges, get_node_with_coordinates, calc_nearest_dist
 from object_detection import apply_object_detection
 import copy
+import config
 
 sys.setrecursionlimit(2000)
 
@@ -389,6 +390,9 @@ class Environment:
         self.visualize = visualize
         self.state_prot = initialize_state_prot(self, visualize=True)
 
+        """ Swapnil code"""
+        self.traj_adversary = []
+
     def reset_traj(self, node_num=1, pos=[-1,-1]):
         self.state_adv1.traj_index = node_num
         if pos[0] == -1:
@@ -397,7 +401,7 @@ class Environment:
         else: self.state_adv1.position = pos
         self.state_adv1.angle = 0
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
-    def step_adv1(self, action):
+    def step_adv1(self, action, action_prob):
         """
         applies the action of the sim-gap-adv in the environment
         @param action: angle offset (action of adversary)
@@ -453,7 +457,12 @@ class Environment:
             pos_new[1]= pos_new[1]+action+1
             pos_new[0]= pos_new[0]+1
 
-        segment_adv_coordinates.extend(traj_vanilla_coordinates)
+        """ Swapnil code"""
+        self.traj_adversary.append(pos_new)
+        
+        """ Stephan code"""    
+        #segment_adv_coordinates.extend(traj_vanilla_coordinates)
+        
         # t3 = time.perf_counter()
         segment_adv_nodes, segments_adv = calc_adv_traj(self.map_ref, segment_adv_coordinates, self.obstacles)
         # calc_adv_traj_time = time.perf_counter()-t3
@@ -518,7 +527,10 @@ class Environment:
                 done = True
                 print('\U0001F6AB - collision')
         else:
-            reward = distance_reward
+            """ swapnil """
+            reward = distance_reward*action_prob*config.configs[i]['prob_const']
+            """ Stephan """
+            #reward = distance_reward
         old_position = self.state_adv1.position
         #print("Old Position: ", old_position)
 
@@ -526,15 +538,7 @@ class Environment:
         self.state_adv1.angle = angle_new
         """ Increment a trajectory index"""
         self.state_adv1.traj_index += 1
-        #print("New Position: ", self.state_adv1.position)
-        # if depth == 2:
-        #     self.state_adv1.traj_index -= 1
-            #self.state_adv1.position = pos_old
-            #self.state_adv1.angle = angle_old
-            # previous position
-       # print("Position new: ", pos_new)
-       # print("Angle new: ", angle_new)
-            
+
         relevant_max = min(relevant_max+1, len(self.trajectory_vanilla))
 
         if self.state_adv1.traj_index >= len(self.trajectory_vanilla):
