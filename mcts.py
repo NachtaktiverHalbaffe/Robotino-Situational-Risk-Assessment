@@ -1,11 +1,11 @@
 from ppo import *
 import numpy as np
-
+from main import action_prob, choose_action
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
 
 class MonteCarloTreeSearch:
-    def __init__(self, actions, traj_vanilla, environment=None, observation=None, test_mode=False, adv=None):
+    def __init__(self, actions, traj_vanilla, environment=None, adv1=None, observation=None, test_mode=False, adv=None):
         #super().__init__()
         self.actions = actions # Number of actions
         self.traj_vanilla = traj_vanilla    # Original trajectory
@@ -19,6 +19,7 @@ class MonteCarloTreeSearch:
         self.edges = self.Nodes -1 # Number of edges correspond to series of actions
         self.env = environment # Default environment
         self.full_tree = None
+        self.adv1 = adv1
 
     def untried_actions(self):
         print("Series of actions taken: ", self.actions_taken)
@@ -83,70 +84,81 @@ class MonteCarloTreeSearch:
         n_collisions = 0
         n_successes = 0
         self.actions_taken = 0
+        cumm_risk = 0
         if self.edges == 1:
             self.env.reset_traj(node_num=start_node)
-            action_space = [0,1,2,4,5]
+            action_space = [0,1,2,3,4]
             self.actions_taken +=1 
             for action_index in action_space:
                # print("action index: ", action_index)
                 """ Step Function"""
-                action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, create_leaf_node=False, keep_searching=False)
+                pos_offset = choose_action(action_index)
+                action_prob_value = action_prob(action_index)
+                observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
+
+                #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
+                #observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, create_leaf_node=False, keep_searching=False)
                 if collision_status:
                     n_collisions+=1
                     if done_after_collision == True:
-                        return observation_, reward, True, collision_status, _
+                        return observation, reward, True, collision_status, _
                 else:
                     n_successes+=1
-            observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
+
+                self.env.reset_traj(node_num=start_node)
+            #observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
                 #return observation_, reward, True, collision_status, _ 
         else:
             print("reset environment")
 
             if binary_tree:
                 print("creating binary tree")
-                for i in range(2):
-                #print("set previous environment")
-                    self.env.reset_traj(node_num=start_node)
-                    self.actions_taken +=1 
-                    for j in range(full_tree.shape[0]):
-                        action_index = full_tree[j][i]
-                        #print("action index: ", action_index)
-                        action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                        observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
-                        if collision_status:
-                            n_collisions+=1
-                            if done_after_collision == True:
-                                return observation_, reward, True, collision_status, _
-                            break
-                        elif done and not collision_status:
-                            n_successes+=1
 
-                    
-                
             for i in range(full_tree.shape[1]):
                 #print("set previous environment")
                 self.env.reset_traj(node_num=start_node)
                 self.actions_taken +=1 
+                risk = 1
+                observation = self.observation
                 for j in range(full_tree.shape[0]):
                     action_index = full_tree[j][i]
                     #print("action index: ", action_index)
-                    action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                    observation_, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, keep_searching=False)
+                    action_index_opt, prob, val, raw_probs = self.adv1.choose_action(observation, test_mode=True)
+                    probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
+                    #print(probs_all[action_index])
+                    pos_offset = choose_action(action_index)
+                    action_prob_value = action_prob(action_index) #Probability of occurance
+                    #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                    observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
+                    
+                    #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
+                    #observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, action_prob_value)
+                    po_pc = probs_all[action_index] * action_prob_value
+                    risk *= action_prob_value
                     #a = input()
                     if collision_status:
                         n_collisions+=1
                         if done_after_collision == True:
-                            return observation_, reward, True, collision_status, _
+                            return observation, reward, True, collision_status, _
                         break
                     elif done and not collision_status:
                             n_successes+=1
-                
-        print("Total Collisions: ", n_collisions)
-        print("Total Successes: ", n_successes)
-        print("Probability of being able to reach: ", n_successes/full_tree.shape[1])
-        print("Probability of Collision: ", n_collisions/full_tree.shape[1])
-        return observation_, reward, True, collision_status, _
+                #print("Risk: ", risk)
+                cumm_risk += risk
+                risk = 1
+            #a = input()
+        risk_avg = cumm_risk/full_tree.shape[1]
+        prob_collision = n_collisions/full_tree.shape[1]
+        risk_total = cumm_risk*prob_collision
+
+        # print("Cummulative Risk: ", cumm_risk)
+        # print("Average Risk: ", cumm_risk/full_tree.shape[1])
+        # print("Total Risk: ", cumm_risk*(n_collisions/full_tree.shape[1]))
+        # print("Total Collisions: ", n_collisions)
+        # print("Total Successes: ", n_successes)
+        # print("Probability of being able to reach: ", n_successes/full_tree.shape[1])
+        # print("Probability of Collision: ", n_collisions/full_tree.shape[1])
+        return observation, reward, True, collision_status, _, prob_collision
         
 
     def is_last_node(self):
@@ -188,6 +200,9 @@ class MonteCarloTreeSearch:
     def action_probability(self):
         """ return the probability of certain action"""
         pass
+
+    def __version__(self):
+        print("IAS_AR_0.22.1")
 
 # def main():
 #     actions = 5
