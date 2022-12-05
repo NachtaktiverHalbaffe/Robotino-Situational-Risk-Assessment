@@ -41,7 +41,7 @@
      <bool>false</bool>
     </property>
     <property name="currentIndex">
-     <number>5</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
@@ -477,7 +477,7 @@
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>641</width>
+        <width>711</width>
         <height>241</height>
        </rect>
       </property>
@@ -523,26 +523,13 @@
         <string>Stop RL</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="Control_btn">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>150</y>
-         <width>161</width>
-         <height>81</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Control</string>
-       </property>
-      </widget>
       <widget class="QPushButton" name="virtual_obj_btn">
        <property name="geometry">
         <rect>
-         <x>190</x>
-         <y>150</y>
-         <width>151</width>
-         <height>81</height>
+         <x>10</x>
+         <y>140</y>
+         <width>161</width>
+         <height>91</height>
         </rect>
        </property>
        <property name="text">
@@ -552,34 +539,55 @@
       <widget class="QPushButton" name="close_window_btn">
        <property name="geometry">
         <rect>
-         <x>360</x>
-         <y>150</y>
+         <x>190</x>
+         <y>140</y>
          <width>151</width>
-         <height>81</height>
+         <height>91</height>
         </rect>
        </property>
        <property name="text">
         <string>Close Windows</string>
        </property>
       </widget>
-      <widget class="QComboBox" name="shape_selector">
+      <widget class="QComboBox" name="tree_selector">
        <property name="geometry">
         <rect>
-         <x>520</x>
-         <y>150</y>
-         <width>111</width>
+         <x>360</x>
+         <y>190</y>
+         <width>151</width>
          <height>25</height>
         </rect>
        </property>
       </widget>
-      <widget class="QComboBox" name="rl_type_selector">
+      <widget class="QComboBox" name="shape_selector">
+       <property name="geometry">
+        <rect>
+         <x>360</x>
+         <y>140</y>
+         <width>151</width>
+         <height>25</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QTextEdit" name="info_box_rl">
        <property name="geometry">
         <rect>
          <x>520</x>
          <y>30</y>
-         <width>111</width>
-         <height>25</height>
+         <width>181</width>
+         <height>201</height>
         </rect>
+       </property>
+       <property name="font">
+        <font>
+         <italic>false</italic>
+        </font>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
        </property>
       </widget>
      </widget>
@@ -588,7 +596,7 @@
        <rect>
         <x>10</x>
         <y>260</y>
-        <width>641</width>
+        <width>711</width>
         <height>241</height>
        </rect>
       </property>
@@ -598,7 +606,7 @@
       <property name="title">
        <string>Machine Learning</string>
       </property>
-      <widget class="QPushButton" name="ML_custom">
+      <widget class="QPushButton" name="ML_train">
        <property name="geometry">
         <rect>
          <x>10</x>
@@ -611,7 +619,7 @@
         <string>Train</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="ML_2">
+      <widget class="QPushButton" name="ML_test">
        <property name="geometry">
         <rect>
          <x>190</x>
@@ -624,7 +632,7 @@
         <string>Test</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="ML_3">
+      <widget class="QPushButton" name="ML_autolabel">
        <property name="geometry">
         <rect>
          <x>360</x>
@@ -637,17 +645,35 @@
         <string>Auto Label</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="ML_4">
+      <widget class="QTextEdit" name="info_box_ml">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>150</y>
-         <width>161</width>
-         <height>81</height>
+         <y>130</y>
+         <width>681</width>
+         <height>91</height>
         </rect>
        </property>
-       <property name="text">
-        <string>Risk</string>
+       <property name="font">
+        <font>
+         <italic>false</italic>
+        </font>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="ml_algo_selector">
+       <property name="geometry">
+        <rect>
+         <x>520</x>
+         <y>30</y>
+         <width>171</width>
+         <height>31</height>
+        </rect>
        </property>
       </widget>
      </widget>
@@ -760,7 +786,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_Map">
    <property name="text">
-    <string>Open Map</string>
+    <string>Open</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
@@ -768,7 +794,7 @@
   </action>
   <action name="actionSave_Map">
    <property name="text">
-    <string>Save Map</string>
+    <string>Save</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -807,6 +833,11 @@
   <action name="actionTutorial">
    <property name="text">
     <string>Tutorial</string>
+   </property>
+  </action>
+  <action name="actionOpen_Cols_data">
+   <property name="text">
+    <string>Open Cols. data</string>
    </property>
   </action>
  </widget>
