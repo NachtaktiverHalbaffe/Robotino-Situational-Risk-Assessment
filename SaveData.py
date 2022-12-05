@@ -8,6 +8,7 @@ def traj_length(traj_vanilla):
         curr = traj_vanilla[i].coordinates
         length += np.linalg.norm(np.array(curr) - np.array(prev))
         prev = curr
+    length = np.round(length,4)
     return length
 
 def save_data(data=None, create_header=True):
@@ -32,4 +33,8 @@ def save_data(data=None, create_header=True):
             writer.writerow(d)
     
 if __name__ == '__main__':
-    save_data()
+    #save_data()
+    curr = [52,74]
+    prev = [49,83]
+    length = np.linalg.norm(np.array(curr) - np.array(prev))
+    print(length)

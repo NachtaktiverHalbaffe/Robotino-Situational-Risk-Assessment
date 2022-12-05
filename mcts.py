@@ -1,9 +1,21 @@
 from ppo import *
 import numpy as np
-from main import action_prob, choose_action
+
+from probability_cal import real_to_pixel , action_prob_cal , risk_calculation, cumm_risk
+
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
+# choosing the action to take in pixel 
+def choose_action(action_index):
+    action_to_take = real_to_pixel(action_index)
+    return action_to_take
 
+# to take the probability of the action choosen
+prob_occurance = [0.08,0.34,0.1,0.36,0.1]
+
+def action_prob(action_index):
+    return(prob_occurance[action_index])
+    
 class MonteCarloTreeSearch:
     def __init__(self, actions, traj_vanilla, environment=None, adv1=None, observation=None, test_mode=False, adv=None):
         #super().__init__()
@@ -31,7 +43,7 @@ class MonteCarloTreeSearch:
         self.n_untried_actions = np.array(n_untried_actions)
         return self.n_untried_actions
 
-    def expand(self, corner_cases=True, new_edges=False, num_edges=0):
+    def expand(self, binary_tree=True, new_edges=False, num_edges=0):
         print("Expanding a tree...")
         """ expand a tree"""
         """ steps
@@ -70,7 +82,7 @@ class MonteCarloTreeSearch:
                 #print(j)
                 final_actions[x][y] = j
                 y+=1
-        if corner_cases:
+        if binary_tree:
             final_actions = np.roll(final_actions, 1)
             final_actions[:,[2, int((total_actions+1)/2)]] = final_actions[:,[int((total_actions+1)/2), 2]]
         self.full_tree = final_actions
@@ -113,6 +125,8 @@ class MonteCarloTreeSearch:
 
             if binary_tree:
                 print("creating binary tree")
+                tree_rows = full_tree.shape[1]
+                
 
             for i in range(full_tree.shape[1]):
                 #print("set previous environment")
@@ -158,7 +172,7 @@ class MonteCarloTreeSearch:
         # print("Total Successes: ", n_successes)
         # print("Probability of being able to reach: ", n_successes/full_tree.shape[1])
         # print("Probability of Collision: ", n_collisions/full_tree.shape[1])
-        return observation, reward, True, collision_status, _, prob_collision
+        return observation, reward, True, collision_status, _, np.round(prob_collision,4), risk_total
         
 
     def is_last_node(self):
@@ -200,6 +214,37 @@ class MonteCarloTreeSearch:
     def action_probability(self):
         """ return the probability of certain action"""
         pass
+
+    def create_children(self, env, config, action_index):
+        #print("in create children")
+        action = 0
+        while (action < config['N_actions']):
+            #print(action)
+            action_index_ida = action
+
+            #t3 = time.perf_counter()
+            action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index_ida - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+
+            observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, create_leaf_node=False)
+            #step_total_time += time.perf_counter() - t3
+
+            """ Debugging code"""
+            if collision_status == 1:
+                #print("Action Index, collision status: ", action_index_ida, collision_status)
+                #break
+                action_index = action
+                action += 1
+                return action_index, observation_, reward, done, collision_status
+            else:
+                action += 1
+
+        return action_index, observation_, reward, done, collision_status
+
+    def expand_tree(self, env, config, action_index):
+    # print("in expand tree")
+        action_index, observation_, reward, done, collision_status = self.create_children(env=env, config=config, action_index=action_index)
+
+        return action_index, observation_, reward, done, collision_status
 
     def __version__(self):
         print("IAS_AR_0.22.1")
