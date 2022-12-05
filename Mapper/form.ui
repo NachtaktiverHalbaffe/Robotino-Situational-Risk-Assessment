@@ -24,7 +24,9 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
-    <string notr="true">background-image: url(Mapper/ml_rl_background.jpeg)</string>
+    <string notr="true">#centralwidget{
+background-image: url(Mapper/ml_rl_background.jpeg)
+}</string>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
@@ -38,7 +40,7 @@
        <bool>false</bool>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-image: url(/null/path)</string>
+       <string notr="true"/>
       </property>
       <property name="currentIndex">
        <number>0</number>
