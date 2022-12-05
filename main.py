@@ -120,7 +120,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     risk = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
-        n_episodes_eval = 100
+        n_episodes_eval = 6
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
         choose_action_total_time = 0
@@ -182,7 +182,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
                 if mcts_eval == "BRUTE_FORCE":
                     t4 = time.perf_counter()
-                    observation_, reward, done, collision_status, _, prob_collision = mcts.take_action(action_space, done_after_collision= False)
+                    observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(action_space, done_after_collision= False)
                     mcts_total_time += time.perf_counter() - t4
                     #print(traj_vanilla[0].coordinates, traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1])
                     length = traj_length(traj_vanilla)
@@ -202,10 +202,10 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                 observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
                 step_total_time += time.perf_counter() - t3
 
-            #print("collision_status: ", collision_status)
             # if collision_status:
             #     print("Untried actions: ", mcts.untried_actions())
-            
+
+            risk += risk_ep
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
             steps_val_log.append(np.round(val, 2))
@@ -339,17 +339,6 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             observation = observation_
 
         #a = input()
-        #new_action_index, temp_prob, node_num, pos_prev = find_best_child(probs_all, positions)
-        # print("Max 2nd Max Probs: ", temp_prob)
-        # print("Action Index: ", new_action_index)
-        # print("Node #: ", node_num)
-        # print("Previous Position: ", pos_prev)
-        # print("Left over edges: ", len(traj_vanilla) - node_num)
-        #new_action_index, temp_prob, node_num, pos_prev = find_best_child(probs, positions)
-        """ Expanding a tree completely"""
-        # print(bcolors.BOLD + bcolors.WARNING + "New Tree: " + bcolors.ENDC) 
-        # print(mcts.expand(new_edges=True, num_edges = len(traj_vanilla) - node_num))
-        #a = input()
         if episode % config['memory_size'] == 0:
             if config['anneal_lr']:
                 frac = 1.0 - (learn_iters - 1.0) / n_learn_iters
@@ -412,82 +401,39 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     print("Risk: ", risk/(n_episodes-1))
     print("Risk sqrt: ", np.sqrt(risk/(n_episodes-1)))
 
+    return risk/(n_episodes-1)
+
         #a = input()
         #print('reset_total_time:', reset_total_time)
         #print('choose_action_total_time:', choose_action_total_time)
         # print('step_total_time:', step_total_time)
 def find_best_child(raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
-    #node_num = 1
-    #prev_prob = 0
-    #for prob_act, position in zip(raw_probs, positions):
-    #print(raw_probs)
+
     for n in range(len(raw_probs)):
         """ Calculation 2nd max probability"""
-        #probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
         prob_act = raw_probs[n]
-        #print("Raw Probs: ", prob_act)
         indices = np.argsort(prob_act)
-        #print("Indices: ", indices)
         prob_act.sort()
-        # print("Probs Increasing: ", prob_act)
-        # print("2nd Max: ", prob_act[3])
 
         if prob_act[3] > prev_prob:
             action_index = indices[3]
             prev_prob = prob_act[3]
             pos_prev = positions[n]
             m_node_num = n + node_num
-            #i+=1
-            #print("2nd Max: ", prob_act[3])
-            
-    # print("Child: Action index:", action_index)
-    # print("Child: Prev prob:", prev_prob)
-    # print("Child: Node num: ", m_node_num)
-    # print("Child: Position:", pos_prev)
+
     return action_index,prev_prob, m_node_num, pos_prev
 
-def create_children(env, config, action_index):
-    #print("in create children")
-    action = 0
-    while (action < config['N_actions']):
-        #print(action)
-        action_index_ida = action
-
-        #t3 = time.perf_counter()
-        action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index_ida - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-
-        observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, create_leaf_node=False)
-        #step_total_time += time.perf_counter() - t3
-
-        """ Debugging code"""
-        if collision_status == 1:
-            #print("Action Index, collision status: ", action_index_ida, collision_status)
-            #break
-            action_index = action
-            action += 1
-            return action_index, observation_, reward, done, collision_status
-        else:
-            action += 1
-
-    return action_index, observation_, reward, done, collision_status
-
-def expand_tree(env, config, action_index):
-   # print("in expand tree")
-    action_index, observation_, reward, done, collision_status = create_children(env=env, config=config, action_index=action_index)
-
-    return action_index, observation_, reward, done, collision_status
-
-def mains(mode=True):
+def mains(mode=True, mcts_eval="BRUTE_FORCE"):
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
     for i in range(0, n_sessions):
-        run_session_adv(config.configs[i], test_mode=mode, mcts_eval="BRUTE_FORCE")
+        risk = run_session_adv(config.configs[i], test_mode=mode, mcts_eval=mcts_eval)
 
     print('training/evaluation finished')
     done = True
 
-    return done
+    return done, risk
 
 
 if __name__ == '__main__':
