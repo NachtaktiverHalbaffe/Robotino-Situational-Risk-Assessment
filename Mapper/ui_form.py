@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(826, 511)
+        MainWindow.resize(916, 511)
         MainWindow.setWindowOpacity(1.000000000000000)
         MainWindow.setAutoFillBackground(False)
         MainWindow.setStyleSheet(u"")
@@ -201,6 +201,13 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_8.addWidget(self.gen_map_btn)
 
+        self.label = QLabel(self.tab)
+        self.label.setObjectName(u"label")
+        self.label.setTextFormat(Qt.MarkdownText)
+        self.label.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
+        self.horizontalLayout_8.addWidget(self.label)
+
         self.speed_lcd = QLCDNumber(self.tab)
         self.speed_lcd.setObjectName(u"speed_lcd")
 
@@ -220,6 +227,11 @@ class Ui_MainWindow(object):
         self.path_to_map.setObjectName(u"path_to_map")
 
         self.horizontalLayout_7.addWidget(self.path_to_map)
+
+        self.Auto_map_chk = QCheckBox(self.tab)
+        self.Auto_map_chk.setObjectName(u"Auto_map_chk")
+
+        self.horizontalLayout_7.addWidget(self.Auto_map_chk)
 
 
         self.verticalLayout_5.addLayout(self.horizontalLayout_7)
@@ -241,10 +253,12 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_4.addWidget(self.traj_btn)
 
-        self.Auto_map_chk = QCheckBox(self.tab)
-        self.Auto_map_chk.setObjectName(u"Auto_map_chk")
+        self.label_2 = QLabel(self.tab)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setTextFormat(Qt.MarkdownText)
+        self.label_2.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
-        self.horizontalLayout_4.addWidget(self.Auto_map_chk)
+        self.horizontalLayout_4.addWidget(self.label_2)
 
         self.speed_real = QLCDNumber(self.tab)
         self.speed_real.setObjectName(u"speed_real")
@@ -314,15 +328,15 @@ class Ui_MainWindow(object):
         self.gridLayout_3.setHorizontalSpacing(6)
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-        self.shape_selector = QComboBox(self.groupBox)
-        self.shape_selector.setObjectName(u"shape_selector")
-
-        self.verticalLayout_2.addWidget(self.shape_selector)
-
         self.tree_selector = QComboBox(self.groupBox)
         self.tree_selector.setObjectName(u"tree_selector")
 
         self.verticalLayout_2.addWidget(self.tree_selector)
+
+        self.shape_selector = QComboBox(self.groupBox)
+        self.shape_selector.setObjectName(u"shape_selector")
+
+        self.verticalLayout_2.addWidget(self.shape_selector)
 
 
         self.gridLayout_3.addLayout(self.verticalLayout_2, 1, 2, 1, 1)
@@ -466,7 +480,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 826, 25))
+        self.menubar.setGeometry(QRect(0, 0, 916, 25))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menuEdit = QMenu(self.menubar)
@@ -532,11 +546,13 @@ class Ui_MainWindow(object):
         self.on_off_btn.setText(QCoreApplication.translate("MainWindow", u"ON/OFF", None))
         self.start_rob_btn.setText(QCoreApplication.translate("MainWindow", u"Start Robot", None))
         self.gen_map_btn.setText(QCoreApplication.translate("MainWindow", u"Generate Map", None))
-        self.Speed_2.setText(QCoreApplication.translate("MainWindow", u"Map Path", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"**Speed Dial:**", None))
+        self.Speed_2.setText(QCoreApplication.translate("MainWindow", u"Map Path:", None))
+        self.Auto_map_chk.setText(QCoreApplication.translate("MainWindow", u"Auto Map ", None))
         self.log_data_btn.setText(QCoreApplication.translate("MainWindow", u"Log Data", None))
         self.save_map_btn.setText(QCoreApplication.translate("MainWindow", u"Save Map", None))
         self.traj_btn.setText(QCoreApplication.translate("MainWindow", u"Trajectory", None))
-        self.Auto_map_chk.setText(QCoreApplication.translate("MainWindow", u"Auto Map ", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"**Robotino Speed:**", None))
         self.custom_btn_1.setText(QCoreApplication.translate("MainWindow", u"Custom 1", None))
         self.custom_btn_2.setText(QCoreApplication.translate("MainWindow", u"Custom 2", None))
         self.custom_btn_3.setText(QCoreApplication.translate("MainWindow", u"Custom 3", None))

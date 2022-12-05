@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>826</width>
+    <width>916</width>
     <height>511</height>
    </rect>
   </property>
@@ -250,6 +250,19 @@ background-image: url(Mapper/ml_rl_background.jpeg)
              </widget>
             </item>
             <item>
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>**Speed Dial:**</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::MarkdownText</enum>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QLCDNumber" name="speed_lcd"/>
             </item>
            </layout>
@@ -259,12 +272,19 @@ background-image: url(Mapper/ml_rl_background.jpeg)
             <item>
              <widget class="QLabel" name="Speed_2">
               <property name="text">
-               <string>Map Path</string>
+               <string>Map Path:</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QLineEdit" name="path_to_map"/>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="Auto_map_chk">
+              <property name="text">
+               <string>Auto Map </string>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -292,9 +312,15 @@ background-image: url(Mapper/ml_rl_background.jpeg)
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="Auto_map_chk">
+             <widget class="QLabel" name="label_2">
               <property name="text">
-               <string>Auto Map </string>
+               <string>**Robotino Speed:**</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::MarkdownText</enum>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -376,10 +402,10 @@ background-image: url(Mapper/ml_rl_background.jpeg)
                <item row="1" column="2">
                 <layout class="QVBoxLayout" name="verticalLayout_2">
                  <item>
-                  <widget class="QComboBox" name="shape_selector"/>
+                  <widget class="QComboBox" name="tree_selector"/>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="tree_selector"/>
+                  <widget class="QComboBox" name="shape_selector"/>
                  </item>
                 </layout>
                </item>
@@ -601,7 +627,7 @@ background-image: url(Mapper/ml_rl_background.jpeg)
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>826</width>
+     <width>916</width>
      <height>25</height>
     </rect>
    </property>
