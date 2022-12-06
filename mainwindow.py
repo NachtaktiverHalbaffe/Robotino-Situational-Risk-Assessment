@@ -404,7 +404,7 @@ class MainWindow(QMainWindow):
     def destroy_windows(self):
         cv2.destroyAllWindows()
 
-    """" Virtual Objects Functions starts from here"""
+    """" Virtual Objects Functions ends here"""
 
     def listener(self):
         #rospy.init_node("Odometry node", anonymous=True)
