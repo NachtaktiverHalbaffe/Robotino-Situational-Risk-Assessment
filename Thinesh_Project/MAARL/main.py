@@ -316,10 +316,11 @@ def main():
             rospy.sleep(1)
             global real_data
             print(real_data)
-            run_session_adv(config.configs[0], test_mode=False,robo_real_demo=robo_real_demo)
-    run_session_adv(config.configs[0], test_mode=False)
+            run_session_adv(config.configs[0], test_mode=True,robo_real_demo=robo_real_demo)
+    run_session_adv(config.configs[0], test_mode=True)
     print('training/evaluation finished')
 
 
 if __name__ == '__main__':
     main()
+

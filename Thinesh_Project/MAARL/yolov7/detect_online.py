@@ -15,26 +15,34 @@ from utils.plots import plot_one_box, plot_3d_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 from utils.convert2d_to_3d import convert_2d_3d
 
-def detect_custom(opt, save_img=False, calc_3d = True, plot_3d = True):
+def detect_custom(opt, calc_3d = True, plot_3d = True):
+    """load the detection model and the settings
+    @param opt: the args of the detection
+    @param calc_3d: if the 3d boxes should be calculated
+    @param plot_3d: if the 3d boxes should be plot
+    @return limg: the img to run detection on 
+    @return imgz: size of the img
+    @return stride: stride for letterboxing
+    @return device: if gpu should be used
+    @return model: the nn model
+    @return opt: set of arguments used in detection
+    @return names: name of the object types that can be detected
+    @return view_img: if the detection should be displayed
+    @return colors: colors used for different types when showing the bounding boxes
+    @return calc_3d: if the 3d boxes should calculated
+    @return p_matrix: the projection matrix of the image to display the 3d boxes
+    @return plot_3d: if the 3d boxes should be plot
 
+    """
     #the projection matrix, still needs to be placed properly
     p_matrix = np.array([[8.145377000000e+02,0.000000000000e+00,3.991493000000e+02],[0.000000000000e+00,8.185377000000e+02,3.490000000000e+02],[0.000000000000e+00,0.000000000000e+00,1.000000000000e+00]])
 
 
-
-    source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
-    save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
-    webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
-        ('rtsp://', 'rtmp://', 'http://', 'https://'))
-
-    # Directories
-    save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
-    # (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    weights, view_img, imgsz, trace = opt.weights, opt.view_img, opt.img_size, not opt.no_trace
 
     # Initialize
     set_logging()
     device = select_device(opt.device)
-    half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
     model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -44,57 +52,38 @@ def detect_custom(opt, save_img=False, calc_3d = True, plot_3d = True):
     if trace:
         model = TracedModel(model, device, opt.img_size)
 
-    if half:
-        model.half()  # to FP16
-
-    # Second-stage classifier
-    classify = False
-    if classify:
-        modelc = load_classifier(name='resnet101', n=2)  # initialize
-        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model']).to(device).eval()
-
-    # Set Dataloader
-    vid_path, vid_writer = None, None
-    if webcam:
-        view_img = check_imshow()
-        cudnn.benchmark = True  # set True to speed up constant image size inference
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride)
-    else:
-        dataset = LoadImages(source, img_size=imgsz, stride=stride)
-
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
-    # Run inference
-    if device.type != 'cpu':
-        model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-    old_img_w = old_img_h = imgsz
-    old_img_b = 1
+    return (imgsz,stride,device,model,opt,names,view_img,colors,calc_3d,p_matrix,plot_3d)
 
-    sources = ['./yolov7/data/bb/']
-    # for i in range(30):
-    #     sources.append('./data/val/1/')
-    return (sources,imgsz,stride,device,half,model,opt,classify,webcam,save_dir,names,save_txt,save_img,view_img,colors,calc_3d,p_matrix,plot_3d)
-
-def loaded_detect(limg,sources,imgsz,stride,device,half,model,opt,classify,webcam,save_dir,names,save_txt,save_img,view_img,colors,calc_3d,p_matrix,plot_3d):
+def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_3d,p_matrix,plot_3d):
+    """run the detection for a passed image, also passes the bb to the 2d->3d converter
+    @param limg: the img to run detection on 
+    @param imgz: size of the img
+    @param stride: stride for letterboxing
+    @param device: if gpu should be used
+    @param model: the nn model
+    @param opt: set of arguments used in detection
+    @param names: name of the object types that can be detected
+    @param view_img: if the detection should be displayed
+    @param colors: colors used for different types when showing the bounding boxes
+    @param calc_3d: if the 3d boxes should calculated
+    @param p_matrix: the projection matrix of the image to display the 3d boxes
+    @param plot_3d: if the 3d boxes should be plot
+    @return h_options[(0,2),4:8]: the birdseye view corners for the highest confidence box that is fully in view,non if no detection
+    @return h_shifts[-1]: the detected rotation, None if no detection
+    """
     t0 = time.time()
-    source = sources[0]
-    dataset = LoadImagesDelivered(source, img_size=imgsz, stride=stride,limg=limg)
-    for path, img, im0s, vid_cap in dataset:
+    dataset = LoadImagesDelivered(img_size=imgsz, stride=stride,limg=limg)
+    highest_conf = 0
+    for img, im0 in dataset:
         img = torch.from_numpy(img).to(device)
-        img = img.half() if half else img.float()  # uint8 to fp16/32
+        img = img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
-
-        # Warmup
-        if device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
-            old_img_b = img.shape[0]
-            old_img_h = img.shape[2]
-            old_img_w = img.shape[3]
-            for i in range(3):
-                model(img, augment=opt.augment)[0]
 
         # Inference
         t1 = time_synchronized()
@@ -106,96 +95,40 @@ def loaded_detect(limg,sources,imgsz,stride,device,half,model,opt,classify,webca
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
 
-        # Apply Classifier
-        if classify:
-            pred = apply_classifier(pred, modelc, img, im0s)
-
         # Process detections
         for i, det in enumerate(pred):  # detections per image
-            if webcam:  # batch_size >= 1
-                p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
-            else:
-                p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
-            p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # img.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
-            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
-                # Print results
-                for c in det[:, -1].unique():
-                    n = (det[:, -1] == c).sum()  # detections per class
-                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                    if save_img or view_img:  # Add bbox to image
-                        label = f'{names[int(cls)]} {conf:.2f}'
-                        if calc_3d:
-                            corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
+                    label = f'{names[int(cls)]} {conf:.2f}'
+                    if calc_3d:
+                        corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
+                    if view_img:  # Add bbox to image
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
-                        if plot_3d and not boundry:
-                            # plot_3d_box(corners_3d[0], im0, p_matrix, label=label,color=[random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)], line_thickness=1)
-                            for options in corners_3d:
-                                # print('distance to bot/top corner',options[:,5], options[:,6],'from image')
-                                # print(options)
-                                # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
+                    if calc_3d and not boundry and highest_conf< float(label[-3:]):
+                        highest_conf = float(label[-3:])
+                        for options in corners_3d:
+                            # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
+                            if view_img and plot_3d:  # Add bbox to image
                                 plot_3d_box(options, im0, p_matrix, label=label,color=[random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)], line_thickness=1)
-
-                                od_top = options[:,7]
-                                od_bot = options[:,6]
-                                cv2.imshow(str(p), im0)
+                                cv2.imshow('Detections', im0)
                                 cv2.waitKey(1)  # 1 millisecond
-
-                                return od_bot, od_top
-
-            # Print time (inference + NMS)
-            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
-
-            # Stream results
-            if view_img:
-                cv2.imshow(str(p), im0)
-                cv2.waitKey(1)  # 1 millisecond
-                # cv2.destroyAllWindows()
-            # Save results (image with detections)
-            if save_img:
-                if dataset.mode == 'image':
-                    cv2.imwrite(save_path, im0)
-                    print(f" The image with the result is saved in: {save_path}")
-                else:  # 'video' or 'stream'
-                    if vid_path != save_path:  # new video
-                        vid_path = save_path
-                        if isinstance(vid_writer, cv2.VideoWriter):
-                            vid_writer.release()  # release previous video writer
-                        if vid_cap:  # video
-                            fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        else:  # stream
-                            fps, w, h = 30, im0.shape[1], im0.shape[0]
-                            save_path += '.mp4'
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer.write(im0)
-
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        #print(f"Results saved to {save_dir}{s}")
-
-    # print(f'Done. ({time.time() - t0:.3f}s)')
-    return None, None
-
-def detect_warm():
-    pass
+                            h_shifts = shifts
+                            h_options = options
+        
+    if highest_conf:
+        return h_options[(0,2),4:8], h_shifts[-1]
+    else:
+        return None, None
 
 def detect_args_parse(args):
+    """ add some args that are normally keept the same to the args
+    @param calc_3d: if the 3d boxes should be calculated
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
     parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
@@ -226,44 +159,27 @@ def detect_args_parse(args):
     with torch.no_grad():
         if opt.update:  # update all models (to fix SourceChangeWarning)
             for opt.weights in ['yolov7.pt']:
-                detect_custom(opt)
+                conf = detect_custom(opt)
                 strip_optimizer(opt.weights)
         else:
             conf = detect_custom(opt)
             return conf
 
 def get_conf_and_model():
+    """the most frequently changed arguments are here, others above
+    loads the model and returns it with its' parameters
+    @return conf: the model and its' args
+    """
     args = []
 
-    limg = cv2.imread('./data/bb/img1.png')
-
     # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    args.extend(['--weights', 'yolov7/weights/epoch_074.pt'])
+    args.extend(['--weights', 'yolov7/weights/ws_tiny5.pt'])
     args.extend(['--conf', '0.50','--view-img', '--no-trace'])
     args.extend(['--img-size', '640'])
-    # i am currently edditing this in the file better to use sources?
-    args.extend(['--source', './yolov7/data/val/10/'])
-    #args.extend(['--save-txt', ])
-    # args.extend(['--nosave', True])
-    # args.extend(['--view-img', False])
 
     conf= detect_args_parse(args)
     return conf
 
 if __name__ == '__main__':
-    # args = []
-
-    # limg = cv2.imread('./data/bb/img1.png')
-
-    # # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    # args.extend(['--weights', 'yolov7/weights/epoch_096.pt'])
-    # args.extend(['--conf', '0.50','--view-img', '--no-trace'])
-    # args.extend(['--img-size', '640'])
-    # # i am currently edditing this in the file better to use sources?
-    # args.extend(['--source', './yolov7/data/val/10/'])
-    # #args.extend(['--save-txt', ])
-    # # args.extend(['--nosave', True])
-    # # args.extend(['--view-img', False])
-
-    # detect_args_parse(args)
+    print('use other to start')
 

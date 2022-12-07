@@ -635,7 +635,7 @@ class Environment:
             reward = distance_reward
         
 
-        update_map_each_step = False
+        update_map_each_step = True
         if update_map_each_step:
             visu_adv_traj_map = copy.deepcopy(self.map_ref_adv)
                 

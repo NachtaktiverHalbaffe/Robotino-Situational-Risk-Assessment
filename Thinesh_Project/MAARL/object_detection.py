@@ -334,6 +334,10 @@ def apply_object_detection(map_path):
     map_grey.save('map_cropped.png')
     # map_grey = Image.open(map_path)
     map_grey = np.array(map_grey.getdata()).reshape((map_grey.size[1], map_grey.size[0])).astype('uint8')
+    # remove this to have the object detection
+    map_ref = generate_map_ref(map_grey)
+    map_ref.save('./obj_det_output/map_ref_test_obj.png')  # map_ref.save('map_ref.png')
+    return map_ref, []
 
     # handcrafted map:
     # all of these lists need to have the right order of elements (same order)

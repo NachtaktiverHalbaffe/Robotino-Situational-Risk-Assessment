@@ -74,7 +74,7 @@ def detect_custom(opt, save_img=False, calc_3d = True, plot_3d = True):
 
 
     sources = ['./data/val/ws_testing/']
-    sources = ['./data/bb/']
+    sources = ['./yolov7/data/bb/']
     # for i in range(30):
     #     sources.append('./data/val/1/')
 
@@ -192,7 +192,7 @@ def detect_args_parse(args):
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
@@ -224,11 +224,11 @@ def detect_args_parse(args):
 if __name__ == '__main__':
     args = []
     # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    args.extend(['--weights', 'epoch_096.pt'])
+    args.extend(['--weights', 'yolov7/weights/epoch_074.pt'])
     args.extend(['--conf', '0.50','--view-img', '--no-trace'])
     args.extend(['--img-size', '640'])
     # i am currently edditing this in the file better to use sources?
-    args.extend(['--source', './data/val/10/'])
+    args.extend(['--source', './yolov7/data/val/10/'])
     #args.extend(['--save-txt', ])
     # args.extend(['--nosave', True])
     # args.extend(['--view-img', False])
