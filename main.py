@@ -120,7 +120,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     risk = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
-        n_episodes_eval = 6
+        n_episodes_eval = 100
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
         choose_action_total_time = 0
@@ -149,6 +149,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
         done = False
         done2 = False
         score = 0
+        p_o_ida = 1
 
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones,  = [], [], [], [], [], [], []
         action_value = []
@@ -176,9 +177,10 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                     observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
                     step_total_time += time.perf_counter() - t3
                     probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
-                    print(probs_all)
+                    #print(probs_all)
                     probs.append(probs_all)
                     positions.append(position_old)
+                    p_o_ida *= action_prob_value
 
                 if mcts_eval == "BRUTE_FORCE":
                     t4 = time.perf_counter()
@@ -187,8 +189,9 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                     #print(traj_vanilla[0].coordinates, traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1])
                     length = traj_length(traj_vanilla)
                     print(length)
-                    temp_data = [traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
+                    temp_data = [traj_vanilla,traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
                     collision_data.append(temp_data)
+                    risk += risk_ep
             else:
                 t1 = time.perf_counter()
 
@@ -205,7 +208,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             # if collision_status:
             #     print("Untried actions: ", mcts.untried_actions())
 
-            risk += risk_ep
+            
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
             steps_val_log.append(np.round(val, 2))
@@ -395,7 +398,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
         print('episode', episode, 'score %.1f' % score, 'avg score %.2f' % avg_score, 'avg reward %.2f' % avg_reward, 'avg collisions %.2f' % avg_collisions,
               'time_steps', n_steps, 'learning_steps', learn_iters)
         print('episode_time:', time.perf_counter()-t0)
-    save_data(data=collision_data, create_header=False)
+    save_data(data=collision_data, create_header=True)
     print('mcts average time: ', mcts_total_time/n_episodes)
 
     print("Risk: ", risk/(n_episodes-1))
