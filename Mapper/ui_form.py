@@ -17,19 +17,20 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDial,
-    QGraphicsView, QGroupBox, QLCDNumber, QLabel,
-    QLineEdit, QMainWindow, QMenu, QMenuBar,
-    QPushButton, QSizePolicy, QStatusBar, QTabWidget,
-    QTextEdit, QWidget)
+    QGraphicsView, QGridLayout, QGroupBox, QHBoxLayout,
+    QLCDNumber, QLabel, QLayout, QLineEdit,
+    QMainWindow, QMenu, QMenuBar, QPushButton,
+    QSizePolicy, QStatusBar, QTabWidget, QTextEdit,
+    QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(741, 584)
+        MainWindow.resize(916, 511)
         MainWindow.setWindowOpacity(1.000000000000000)
         MainWindow.setAutoFillBackground(False)
-        MainWindow.setStyleSheet(u"background-image: url(/home/abdul/AbdulRehman_ws/src/thesis/Mapper/bckgnd_1.jpg)")
+        MainWindow.setStyleSheet(u"")
         self.actionOpen_Map = QAction(MainWindow)
         self.actionOpen_Map.setObjectName(u"actionOpen_Map")
         self.actionSave_Map = QAction(MainWindow)
@@ -48,61 +49,55 @@ class Ui_MainWindow(object):
         self.actionInfo.setObjectName(u"actionInfo")
         self.actionTutorial = QAction(MainWindow)
         self.actionTutorial.setObjectName(u"actionTutorial")
-        self.actionOpen_Cols_data = QAction(MainWindow)
-        self.actionOpen_Cols_data.setObjectName(u"actionOpen_Cols_data")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
+        self.centralwidget.setStyleSheet(u"#centralwidget{\n"
+"background-image: url(Mapper/ml_rl_background.jpeg)\n"
+"}")
+        self.verticalLayout = QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName(u"verticalLayout")
         self.tabWidget = QTabWidget(self.centralwidget)
         self.tabWidget.setObjectName(u"tabWidget")
-        self.tabWidget.setGeometry(QRect(0, 0, 741, 541))
         font = QFont()
         font.setKerning(True)
         self.tabWidget.setFont(font)
         self.tabWidget.setAutoFillBackground(False)
+        self.tabWidget.setStyleSheet(u"")
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
-        self.traj_btn = QPushButton(self.tab)
-        self.traj_btn.setObjectName(u"traj_btn")
-        self.traj_btn.setGeometry(QRect(290, 140, 111, 51))
-        self.custom_btn_3 = QPushButton(self.tab)
-        self.custom_btn_3.setObjectName(u"custom_btn_3")
-        self.custom_btn_3.setGeometry(QRect(250, 450, 111, 51))
+        self.gridLayout = QGridLayout(self.tab)
+        self.gridLayout.setObjectName(u"gridLayout")
+        self.horizontalLayout_12 = QHBoxLayout()
+        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
+        self.verticalLayout_12 = QVBoxLayout()
+        self.verticalLayout_12.setObjectName(u"verticalLayout_12")
+        self.info_box = QTextEdit(self.tab)
+        self.info_box.setObjectName(u"info_box")
+        font1 = QFont()
+        font1.setItalic(False)
+        self.info_box.setFont(font1)
+        self.info_box.setAcceptDrops(True)
+        self.info_box.setReadOnly(True)
+
+        self.verticalLayout_12.addWidget(self.info_box)
+
         self.logo_ias = QLabel(self.tab)
         self.logo_ias.setObjectName(u"logo_ias")
-        self.logo_ias.setGeometry(QRect(630, 460, 84, 37))
         self.logo_ias.setAutoFillBackground(False)
-        self.logo_ias.setStyleSheet(u"background-image: url(/home/abdul/AbdulRehman_ws/src/thesis/Mapper/IAS_logo_small.png)")
+        self.logo_ias.setStyleSheet(u"")
+        self.logo_ias.setPixmap(QPixmap(u"IAS_logo_small.png"))
+        self.logo_ias.setAlignment(Qt.AlignCenter)
         self.logo_ias.setWordWrap(False)
-        self.use_keyboard_chk = QCheckBox(self.tab)
-        self.use_keyboard_chk.setObjectName(u"use_keyboard_chk")
-        self.use_keyboard_chk.setGeometry(QRect(610, 420, 121, 21))
-        self.custom_btn_1 = QPushButton(self.tab)
-        self.custom_btn_1.setObjectName(u"custom_btn_1")
-        self.custom_btn_1.setGeometry(QRect(10, 450, 111, 51))
-        self.custom_btn_2 = QPushButton(self.tab)
-        self.custom_btn_2.setObjectName(u"custom_btn_2")
-        self.custom_btn_2.setGeometry(QRect(130, 450, 111, 51))
-        self.speed_real = QLCDNumber(self.tab)
-        self.speed_real.setObjectName(u"speed_real")
-        self.speed_real.setGeometry(QRect(430, 140, 101, 31))
-        self.custom_btn_4 = QPushButton(self.tab)
-        self.custom_btn_4.setObjectName(u"custom_btn_4")
-        self.custom_btn_4.setGeometry(QRect(370, 450, 111, 51))
-        self.Foward = QPushButton(self.tab)
-        self.Foward.setObjectName(u"Foward")
-        self.Foward.setGeometry(QRect(540, 240, 91, 51))
-        self.log_data_btn = QPushButton(self.tab)
-        self.log_data_btn.setObjectName(u"log_data_btn")
-        self.log_data_btn.setGeometry(QRect(10, 140, 111, 51))
-        self.save_map_btn = QPushButton(self.tab)
-        self.save_map_btn.setObjectName(u"save_map_btn")
-        self.save_map_btn.setGeometry(QRect(150, 140, 111, 51))
+
+        self.verticalLayout_12.addWidget(self.logo_ias)
+
+        self.gridLayout_5 = QGridLayout()
+        self.gridLayout_5.setObjectName(u"gridLayout_5")
         self.speed_dial = QDial(self.tab)
         self.speed_dial.setObjectName(u"speed_dial")
-        self.speed_dial.setGeometry(QRect(450, 220, 81, 71))
-        font1 = QFont()
-        font1.setPointSize(11)
-        self.speed_dial.setFont(font1)
+        font2 = QFont()
+        font2.setPointSize(11)
+        self.speed_dial.setFont(font2)
         self.speed_dial.setAutoFillBackground(False)
         self.speed_dial.setMaximum(10)
         self.speed_dial.setSingleStep(1)
@@ -113,140 +108,362 @@ class Ui_MainWindow(object):
         self.speed_dial.setOrientation(Qt.Horizontal)
         self.speed_dial.setWrapping(False)
         self.speed_dial.setNotchesVisible(True)
+
+        self.gridLayout_5.addWidget(self.speed_dial, 1, 0, 1, 1)
+
+        self.horizontalLayout_11 = QHBoxLayout()
+        self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
         self.Speed_3 = QLabel(self.tab)
         self.Speed_3.setObjectName(u"Speed_3")
         self.Speed_3.setEnabled(True)
-        self.Speed_3.setGeometry(QRect(450, 280, 31, 21))
-        font2 = QFont()
-        font2.setPointSize(9)
-        font2.setItalic(True)
-        font2.setKerning(True)
-        self.Speed_3.setFont(font2)
-        self.Speed_4 = QLabel(self.tab)
-        self.Speed_4.setObjectName(u"Speed_4")
-        self.Speed_4.setGeometry(QRect(500, 280, 31, 21))
         font3 = QFont()
         font3.setPointSize(9)
         font3.setItalic(True)
-        self.Speed_4.setFont(font3)
+        font3.setKerning(True)
+        self.Speed_3.setFont(font3)
+
+        self.horizontalLayout_11.addWidget(self.Speed_3)
+
+        self.Speed_4 = QLabel(self.tab)
+        self.Speed_4.setObjectName(u"Speed_4")
+        font4 = QFont()
+        font4.setPointSize(9)
+        font4.setItalic(True)
+        self.Speed_4.setFont(font4)
+        self.Speed_4.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
+        self.horizontalLayout_11.addWidget(self.Speed_4)
+
+
+        self.gridLayout_5.addLayout(self.horizontalLayout_11, 2, 0, 1, 1)
+
+        self.gridLayout_4 = QGridLayout()
+        self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.Backward = QPushButton(self.tab)
         self.Backward.setObjectName(u"Backward")
-        self.Backward.setGeometry(QRect(540, 360, 91, 51))
-        self.on_off_btn = QPushButton(self.tab)
-        self.on_off_btn.setObjectName(u"on_off_btn")
-        self.on_off_btn.setGeometry(QRect(10, 20, 111, 51))
-        self.on_off_btn.setAutoFillBackground(False)
-        self.Auto_map_chk = QCheckBox(self.tab)
-        self.Auto_map_chk.setObjectName(u"Auto_map_chk")
-        self.Auto_map_chk.setGeometry(QRect(420, 170, 111, 31))
-        self.info_box = QTextEdit(self.tab)
-        self.info_box.setObjectName(u"info_box")
-        self.info_box.setGeometry(QRect(540, 20, 191, 211))
-        font4 = QFont()
-        font4.setItalic(False)
-        self.info_box.setFont(font4)
-        self.info_box.setAcceptDrops(True)
-        self.info_box.setReadOnly(True)
-        self.Right = QPushButton(self.tab)
-        self.Right.setObjectName(u"Right")
-        self.Right.setGeometry(QRect(640, 300, 91, 51))
-        self.speed_lcd = QLCDNumber(self.tab)
-        self.speed_lcd.setObjectName(u"speed_lcd")
-        self.speed_lcd.setGeometry(QRect(430, 20, 101, 51))
-        self.path_to_map = QLineEdit(self.tab)
-        self.path_to_map.setObjectName(u"path_to_map")
-        self.path_to_map.setGeometry(QRect(80, 90, 451, 31))
+
+        self.gridLayout_4.addWidget(self.Backward, 2, 1, 1, 1)
+
         self.Left = QPushButton(self.tab)
         self.Left.setObjectName(u"Left")
-        self.Left.setGeometry(QRect(440, 300, 91, 51))
-        self.start_rob_btn = QPushButton(self.tab)
-        self.start_rob_btn.setObjectName(u"start_rob_btn")
-        self.start_rob_btn.setGeometry(QRect(150, 20, 111, 51))
+
+        self.gridLayout_4.addWidget(self.Left, 1, 0, 1, 1)
+
+        self.Foward = QPushButton(self.tab)
+        self.Foward.setObjectName(u"Foward")
+
+        self.gridLayout_4.addWidget(self.Foward, 0, 1, 1, 1)
+
         self.Break = QPushButton(self.tab)
         self.Break.setObjectName(u"Break")
-        self.Break.setGeometry(QRect(540, 300, 91, 51))
-        self.Speed_2 = QLabel(self.tab)
-        self.Speed_2.setObjectName(u"Speed_2")
-        self.Speed_2.setGeometry(QRect(10, 100, 71, 21))
-        self.map_display = QGraphicsView(self.tab)
-        self.map_display.setObjectName(u"map_display")
-        self.map_display.setGeometry(QRect(10, 210, 421, 231))
+
+        self.gridLayout_4.addWidget(self.Break, 1, 1, 1, 1)
+
+        self.Right = QPushButton(self.tab)
+        self.Right.setObjectName(u"Right")
+
+        self.gridLayout_4.addWidget(self.Right, 1, 2, 1, 1)
+
+        self.use_keyboard_chk = QCheckBox(self.tab)
+        self.use_keyboard_chk.setObjectName(u"use_keyboard_chk")
+
+        self.gridLayout_4.addWidget(self.use_keyboard_chk, 2, 2, 1, 1)
+
+
+        self.gridLayout_5.addLayout(self.gridLayout_4, 1, 1, 1, 1)
+
+
+        self.verticalLayout_12.addLayout(self.gridLayout_5)
+
+
+        self.horizontalLayout_12.addLayout(self.verticalLayout_12)
+
+
+        self.gridLayout.addLayout(self.horizontalLayout_12, 10, 2, 1, 1)
+
+        self.verticalLayout_5 = QVBoxLayout()
+        self.verticalLayout_5.setObjectName(u"verticalLayout_5")
+        self.horizontalLayout_8 = QHBoxLayout()
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
+        self.on_off_btn = QPushButton(self.tab)
+        self.on_off_btn.setObjectName(u"on_off_btn")
+        self.on_off_btn.setAutoFillBackground(False)
+
+        self.horizontalLayout_8.addWidget(self.on_off_btn)
+
+        self.start_rob_btn = QPushButton(self.tab)
+        self.start_rob_btn.setObjectName(u"start_rob_btn")
+
+        self.horizontalLayout_8.addWidget(self.start_rob_btn)
+
         self.gen_map_btn = QPushButton(self.tab)
         self.gen_map_btn.setObjectName(u"gen_map_btn")
-        self.gen_map_btn.setGeometry(QRect(290, 20, 111, 51))
+
+        self.horizontalLayout_8.addWidget(self.gen_map_btn)
+
+        self.label = QLabel(self.tab)
+        self.label.setObjectName(u"label")
+        self.label.setTextFormat(Qt.MarkdownText)
+        self.label.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
+        self.horizontalLayout_8.addWidget(self.label)
+
+        self.speed_lcd = QLCDNumber(self.tab)
+        self.speed_lcd.setObjectName(u"speed_lcd")
+
+        self.horizontalLayout_8.addWidget(self.speed_lcd)
+
+
+        self.verticalLayout_5.addLayout(self.horizontalLayout_8)
+
+        self.horizontalLayout_7 = QHBoxLayout()
+        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
+        self.Speed_2 = QLabel(self.tab)
+        self.Speed_2.setObjectName(u"Speed_2")
+
+        self.horizontalLayout_7.addWidget(self.Speed_2)
+
+        self.path_to_map = QLineEdit(self.tab)
+        self.path_to_map.setObjectName(u"path_to_map")
+
+        self.horizontalLayout_7.addWidget(self.path_to_map)
+
+        self.Auto_map_chk = QCheckBox(self.tab)
+        self.Auto_map_chk.setObjectName(u"Auto_map_chk")
+
+        self.horizontalLayout_7.addWidget(self.Auto_map_chk)
+
+
+        self.verticalLayout_5.addLayout(self.horizontalLayout_7)
+
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.log_data_btn = QPushButton(self.tab)
+        self.log_data_btn.setObjectName(u"log_data_btn")
+
+        self.horizontalLayout_4.addWidget(self.log_data_btn)
+
+        self.save_map_btn = QPushButton(self.tab)
+        self.save_map_btn.setObjectName(u"save_map_btn")
+
+        self.horizontalLayout_4.addWidget(self.save_map_btn)
+
+        self.traj_btn = QPushButton(self.tab)
+        self.traj_btn.setObjectName(u"traj_btn")
+
+        self.horizontalLayout_4.addWidget(self.traj_btn)
+
+        self.label_2 = QLabel(self.tab)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setTextFormat(Qt.MarkdownText)
+        self.label_2.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
+        self.horizontalLayout_4.addWidget(self.label_2)
+
+        self.speed_real = QLCDNumber(self.tab)
+        self.speed_real.setObjectName(u"speed_real")
+
+        self.horizontalLayout_4.addWidget(self.speed_real)
+
+
+        self.verticalLayout_5.addLayout(self.horizontalLayout_4)
+
+        self.map_display = QGraphicsView(self.tab)
+        self.map_display.setObjectName(u"map_display")
+
+        self.verticalLayout_5.addWidget(self.map_display)
+
+        self.horizontalLayout_9 = QHBoxLayout()
+        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
+        self.custom_btn_1 = QPushButton(self.tab)
+        self.custom_btn_1.setObjectName(u"custom_btn_1")
+
+        self.horizontalLayout_9.addWidget(self.custom_btn_1)
+
+        self.custom_btn_2 = QPushButton(self.tab)
+        self.custom_btn_2.setObjectName(u"custom_btn_2")
+
+        self.horizontalLayout_9.addWidget(self.custom_btn_2)
+
+        self.custom_btn_3 = QPushButton(self.tab)
+        self.custom_btn_3.setObjectName(u"custom_btn_3")
+
+        self.horizontalLayout_9.addWidget(self.custom_btn_3)
+
+        self.custom_btn_4 = QPushButton(self.tab)
+        self.custom_btn_4.setObjectName(u"custom_btn_4")
+
+        self.horizontalLayout_9.addWidget(self.custom_btn_4)
+
         self.custom_btn_5 = QPushButton(self.tab)
         self.custom_btn_5.setObjectName(u"custom_btn_5")
-        self.custom_btn_5.setGeometry(QRect(490, 450, 111, 51))
+
+        self.horizontalLayout_9.addWidget(self.custom_btn_5)
+
+
+        self.verticalLayout_5.addLayout(self.horizontalLayout_9)
+
+        self.verticalLayout_4 = QVBoxLayout()
+        self.verticalLayout_4.setObjectName(u"verticalLayout_4")
+
+        self.verticalLayout_5.addLayout(self.verticalLayout_4)
+
+
+        self.gridLayout.addLayout(self.verticalLayout_5, 10, 0, 1, 1)
+
         self.tabWidget.addTab(self.tab, "")
         self.tab_2 = QWidget()
         self.tab_2.setObjectName(u"tab_2")
+        self.verticalLayout_8 = QVBoxLayout(self.tab_2)
+        self.verticalLayout_8.setObjectName(u"verticalLayout_8")
         self.groupBox = QGroupBox(self.tab_2)
         self.groupBox.setObjectName(u"groupBox")
-        self.groupBox.setGeometry(QRect(10, 10, 711, 241))
-        self.Train = QPushButton(self.groupBox)
-        self.Train.setObjectName(u"Train")
-        self.Train.setGeometry(QRect(10, 30, 161, 91))
-        self.Test_btn = QPushButton(self.groupBox)
-        self.Test_btn.setObjectName(u"Test_btn")
-        self.Test_btn.setGeometry(QRect(190, 30, 151, 91))
-        self.stop_train_test = QPushButton(self.groupBox)
-        self.stop_train_test.setObjectName(u"stop_train_test")
-        self.stop_train_test.setGeometry(QRect(360, 30, 151, 91))
-        self.virtual_obj_btn = QPushButton(self.groupBox)
-        self.virtual_obj_btn.setObjectName(u"virtual_obj_btn")
-        self.virtual_obj_btn.setGeometry(QRect(10, 140, 161, 91))
-        self.close_window_btn = QPushButton(self.groupBox)
-        self.close_window_btn.setObjectName(u"close_window_btn")
-        self.close_window_btn.setGeometry(QRect(190, 140, 151, 91))
+        self.verticalLayout_7 = QVBoxLayout(self.groupBox)
+        self.verticalLayout_7.setObjectName(u"verticalLayout_7")
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.gridLayout_3 = QGridLayout()
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.gridLayout_3.setSizeConstraint(QLayout.SetDefaultConstraint)
+        self.gridLayout_3.setHorizontalSpacing(6)
+        self.verticalLayout_2 = QVBoxLayout()
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.tree_selector = QComboBox(self.groupBox)
         self.tree_selector.setObjectName(u"tree_selector")
-        self.tree_selector.setGeometry(QRect(360, 190, 151, 25))
+
+        self.verticalLayout_2.addWidget(self.tree_selector)
+
         self.shape_selector = QComboBox(self.groupBox)
         self.shape_selector.setObjectName(u"shape_selector")
-        self.shape_selector.setGeometry(QRect(360, 140, 151, 25))
+
+        self.verticalLayout_2.addWidget(self.shape_selector)
+
+
+        self.gridLayout_3.addLayout(self.verticalLayout_2, 1, 2, 1, 1)
+
+        self.virtual_obj_btn = QPushButton(self.groupBox)
+        self.virtual_obj_btn.setObjectName(u"virtual_obj_btn")
+        self.virtual_obj_btn.setMinimumSize(QSize(190, 90))
+
+        self.gridLayout_3.addWidget(self.virtual_obj_btn, 1, 0, 1, 1)
+
+        self.Test_btn = QPushButton(self.groupBox)
+        self.Test_btn.setObjectName(u"Test_btn")
+        self.Test_btn.setMinimumSize(QSize(190, 90))
+
+        self.gridLayout_3.addWidget(self.Test_btn, 0, 1, 1, 1)
+
+        self.stop_train_test = QPushButton(self.groupBox)
+        self.stop_train_test.setObjectName(u"stop_train_test")
+        self.stop_train_test.setMinimumSize(QSize(190, 90))
+
+        self.gridLayout_3.addWidget(self.stop_train_test, 0, 2, 1, 1)
+
+        self.close_window_btn = QPushButton(self.groupBox)
+        self.close_window_btn.setObjectName(u"close_window_btn")
+        self.close_window_btn.setMinimumSize(QSize(190, 90))
+
+        self.gridLayout_3.addWidget(self.close_window_btn, 1, 1, 1, 1)
+
+        self.Train = QPushButton(self.groupBox)
+        self.Train.setObjectName(u"Train")
+        self.Train.setMinimumSize(QSize(190, 90))
+        self.Train.setIconSize(QSize(16, 16))
+        self.Train.setFlat(False)
+
+        self.gridLayout_3.addWidget(self.Train, 0, 0, 1, 1)
+
+
+        self.horizontalLayout.addLayout(self.gridLayout_3)
+
         self.info_box_rl = QTextEdit(self.groupBox)
         self.info_box_rl.setObjectName(u"info_box_rl")
-        self.info_box_rl.setGeometry(QRect(520, 30, 181, 201))
-        self.info_box_rl.setFont(font4)
+        self.info_box_rl.setFont(font1)
         self.info_box_rl.setAcceptDrops(True)
         self.info_box_rl.setReadOnly(True)
+
+        self.horizontalLayout.addWidget(self.info_box_rl)
+
+
+        self.verticalLayout_7.addLayout(self.horizontalLayout)
+
+
+        self.verticalLayout_8.addWidget(self.groupBox)
+
         self.groupBox_2 = QGroupBox(self.tab_2)
         self.groupBox_2.setObjectName(u"groupBox_2")
-        self.groupBox_2.setGeometry(QRect(10, 260, 711, 241))
         self.groupBox_2.setAutoFillBackground(False)
+        self.verticalLayout_6 = QVBoxLayout(self.groupBox_2)
+        self.verticalLayout_6.setObjectName(u"verticalLayout_6")
+        self.verticalLayout_3 = QVBoxLayout()
+        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.horizontalLayout_2 = QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.ML_train = QPushButton(self.groupBox_2)
         self.ML_train.setObjectName(u"ML_train")
-        self.ML_train.setGeometry(QRect(10, 30, 161, 91))
+
+        self.horizontalLayout_2.addWidget(self.ML_train)
+
         self.ML_test = QPushButton(self.groupBox_2)
         self.ML_test.setObjectName(u"ML_test")
-        self.ML_test.setGeometry(QRect(190, 30, 151, 91))
+
+        self.horizontalLayout_2.addWidget(self.ML_test)
+
         self.ML_autolabel = QPushButton(self.groupBox_2)
         self.ML_autolabel.setObjectName(u"ML_autolabel")
-        self.ML_autolabel.setGeometry(QRect(360, 30, 151, 91))
-        self.info_box_ml = QTextEdit(self.groupBox_2)
-        self.info_box_ml.setObjectName(u"info_box_ml")
-        self.info_box_ml.setGeometry(QRect(10, 130, 681, 91))
-        self.info_box_ml.setFont(font4)
-        self.info_box_ml.setAcceptDrops(True)
-        self.info_box_ml.setReadOnly(True)
+
+        self.horizontalLayout_2.addWidget(self.ML_autolabel)
+
         self.ml_algo_selector = QComboBox(self.groupBox_2)
         self.ml_algo_selector.setObjectName(u"ml_algo_selector")
-        self.ml_algo_selector.setGeometry(QRect(520, 30, 171, 31))
+
+        self.horizontalLayout_2.addWidget(self.ml_algo_selector)
+
+
+        self.verticalLayout_3.addLayout(self.horizontalLayout_2)
+
+        self.info_box_ml = QTextEdit(self.groupBox_2)
+        self.info_box_ml.setObjectName(u"info_box_ml")
+        self.info_box_ml.setFont(font1)
+        self.info_box_ml.setAcceptDrops(True)
+        self.info_box_ml.setReadOnly(True)
+
+        self.verticalLayout_3.addWidget(self.info_box_ml)
+
+
+        self.verticalLayout_6.addLayout(self.verticalLayout_3)
+
+
+        self.verticalLayout_8.addWidget(self.groupBox_2)
+
         self.tabWidget.addTab(self.tab_2, "")
         self.tab_3 = QWidget()
         self.tab_3.setObjectName(u"tab_3")
         self.tabWidget.addTab(self.tab_3, "")
         self.tab_4 = QWidget()
         self.tab_4.setObjectName(u"tab_4")
+        self.gridLayout_6 = QGridLayout(self.tab_4)
+        self.gridLayout_6.setObjectName(u"gridLayout_6")
+        self.verticalLayout_13 = QVBoxLayout()
+        self.verticalLayout_13.setObjectName(u"verticalLayout_13")
         self.checkBox = QCheckBox(self.tab_4)
         self.checkBox.setObjectName(u"checkBox")
-        self.checkBox.setGeometry(QRect(340, 70, 121, 23))
+
+        self.verticalLayout_13.addWidget(self.checkBox)
+
         self.checkBox_2 = QCheckBox(self.tab_4)
         self.checkBox_2.setObjectName(u"checkBox_2")
-        self.checkBox_2.setGeometry(QRect(340, 90, 71, 23))
+
+        self.verticalLayout_13.addWidget(self.checkBox_2)
+
         self.custom_ml = QPushButton(self.tab_4)
         self.custom_ml.setObjectName(u"custom_ml")
-        self.custom_ml.setGeometry(QRect(80, 70, 131, 51))
+
+        self.verticalLayout_13.addWidget(self.custom_ml)
+
+
+        self.gridLayout_6.addLayout(self.verticalLayout_13, 0, 0, 1, 1)
+
         self.tabWidget.addTab(self.tab_4, "")
         self.tab_5 = QWidget()
         self.tab_5.setObjectName(u"tab_5")
@@ -254,10 +471,16 @@ class Ui_MainWindow(object):
         self.tab_6 = QWidget()
         self.tab_6.setObjectName(u"tab_6")
         self.tabWidget.addTab(self.tab_6, "")
+        self.tab_7 = QWidget()
+        self.tab_7.setObjectName(u"tab_7")
+        self.tabWidget.addTab(self.tab_7, "")
+
+        self.verticalLayout.addWidget(self.tabWidget)
+
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 741, 22))
+        self.menubar.setGeometry(QRect(0, 0, 916, 25))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menuEdit = QMenu(self.menubar)
@@ -288,7 +511,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -296,11 +519,11 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.actionOpen_Map.setText(QCoreApplication.translate("MainWindow", u"Open", None))
+        self.actionOpen_Map.setText(QCoreApplication.translate("MainWindow", u"Open Map", None))
 #if QT_CONFIG(shortcut)
         self.actionOpen_Map.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+O", None))
 #endif // QT_CONFIG(shortcut)
-        self.actionSave_Map.setText(QCoreApplication.translate("MainWindow", u"Save", None))
+        self.actionSave_Map.setText(QCoreApplication.translate("MainWindow", u"Save Map", None))
 #if QT_CONFIG(shortcut)
         self.actionSave_Map.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+S", None))
 #endif // QT_CONFIG(shortcut)
@@ -311,36 +534,37 @@ class Ui_MainWindow(object):
         self.actionPaste_Ctrl_V.setText(QCoreApplication.translate("MainWindow", u"Paste   Ctrl+V", None))
         self.actionInfo.setText(QCoreApplication.translate("MainWindow", u"Info", None))
         self.actionTutorial.setText(QCoreApplication.translate("MainWindow", u"Tutorial", None))
-        self.actionOpen_Cols_data.setText(QCoreApplication.translate("MainWindow", u"Open Cols. data", None))
-        self.traj_btn.setText(QCoreApplication.translate("MainWindow", u"Trajectory", None))
-        self.custom_btn_3.setText(QCoreApplication.translate("MainWindow", u"Custom 3", None))
         self.logo_ias.setText("")
-        self.use_keyboard_chk.setText(QCoreApplication.translate("MainWindow", u"Use Keyboard", None))
-        self.custom_btn_1.setText(QCoreApplication.translate("MainWindow", u"Custom 1", None))
-        self.custom_btn_2.setText(QCoreApplication.translate("MainWindow", u"Custom 2", None))
-        self.custom_btn_4.setText(QCoreApplication.translate("MainWindow", u"Custom 4", None))
-        self.Foward.setText(QCoreApplication.translate("MainWindow", u"Forward(w)", None))
-        self.log_data_btn.setText(QCoreApplication.translate("MainWindow", u"Log Data", None))
-        self.save_map_btn.setText(QCoreApplication.translate("MainWindow", u"Save Map", None))
         self.Speed_3.setText(QCoreApplication.translate("MainWindow", u"0.01", None))
         self.Speed_4.setText(QCoreApplication.translate("MainWindow", u"0.15", None))
         self.Backward.setText(QCoreApplication.translate("MainWindow", u"Backward(s)", None))
-        self.on_off_btn.setText(QCoreApplication.translate("MainWindow", u"ON/OFF", None))
-        self.Auto_map_chk.setText(QCoreApplication.translate("MainWindow", u"Auto Map ", None))
-        self.Right.setText(QCoreApplication.translate("MainWindow", u"Right(d)", None))
         self.Left.setText(QCoreApplication.translate("MainWindow", u"Left(a)", None))
-        self.start_rob_btn.setText(QCoreApplication.translate("MainWindow", u"Start Robot", None))
+        self.Foward.setText(QCoreApplication.translate("MainWindow", u"Forward(w)", None))
         self.Break.setText(QCoreApplication.translate("MainWindow", u"Stop(x)", None))
-        self.Speed_2.setText(QCoreApplication.translate("MainWindow", u"Map Path", None))
+        self.Right.setText(QCoreApplication.translate("MainWindow", u"Right(d)", None))
+        self.use_keyboard_chk.setText(QCoreApplication.translate("MainWindow", u"Use Keyboard", None))
+        self.on_off_btn.setText(QCoreApplication.translate("MainWindow", u"ON/OFF", None))
+        self.start_rob_btn.setText(QCoreApplication.translate("MainWindow", u"Start Robot", None))
         self.gen_map_btn.setText(QCoreApplication.translate("MainWindow", u"Generate Map", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"**Speed Dial:**", None))
+        self.Speed_2.setText(QCoreApplication.translate("MainWindow", u"Map Path:", None))
+        self.Auto_map_chk.setText(QCoreApplication.translate("MainWindow", u"Auto Map ", None))
+        self.log_data_btn.setText(QCoreApplication.translate("MainWindow", u"Log Data", None))
+        self.save_map_btn.setText(QCoreApplication.translate("MainWindow", u"Save Map", None))
+        self.traj_btn.setText(QCoreApplication.translate("MainWindow", u"Trajectory", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"**Robotino Speed:**", None))
+        self.custom_btn_1.setText(QCoreApplication.translate("MainWindow", u"Custom 1", None))
+        self.custom_btn_2.setText(QCoreApplication.translate("MainWindow", u"Custom 2", None))
+        self.custom_btn_3.setText(QCoreApplication.translate("MainWindow", u"Custom 3", None))
+        self.custom_btn_4.setText(QCoreApplication.translate("MainWindow", u"Custom 4", None))
         self.custom_btn_5.setText(QCoreApplication.translate("MainWindow", u"Custom 5", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Mapper", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Reinforcment Learning", None))
-        self.Train.setText(QCoreApplication.translate("MainWindow", u"Train", None))
+        self.virtual_obj_btn.setText(QCoreApplication.translate("MainWindow", u"Virtual Objects", None))
         self.Test_btn.setText(QCoreApplication.translate("MainWindow", u"Test", None))
         self.stop_train_test.setText(QCoreApplication.translate("MainWindow", u"Stop RL", None))
-        self.virtual_obj_btn.setText(QCoreApplication.translate("MainWindow", u"Virtual Objects", None))
         self.close_window_btn.setText(QCoreApplication.translate("MainWindow", u"Close Windows", None))
+        self.Train.setText(QCoreApplication.translate("MainWindow", u"Train", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Machine Learning", None))
         self.ML_train.setText(QCoreApplication.translate("MainWindow", u"Train", None))
         self.ML_test.setText(QCoreApplication.translate("MainWindow", u"Test", None))
@@ -353,6 +577,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QCoreApplication.translate("MainWindow", u"ML Control", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), QCoreApplication.translate("MainWindow", u"Monitored space localization", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_6), QCoreApplication.translate("MainWindow", u"Monitored space object", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), QCoreApplication.translate("MainWindow", u"Evaluation", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"Edit", None))
         self.menuView.setTitle(QCoreApplication.translate("MainWindow", u"View", None))
