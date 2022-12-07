@@ -145,8 +145,11 @@ def linear_regression(data):
     regr.fit(X_train, y_train)
     print(regr.score(X_test, y_test))
 
+    my_data = [[8.0,103.353]]
     from sklearn.metrics import mean_absolute_error,mean_squared_error
     y_pred = regr.predict(X_test)
+    print(regr.predict(my_data))
+
     mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
     #squared True returns MSE value, False returns RMSE value.
     mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
@@ -170,9 +173,9 @@ if __name__ == '__main__':
     #print(data[:,2])
     #print(where(data[:,2] >= 0.5))
     #main(data)
-    al = AutoLabel(data, n_clusters=3, method=0)
-    yhat = al.MixtureofGaussians()
-    al.K_Means()
+    #al = AutoLabel(data, n_clusters=3, method=0)
+    #yhat = al.MixtureofGaussians()
+    #al.K_Means()
     #data_orig.insert(3, "label", yhat, True)
     #print(data_orig)
     #data_orig.to_csv('labelled_data.csv', header=False, index=False)
