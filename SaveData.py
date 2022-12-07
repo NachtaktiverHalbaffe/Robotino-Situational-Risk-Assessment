@@ -13,7 +13,7 @@ def traj_length(traj_vanilla):
 
 def save_data(data=None, create_header=True):
     if create_header:
-        header = ['StartX','StartY', 'EndX','EndY', 'N_nodes', 'length', 'Prob_collision']
+        header = ['Trajectory','StartX','StartY', 'EndX','EndY', 'N_nodes', 'length', 'Prob_collision']
     # data = []
     # data2 = [[10,10], [20,20], 5, 0.75]
     # data1 = [[10,10], [20,20], 5, 0.75]
