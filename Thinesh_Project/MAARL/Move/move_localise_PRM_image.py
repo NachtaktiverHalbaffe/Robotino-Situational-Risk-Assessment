@@ -211,7 +211,7 @@ if __name__ == '__main__':
     #rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0,0,0.85,1.57,2.19,2.19]
     # loading the png of the map and running the old detection system on it also configures the map to the right type
-    map_path = "/home/kaib/catkin_ws/src/FinalScannerMap1.png"
+    map_path = "./map_cropped.png"
     map_ref, obstacles = initialize_map(map_path)
     # removing the obstacles from the map, adding the workstations, removing old should not be needed if we have a new map, TODO new map add new obstacles such as klappbox, chair and box
     map_ref_PRM = modify_map(map_ref, obstacles, obstacles_ws, color = (255,255,255))
