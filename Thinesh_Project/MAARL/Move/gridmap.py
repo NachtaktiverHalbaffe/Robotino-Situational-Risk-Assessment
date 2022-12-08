@@ -154,6 +154,9 @@ def object_grid_to_pixel(pixel_map_info,object):
     dist_to_center = np.dot(R,np.array(size))
     depth = left_close_corner[0]+2.35# should be more
     horizontal_shift = left_close_corner[2]-0.6
+    if pixel_map_info[-2]==48:
+        depth = left_close_corner[0]+0.10# should be more
+        horizontal_shift = left_close_corner[2]-4.5
     corner_points = corners_from_center(depth,horizontal_shift,-rotation,size)
 
     corners = []

@@ -68,50 +68,40 @@ def get_dists_workstation(corners_map_all, obstacle):
             arg_smallest_dist = i
     return np.array(dists)
     
-def best_match_workstation_index(corners_map_all, obstacle, rots_ws, old_loc_assumption, rotation_detected):
-    """
-    This gets determins which workstation we are currently looking at by comparing the distance of the
-    workstation(ws) location and roation as well as the robots location
-    @param corners_map_all: The corners of each workstation in a list
-    @param obstacle: The detected ws as a distance from the camera
-    @param ros_ws: the the roation of the individual workstations
-    @param old_loc_assumption: where we assume to be, used to determin which ws we are looking at,
-    @param rotation_detected: the roation detected by the detection algo
-    @return: arg_smallest_dist: the index of the ws with the most likely match
-    """
-
+def best_match_workstation_index(corners_map_all, obstacle,detection_corners, rots_ws, old_loc_assumption, rotation_detected,base_info):
     dists_ws = get_dists_workstation(corners_map_all, obstacle)
     # arg_smallest_dist_rot, dists_rot = get_smalles_dist_rotations(corners_map_all, obstacle,old_loc_assumption)
-    # NOTE at the moment that is always right because i change the others before sending it
+    global map_config
     if local_acml_location[0] =='real_data' or True:
         old_rot_assumption = 2*np.arcsin(local_acml_location[3])
     else:
         old_rot_assumption = local_acml_location[3]
     # calculating rotation from detected and cord transforms
-    detected_rotations = -(np.array(rots_ws)-rotation_detected.numpy()+np.pi-1.204)+np.pi*2
+    # detected_rotations = -(np.array(rots_ws)-rotation_detected.numpy()+np.pi-1.204)
+    detected_rotations = -(np.array(rots_ws)-rotation_detected.numpy()+np.pi-map_config['rot'])+2*np.pi
     dists_rot = deepcopy(detected_rotations)
     for rot, i in zip(detected_rotations,range(len(detected_rotations))):
         rot_shift = float(min(abs(rot+np.pi-(old_rot_assumption+np.pi)),abs(rot+3*np.pi-(old_rot_assumption+np.pi)),abs(rot+np.pi-(old_rot_assumption+3*np.pi))))
         dists_rot[i] = rot_shift
     # we get the detected localisation be subtracting the detected distances of a workstation from its location
-    corners_detec_2 = obstacle.corners
     dists_loc = []
     for j in range(len(corners_map_all)):
-        for i in range(len(corners_detec_2)-3): # NOTE The -3 means we only go through once, all should be the same, useful for debug
+        for i in range(len(detection_corners)-3): # NOTE The -3 means we only go through once, all should be the same, useful for debug
             # change cords so we have the distance from the ws on the map
-            corner = convert_cam_to_robo(corners_detec_2[i][1],-corners_detec_2[i][0], detected_rotations[j])
+            detection_corner = convert_cam_to_robo(detection_corners[i][1],-detection_corners[i][0], detected_rotations[j])
             # change cords
             ws_map = get_amcl_from_pixel_location(*corners_map_all[j][i],*base_info)
             # subtracting the detected distance from the workstation on the map                
-            loc_detec_p = (corners_map_all[j][i][0]-corner[0],corners_map_all[j][i][1]-corner[1])
-            loc_detec_acml = (ws_map[0]-corner[0],ws_map[1]-corner[1])
-            x_shift = loc_detec_p[0]-old_loc_assumption[1]
-            y_shift = loc_detec_p[1]-old_loc_assumption[2]
+            loc_detec = (ws_map[0]-detection_corner[0],ws_map[1]-detection_corner[1])
+            # loc_detec_acml = (ws_map[0]-corner[0],ws_map[1]-corner[1])
+            old_loc_assumption_p = get_pixel_location_from_acml(old_loc_assumption[1],old_loc_assumption[2],*base_info)
+            x_shift = loc_detec[0]-old_loc_assumption[1]
+            y_shift = loc_detec[1]-old_loc_assumption[2]
             dist_shift = float(np.sqrt(np.power(x_shift,2)+np.power(y_shift,2)))
             dists_loc.append(dist_shift)
     dists_loc = np.array(dists_loc)
-    # weighted sum to give each metric the same importance #*2 to have rotation,loc be more important
-    dists = np.sum(np.array([dists_ws,dists_rot*100*2,dists_loc]),axis=0)
+    # weighted sum to give each metric the same importance
+    dists = np.sum(np.array([dists_ws,dists_rot*100,dists_loc*20]),axis=0)
     arg_smallest_dist = np.argmin(dists)
     return arg_smallest_dist
 
@@ -195,13 +185,13 @@ if __name__ == '__main__':
     global acml_x
     global acml_y
     global acml_rot
+    global conf
     global img_glob
     global real_data
-    global odom_real_data
     # Loads the model
     conf = get_conf_and_model()
     # gets the set of calibration data that needs to measured for each new png map
-    base_info = get_base_info()
+    base_info, map_config = get_base_info()
     # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
     obstacles_ws = get_obstacles_in_pixel_map(base_info)
     # the movable obstacles that need to be placed in the robots way
@@ -211,7 +201,7 @@ if __name__ == '__main__':
     #rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0,0,0.85,1.57,2.19,2.19]
     # loading the png of the map and running the old detection system on it also configures the map to the right type
-    map_path = "./map_cropped.png"
+    map_path = map_config['path']
     map_ref, obstacles = initialize_map(map_path)
     # removing the obstacles from the map, adding the workstations, removing old should not be needed if we have a new map, TODO new map add new obstacles such as klappbox, chair and box
     map_ref_PRM = modify_map(map_ref, obstacles, obstacles_ws, color = (255,255,255))
@@ -221,8 +211,7 @@ if __name__ == '__main__':
     map_ref = modify_map(map_ref, [], obstacles_movable, color = (255,0,0))
     # map_ref.save('./image/test_loc.png') if you want to see/save the map at this point
 
-    # this is for debugging the offset of inaccuracy: postion of lidar vs center of robot
-    matplotlib.use('QtAgg')
+    # TODO this is for debugging the offset of inaccuracy postion of lidar vs center of robot
 
     # TODO This is to use the actuall ROS info
     rospy.init_node('test_loc_odom', anonymous=True)
@@ -243,7 +232,8 @@ if __name__ == '__main__':
     start = get_pixel_location_from_acml(*new_loc, *base_info)
     start = ([int(start[0]),int(start[1])])
     # init_nodes for the new map and get the trajectory from point one to point two TODO FIXME add the start and End NODE
-    trajectory_vanilla, nodes_vanilla, edges_all_vanilla = initialize_traj(map_ref_PRM,all_obst, nodes=None,start = start, end = [88,127])
+    # trajectory_vanilla, nodes_vanilla, edges_all_vanilla = initialize_traj(map_ref_PRM,all_obst, nodes=None,start = start, end = [88,127])
+    trajectory_vanilla, nodes_vanilla, edges_all_vanilla = initialize_traj(map_ref_PRM,all_obst, nodes=None,start = start, end = [124,68])
     traj_updt = []
     # get the updated trajetory in meters instead of pixels
     for i in range(len(trajectory_vanilla)):
@@ -300,7 +290,8 @@ if __name__ == '__main__':
             # detected_obst = get_obstacles_from_detection(detected_workstation_dist,new_loc_as_real, base_info)
             detected_obst = get_obstacles_from_detection(detected_workstation_dist,new_loc_as_real, base_info)
             # comparing detected obstacles with workstations on map to find correct one
-            index_smallest_dist_ws = best_match_workstation_index(corners_map_all, detected_obst, rots_ws, new_loc_as_real, rotation_detected)
+            detection_corners = list(map(tuple, zip(*detected_workstation_dist)))
+            index_smallest_dist_ws = best_match_workstation_index(corners_map_all, detected_obst,detection_corners, rots_ws, local_acml_location, rotation_detected,base_info)
 
             # now we want to show the matched ws in blue, the acml location in green
             map_ref_loc = modify_map(map_ref_loc,[],[obstacles_ws[index_smallest_dist_ws]],color=(255,0,0),convert_back_to_grey=False)
@@ -308,7 +299,9 @@ if __name__ == '__main__':
             map_ref_loc_draw = ImageDraw.Draw(map_ref_loc)
 
             # calculating rotation from detected and cord transforms
-            detected_rotation = -(rots_ws[index_smallest_dist_ws]-rotation_detected+np.pi-1.204)
+            # TODO replace with proper pass
+            # detected_rotation = -(rots_ws[index_smallest_dist_ws]-rotation_detected+np.pi-1.204)
+            detected_rotation = -(rots_ws[index_smallest_dist_ws]-rotation_detected+np.pi-map_config['rot'])+2*np.pi
             # basicly just transpose for the list
             corners_detec_2 = list(map(tuple, zip(*detected_workstation_dist)))
             # we get the detected localisation be subtracting the detected distances of a workstation from the actual one
