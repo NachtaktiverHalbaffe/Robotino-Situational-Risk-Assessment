@@ -104,6 +104,7 @@ class CSV_Reader:
                 self.values.append(np.float(row[value_index]))
                 self.collisions.append(np.float(row[collision_index]))
                 self.length_ratios.append(np.float(row[length_ratio_index]))
+                # NOTE this is the one thing different than in thinesh version, check if different agents need different values
                 if i == 8512:
                     break
 
