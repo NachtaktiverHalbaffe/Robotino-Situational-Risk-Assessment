@@ -14,6 +14,8 @@ from mcts import *
 from SaveData import save_data, traj_length
 from probability_cal import real_to_pixel , action_prob_cal , risk_calculation, cumm_risk
 from plotgraph import plt_action
+from AutoLabel import read_data
+from sklearn.linear_model import LinearRegression
 
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
@@ -70,6 +72,14 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     @param test_mode: test mode is true if we don't want to train a model but evaluate it (no exploration)
     @return: -
     """
+
+    """ ML approach to find probability of collision"""
+
+    data, _ = read_data("collision_data_00.csv")
+    X_train, y_train = data[:,0:6], data[:,-1]
+    regr = LinearRegression()
+    regr.fit(X_train, y_train)
+
     if test_mode:
         # torch.manual_seed(0)
         # np.random.seed(0)
@@ -120,7 +130,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     risk = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
-        n_episodes_eval = 100
+        n_episodes_eval = 6
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
         choose_action_total_time = 0
@@ -161,7 +171,6 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
         #assert(2==1)
         while not done:
-            step_counter += 1
             action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
 
             if test_mode:
@@ -178,6 +187,16 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                     step_total_time += time.perf_counter() - t3
                     probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
                     #print(probs_all)
+                    traj_temp = traj_vanilla
+
+                    if(len(traj_vanilla) > 2 and step_counter > 0):
+                        traj_temp = traj_vanilla[step_counter:len(traj_vanilla)]
+                    length = traj_length(traj_temp)
+                    my_data = [[traj_temp[0].coordinates[0],traj_temp[0].coordinates[1], traj_temp[len(traj_temp)-1].coordinates[0],traj_temp[len(traj_temp)-1].coordinates[1], len(traj_temp),length]]
+                    P_c_ida_ml = abs(regr.predict(my_data)[0])
+                    print("Inputs:", my_data)
+                    print("Probability of collision: " , P_c_ida_ml)
+
                     probs.append(probs_all)
                     positions.append(position_old)
                     p_o_ida *= action_prob_value
@@ -207,7 +226,7 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
             # if collision_status:
             #     print("Untried actions: ", mcts.untried_actions())
-
+            step_counter += 1
             
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
@@ -234,29 +253,30 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             #thisdict.update({pos_offset: action_count+1})
 
             if done:
-                # if len(traj_vanilla) == 2:
-                #     new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
-                # new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
-                #print("Left over edges: ", len(traj_vanilla) - node_num)
                 if collision_status == 1:
                     """ Swapnil Risk"""
                     # risk_value = risk_cal(action_value)
                     # cummulative_risk = cumm_risk(action_value)
                     collisions.append(1)
                     print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
+                    
                 else:
                     """ Swapnil Risk"""
                     # risk_value = risk_cal(action_value)
                     # cummulative_risk = cumm_risk(action_value)
                     collisions.append(0)
-                    print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)      
+                    print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)   
 
                 if test_mode:
                     if mcts_eval=="IDA":
+                        print("p_o_ida: ", p_o_ida)
+
+                        p_o_ida = 1
+
                         print("Left over edges: ", len(traj_vanilla) - node_num)
                         new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
-                        if len(traj_vanilla) == 2:
-                            new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
+                        # if len(traj_vanilla) == 2:
+                        #     new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
                         while (len(traj_vanilla) - node_num-1)>0:
                             done = False
                             env.reset_traj(node_num, pos=pos_prev)
@@ -412,6 +432,8 @@ def run_session_adv(config, test_mode, mcts_eval=True):
         # print('step_total_time:', step_total_time)
 def find_best_child(raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
 
+    temp_prev = prev_prob
+    #print("Find best raw probs: ", raw_probs)
     for n in range(len(raw_probs)):
         """ Calculation 2nd max probability"""
         prob_act = raw_probs[n]
@@ -423,6 +445,9 @@ def find_best_child(raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
             prev_prob = prob_act[3]
             pos_prev = positions[n]
             m_node_num = n + node_num
+        
+        if temp_prev == prev_prob:
+            action_index = 2
 
     return action_index,prev_prob, m_node_num, pos_prev
 
