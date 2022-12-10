@@ -177,9 +177,9 @@ def initialize_map(map_path):
     map_ref, obstacles = apply_object_detection(map_path)
 
     # --- only for test we use the already processed map ---
-    # obstacles = None
+    #obstacles = None
     # ref_map_path = 'map_ref.png'
-    # map_ref = Image.open(ref_map_path)
+    #map_ref = Image.open(map_path)
 
     return map_ref, obstacles
 
