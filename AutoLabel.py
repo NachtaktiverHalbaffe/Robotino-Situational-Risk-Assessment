@@ -137,7 +137,7 @@ def linear_regression(data):
     from sklearn.model_selection import train_test_split
 
     # Dropping any rows with Nan values
-    X_train, X_test, y_train, y_test = train_test_split(data[:,0:2], data[:,-1], test_size = 0.2)
+    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.2)
 
     print(len(X_train), len(X_test), len(y_test))
     from sklearn.linear_model import LinearRegression
@@ -145,7 +145,8 @@ def linear_regression(data):
     regr.fit(X_train, y_train)
     print(regr.score(X_test, y_test))
 
-    my_data = [[8.0,103.353]]
+    
+    my_data = [[115,157,86,160,3.0,34.7607]]
     from sklearn.metrics import mean_absolute_error,mean_squared_error
     y_pred = regr.predict(X_test)
     print(regr.predict(my_data))
@@ -165,7 +166,7 @@ def read_data(filename):
     return df.values, df
 
 if __name__ == '__main__':
-    data, data_orig = read_data("collision_data.csv")
+    data, data_orig = read_data("collision_data_00.csv")
     #data = data_orig.values
     linear_regression(data)
     #print (data)
