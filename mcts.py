@@ -157,6 +157,7 @@ class MonteCarloTreeSearch:
                         break
                     elif done and not collision_status:
                             n_successes+=1
+                            break
                 #print("Risk: ", risk)
                 cumm_risk += risk
                 risk = 1
@@ -246,6 +247,25 @@ class MonteCarloTreeSearch:
 
         return action_index, observation_, reward, done, collision_status
 
+    def find_best_child(self,raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
+        temp_prev = prev_prob
+        #print("Find best raw probs: ", raw_probs)
+        for n in range(len(raw_probs)):
+            """ Calculation 2nd max probability"""
+            prob_act = raw_probs[n]
+            indices = np.argsort(prob_act)
+            prob_act.sort()
+
+            if prob_act[3] > prev_prob:
+                action_index = indices[3]
+                prev_prob = prob_act[3]
+                pos_prev = positions[n]
+                m_node_num = n + node_num
+            
+            if temp_prev == prev_prob:
+                action_index = 2
+
+        return action_index,prev_prob, m_node_num, pos_prev
     def __version__(self):
         print("IAS_AR_0.22.1")
 
