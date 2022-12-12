@@ -1,0 +1,4 @@
+N_Epochs;N_games;memory_size;batch_size;gamma;lr;anneal_lr;epsilon;entropy_coef;value_loss_coef;relevant_segments;done_after_collision;model_arch
+4;30000;40;8;0.7;0.00075;True;-1;0.01;0.5;0;True;normal
+
+step;episode;value;action[-10°];action[-5°];action[0°];action[5°];action[10°];reward;collision_status;length_ratio
