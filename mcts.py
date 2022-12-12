@@ -3,7 +3,7 @@ import numpy as np
 
 from probability_cal import real_to_pixel , action_prob_cal , risk_calculation, cumm_risk
 
-ACTION_SPACE_STEP_ADVERSARY = 5
+ACTION_SPACE_STEP_ADVERSARY = 6
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
 # choosing the action to take in pixel 
 def choose_action(action_index):
@@ -106,10 +106,10 @@ class MonteCarloTreeSearch:
                 """ Step Function"""
                 pos_offset = choose_action(action_index)
                 action_prob_value = action_prob(action_index)
-                observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
+                #observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
 
-                #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                #observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, create_leaf_node=False, keep_searching=False)
+                action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
+                observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset,action_prob_value)
                 if collision_status:
                     n_collisions+=1
                     if done_after_collision == True:
@@ -143,10 +143,10 @@ class MonteCarloTreeSearch:
                     pos_offset = choose_action(action_index)
                     action_prob_value = action_prob(action_index) #Probability of occurance
                     #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                    observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
+                    #observation, reward, done, collision_status, _, position_old = self.env.step_adv1(pos_offset,action_prob_value)
                     
-                    #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
-                    #observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset, action_prob_value)
+                    action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(self.actions/2)*ACTION_SPACE_STEP_ADVERSARY))
+                    observation, reward, done, collision_status, _, old_position = self.env.step_adv1(action_angle_offset,action_prob_value)
                     po_pc = probs_all[action_index] * action_prob_value
                     risk *= action_prob_value
                     #a = input()
@@ -249,6 +249,7 @@ class MonteCarloTreeSearch:
 
     def find_best_child(self,raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
         temp_prev = prev_prob
+        m_node_num = node_num
         #print("Find best raw probs: ", raw_probs)
         for n in range(len(raw_probs)):
             """ Calculation 2nd max probability"""
