@@ -19,7 +19,7 @@ config_1 = {
     #'map_path': './maps/map_y.png',
     #'map_path': './maps/FinalGridMapv2.png',
     'map_path': './maps/map_g.png',
-    'geo_path': './maps/map_g.png',
+    'geo_path': './maps/map_geo.png',
     'start': [62,74], 
     'goal':[109,125],
     'eval_ep': 5,
