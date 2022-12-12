@@ -15,7 +15,7 @@ from SaveData import save_data, traj_length
 from probability_cal import real_to_pixel , action_prob_cal , risk_calculation, cumm_risk
 from plotgraph import plt_action
 from AutoLabel import read_data
-from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
 
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
@@ -63,7 +63,7 @@ def count_parameters(model):
     return total_params
 
 
-def run_session_adv(config, test_mode, mcts_eval=True):
+def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False):
     """
     this function starts the training or evaluation process of the simulation-gap-adversary
     be sure to pass the right path to your map in Environment.
@@ -75,9 +75,9 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
     """ ML approach to find probability of collision"""
 
-    data, _ = read_data("collision_data_00.csv")
+    data, _ = read_data("collision_data_000.csv")
     X_train, y_train = data[:,0:6], data[:,-1]
-    regr = LinearRegression()
+    regr = SVR()
     regr.fit(X_train, y_train)
 
     if test_mode:
@@ -128,17 +128,20 @@ def run_session_adv(config, test_mode, mcts_eval=True):
     n_episodes = config['n_games']+1
     mcts_total_time = 0
     risk = 0
+    prob_collisions_brute = []
     if test_mode:
         # set the number of episodes to evaluate the model here
         n_episodes_eval = 6
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
+        collision_ida = []
         choose_action_total_time = 0
         reset_total_time = 0
         step_total_time = 0
         temp_prob = 0
         node_num = 1
         probs = []
+        prob_collision = "nan"
         positions = []
 
         t0 = time.perf_counter()
@@ -155,26 +158,53 @@ def run_session_adv(config, test_mode, mcts_eval=True):
         reset_total_time += time.perf_counter()-t2
 
         step_counter = 0
-
         done = False
-        done2 = False
         score = 0
         p_o_ida = 1
 
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones,  = [], [], [], [], [], [], []
-        action_value = []
-
-
         mcts = MonteCarloTreeSearch(config['N_actions'], traj_vanilla, env, adv1, obeservation_orig, test_mode= test_mode)
         action_space = mcts.expand()
-        print(action_space)
+        #print(action_space)
 
-        #assert(2==1)
+        pc_ida_max = 0
+        while not done:
+            if test_mode == True and mcts_eval == "BRUTE_FORCE"  or ida_brute_combine==True:
+                t4 = time.perf_counter()
+                observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(action_space, done_after_collision= False)
+                mcts_total_time += time.perf_counter() - t4
+                length = traj_length(traj_vanilla)
+                #temp_data = [traj_vanilla,traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
+                #collision_data.append(temp_data)
+                risk += risk_ep
+                if done:
+                    if collision_status == 1:
+                        print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
+                        
+                    else:
+                        print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)
+                
+            done = True
+       
+        done = False
+        #collision_status = False
+        env.reset_traj()
         while not done:
             action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
 
             if test_mode:
-                if mcts_eval=="IDA":
+                if mcts_eval == "BRUTE_FORCE":
+                    done = True
+                # if mcts_eval == "BRUTE_FORCE"  or ida_brute_combine==True:
+                #     t4 = time.perf_counter()
+                #     observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(action_space, done_after_collision= False)
+                #     mcts_total_time += time.perf_counter() - t4
+                #     #length = traj_length(traj_vanilla)
+                #     #temp_data = [traj_vanilla,traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
+                #     #collision_data.append(temp_data)
+                #     risk += risk_ep
+
+                if mcts_eval=="IDA" or ida_brute_combine==True:
                     t1 = time.perf_counter()
 
                     action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
@@ -186,31 +216,19 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                     observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
                     step_total_time += time.perf_counter() - t3
                     probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
-                    #print(probs_all)
                     traj_temp = traj_vanilla
-
                     if(len(traj_vanilla) > 2 and step_counter > 0):
                         traj_temp = traj_vanilla[step_counter:len(traj_vanilla)]
+                    print(traj_temp)
                     length = traj_length(traj_temp)
                     my_data = [[traj_temp[0].coordinates[0],traj_temp[0].coordinates[1], traj_temp[len(traj_temp)-1].coordinates[0],traj_temp[len(traj_temp)-1].coordinates[1], len(traj_temp),length]]
                     P_c_ida_ml = abs(regr.predict(my_data)[0])
-                    print("Inputs:", my_data)
-                    print("Probability of collision: " , P_c_ida_ml)
-
+                    if P_c_ida_ml > pc_ida_max:
+                        pc_ida_max = P_c_ida_ml
                     probs.append(probs_all)
                     positions.append(position_old)
                     p_o_ida *= action_prob_value
 
-                if mcts_eval == "BRUTE_FORCE":
-                    t4 = time.perf_counter()
-                    observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(action_space, done_after_collision= False)
-                    mcts_total_time += time.perf_counter() - t4
-                    #print(traj_vanilla[0].coordinates, traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1])
-                    length = traj_length(traj_vanilla)
-                    print(length)
-                    temp_data = [traj_vanilla,traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
-                    collision_data.append(temp_data)
-                    risk += risk_ep
             else:
                 t1 = time.perf_counter()
 
@@ -247,24 +265,16 @@ def run_session_adv(config, test_mode, mcts_eval=True):
             ep_entropy.append(torch.squeeze(Categorical(raw_probs).entropy().detach(), 0).item())
             ep_dones.append(done)
 
-            """ Swapnil Risk"""
-            #action_value.append(pos_offset)
-            #action_count = thisdict.get(pos_offset)
-            #thisdict.update({pos_offset: action_count+1})
 
             if done:
                 if collision_status == 1:
-                    """ Swapnil Risk"""
-                    # risk_value = risk_cal(action_value)
-                    # cummulative_risk = cumm_risk(action_value)
                     collisions.append(1)
+                    collision_ida.append(1)
                     print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
                     
                 else:
-                    """ Swapnil Risk"""
-                    # risk_value = risk_cal(action_value)
-                    # cummulative_risk = cumm_risk(action_value)
                     collisions.append(0)
+                    collision_ida.append(0)
                     print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)   
 
                 if test_mode:
@@ -273,8 +283,8 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
                         p_o_ida = 1
 
-                        print("Left over edges: ", len(traj_vanilla) - node_num)
                         new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
+                        print("Left over edges: ", len(traj_vanilla) - node_num)
                         # if len(traj_vanilla) == 2:
                         #     new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num=1)
                         while (len(traj_vanilla) - node_num-1)>0:
@@ -297,22 +307,16 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                             
                             #print("Done: ", done)
                             observation = observation_
-                            #score += reward
-                            #a = input()
-                            # steps_episodes_log.append(episode_counter)
-                            # steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
-                            # steps_val_log.append(np.round(val, 2))
-                            # steps_reward_log.append(np.round(reward, 2))
-                            # steps_collisions_log.append(collision_status)
-                            # steps_length_ratio_log.append(0)
                             if done:
                                 node_num = len(traj_vanilla)
                                 if collision_status == 1:
                                     collisions.append(1)
-                                    print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
+                                    collision_ida.append(1)
+                                    print("\U0000274c",bcolors.BOLD + bcolors.WARNING + "Collision occured and not reached" + bcolors.ENDC)
                                 else:
                                     collisions.append(0)
-                                    print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)
+                                    collision_ida.append(0)
+                                    print("\U00002705",bcolors.BOLD + bcolors.OKBLUE + "Reached at the destination" + bcolors.ENDC)
                             while not done:
                                 #print(bcolors.BOLD + bcolors.OKBLUE + "While Second Done" + bcolors.ENDC)
                                 action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
@@ -330,16 +334,9 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                                 #print(raw_probs)
                                 probs.append(probs_all)
                                 positions.append(position_old)
-                                # steps_episodes_log.append(episode_counter)
-                                # steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
-                                # steps_val_log.append(np.round(val, 2))
-                                # steps_reward_log.append(np.round(reward, 2))
-                                # steps_collisions_log.append(collision_status)
-                                # steps_length_ratio_log.append(0)
-                                #score += reward
                                 #a = input()
                                 if done:
-                                    print(bcolors.BOLD + bcolors.OKBLUE + "Second Done" + bcolors.ENDC)
+                                    #print(bcolors.BOLD + bcolors.OKBLUE + "Second Done" + bcolors.ENDC)
                                     new_action_index, prob_prev , node_num, pos_prev = find_best_child(probs, positions, node_num, pos_prev=pos_prev)
                                     if node_num == prev_node_num:
                                         #print(bcolors.BOLD + bcolors.OKBLUE + "node_num == prev_node_num" + bcolors.ENDC)
@@ -348,10 +345,12 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                                         new_action_index = 2
                                     if collision_status == 1:
                                         collisions.append(1)
-                                        print("\U0000274c",bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC)
+                                        collision_ida.append(1)
+                                        print("\U0000274c",bcolors.BOLD + bcolors.WARNING + "Collision occured and not reached" + bcolors.ENDC)
                                     else:
                                         collisions.append(0)
-                                        print("\U00002705",bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC)
+                                        collision_ida.append(0)
+                                        print("\U00002705",bcolors.BOLD + bcolors.OKBLUE + "Reached at the destination" + bcolors.ENDC)
                                         #break
                                 observation = observation_
 
@@ -361,6 +360,47 @@ def run_session_adv(config, test_mode, mcts_eval=True):
                 adv1.remember(ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones)
             observation = observation_
 
+        """ Probability of collision for IDA and collect data for logging""" 
+        if mcts_eval == "BRUTE_FORCE":
+            temp_data = [traj_vanilla,
+                            traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], 
+                            traj_vanilla[len(traj_vanilla)-1].coordinates[0],
+                            traj_vanilla[len(traj_vanilla)-1].coordinates[1], 
+                            len(traj_vanilla),
+                            length,
+                            prob_collision,
+                            "nan"]
+
+        if mcts_eval == "IDA" :
+            constant = 0.01
+            learning_rate = 0.1
+            total_success = sum(x == 0 for x in collision_ida)
+            total_collisions = sum(x == 1 for x in collision_ida)
+            residual = (((total_collisions-total_success + constant)/(total_success+total_collisions+constant))* (1/(len(traj_vanilla)-step_counter+constant)) * learning_rate)
+            estimated_prob_collision = abs(pc_ida_max + residual)
+            length = traj_length(traj_vanilla)
+            temp_data = [traj_vanilla,
+                        traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], 
+                        traj_vanilla[len(traj_vanilla)-1].coordinates[0],
+                        traj_vanilla[len(traj_vanilla)-1].coordinates[1], 
+                        len(traj_vanilla),
+                        length,
+                        "nan",
+                        round(estimated_prob_collision,4)]
+
+        if ida_brute_combine:
+            temp_data = [traj_vanilla,
+                        traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], 
+                        traj_vanilla[len(traj_vanilla)-1].coordinates[0],
+                        traj_vanilla[len(traj_vanilla)-1].coordinates[1], 
+                        len(traj_vanilla),
+                        length,
+                        prob_collision,
+                        round(estimated_prob_collision,4)]
+        
+        collision_data.append(temp_data)
+            #print(total_success, total_collisions, step_counter, residual, estimated_prob_collision)
+        
         #a = input()
         if episode % config['memory_size'] == 0:
             if config['anneal_lr']:
@@ -401,7 +441,6 @@ def run_session_adv(config, test_mode, mcts_eval=True):
         if len(score_history) > avg_window_score:
             score_history = score_history[-avg_window_score:]
             collisions = collisions[-avg_window_score:]
-
         # this number determines how frequently we save our model
         if (episode % 800 == 0) and (not test_mode):
             adv1.save_models(path=config['log_name'] + '_models/', name=str(episode))
@@ -426,10 +465,6 @@ def run_session_adv(config, test_mode, mcts_eval=True):
 
     return risk/(n_episodes-1)
 
-        #a = input()
-        #print('reset_total_time:', reset_total_time)
-        #print('choose_action_total_time:', choose_action_total_time)
-        # print('step_total_time:', step_total_time)
 def find_best_child(raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
 
     temp_prev = prev_prob
@@ -451,12 +486,12 @@ def find_best_child(raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]):
 
     return action_index,prev_prob, m_node_num, pos_prev
 
-def mains(mode=True, mcts_eval="BRUTE_FORCE"):
+def mains(mode=True, mcts_eval="IDA"):
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
     for i in range(0, n_sessions):
-        risk = run_session_adv(config.configs[i], test_mode=mode, mcts_eval=mcts_eval)
+        risk = run_session_adv(config.configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=True)
 
     print('training/evaluation finished')
     done = True
