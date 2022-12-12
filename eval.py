@@ -10,7 +10,7 @@ from probability_cal import real_to_pixel , risk_calculation
 from AutoLabel import read_data
 from sklearn.svm import SVR
 
-ACTION_SPACE_STEP_ADVERSARY = 5
+ACTION_SPACE_STEP_ADVERSARY = 6
 
 class bcolors:
     HEADER = '\033[95m'
@@ -135,9 +135,10 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                     action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
                     pos_offset = choose_action(action_index)
                     action_prob_value = action_prob(action_index)
-                    #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                    observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
+                    action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                    observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset,action_prob_value)
                     probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
+                    #print(probs_all)
                     traj_temp = traj_vanilla
                     if(len(traj_vanilla) > 2 and step_counter > 0):
                         traj_temp = traj_vanilla[step_counter:len(traj_vanilla)]
@@ -182,11 +183,11 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                             pos_offset = choose_action(new_action_index)
                             action_prob_value = action_prob(new_action_index)
                             #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                            observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
+                            #observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
 
                             """ Previous"""
-                            #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * new_action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                            #observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, keep_searching=False)
+                            action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * new_action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                            observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, action_prob_value)
                             
                             observation = observation_
                             if done:
@@ -203,11 +204,11 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                                 pos_offset = choose_action(action_index)
                                 action_prob_value = action_prob(action_index)
                                 #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                                observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
+                                #observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
 
                                 """ Previous"""
-                                #action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                                #observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset, keep_searching=False)
+                                action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                                observation_, reward, done, collision_status, _, position_old = env.step_adv1(action_angle_offset,action_prob_value)
                                 
                                 probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0),4)
                                 probs.append(probs_all)
