@@ -146,7 +146,63 @@ def linear_regression(data):
     print(regr.score(X_test, y_test))
 
     
-    my_data = [[115,157,86,160,3.0,34.7607]]
+    my_data = [[142,78,89,57,5.0,57.185]]
+    from sklearn.metrics import mean_absolute_error,mean_squared_error
+    y_pred = regr.predict(X_test)
+    print(regr.predict(my_data))
+
+    mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
+    #squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
+    rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
+    
+    print("MAE:",mae)
+    print("MSE:",mse)
+    print("RMSE:",rmse)
+
+def isotonic_regression(data):
+    from sklearn.model_selection import train_test_split
+
+    # Dropping any rows with Nan values
+    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.1)
+
+    #from sklearn import svm
+    from sklearn.svm import SVR
+    #regr = svm.SVR()
+    regr = SVR()
+
+    regr.fit(X_train, y_train)
+    print(regr.score(X_test, y_test))
+
+    
+    my_data = [[142,78,89,57,5.0,57.185]]
+    from sklearn.metrics import mean_absolute_error,mean_squared_error
+    y_pred = regr.predict(X_test)
+    print(regr.predict(my_data))
+
+    mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
+    #squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
+    rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
+    
+    print("MAE:",mae)
+    print("MSE:",mse)
+    print("RMSE:",rmse)
+    return regr.predict(data[:,0:6]).round(4)
+def ransac(data):
+    from sklearn.model_selection import train_test_split
+
+    # Dropping any rows with Nan values
+    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.2)
+
+    print(len(X_train), len(X_test), len(y_test))
+    from sklearn.linear_model import ElasticNet
+    regr = ElasticNet(random_state=0)
+    regr.fit(X_train, y_train)
+    print(regr.score(X_test, y_test))
+
+    
+    my_data = [[142,78,89,57,5.0,57.185]]
     from sklearn.metrics import mean_absolute_error,mean_squared_error
     y_pred = regr.predict(X_test)
     print(regr.predict(my_data))
@@ -166,9 +222,11 @@ def read_data(filename):
     return df.values, df
 
 if __name__ == '__main__':
-    data, data_orig = read_data("collision_data_00.csv")
+    data, data_orig = read_data("collision_data_000.csv")
     #data = data_orig.values
     linear_regression(data)
+    yhat = isotonic_regression(data)
+    #ransac(data)
     #print (data)
     #print(data[:,0:2])
     #print(data[:,2])
@@ -177,9 +235,10 @@ if __name__ == '__main__':
     #al = AutoLabel(data, n_clusters=3, method=0)
     #yhat = al.MixtureofGaussians()
     #al.K_Means()
-    #data_orig.insert(3, "label", yhat, True)
-    #print(data_orig)
-    #data_orig.to_csv('labelled_data.csv', header=False, index=False)
+
+    # data_orig.insert(7, "Expected Prob collision", yhat, True)
+    # #print(data_orig)
+    # data_orig.to_csv('labelled_data_pc.csv', header=False, index=False)
 
     #print(data[:,0:2])
     #read_data("collision_data.csv")
