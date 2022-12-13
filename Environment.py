@@ -395,10 +395,11 @@ class Environment:
 
     def reset_traj(self, node_num=1, pos=[-1, -1]):
         self.state_adv1.traj_index = node_num
-        if pos[0] == -1:
-            self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
-            #print("in -1 pos")
-        else: self.state_adv1.position = pos
+        if len(pos) > 0:
+            if pos[0] == -1:
+                self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
+                #print("in -1 pos")
+            else: self.state_adv1.position = pos
         self.state_adv1.angle = 0
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
     def step_adv1(self, action, action_prob):
