@@ -70,7 +70,7 @@ class AutoLabel:
             # get row indexes for samples with this cluster
             row_ix = where(yhat == cluster)
             # create scatter of these samples
-            plt.scatter(X[row_ix, 0], X[row_ix, 1])
+            plt.scatter(X[row_ix, 1], X[row_ix, 2])
         # show the plot
         plt.show()
 
@@ -93,7 +93,7 @@ class AutoLabel:
         from sklearn.cluster import KMeans
         model = KMeans(n_clusters=self.clusters, n_init=100)
         # fit model and predict clusters
-        yhat = model.fit_predict(self.X, sample_weight=self.X[:,-1])
+        yhat = model.fit_predict(self.X) # , sample_weight=self.X[:,-1]
         # retrieve unique clusters
         clusters = unique(yhat)
         #print(yhat)
@@ -160,7 +160,7 @@ def linear_regression(data):
     print("MSE:",mse)
     print("RMSE:",rmse)
 
-def isotonic_regression(data):
+def svm_regression(data):
     from sklearn.model_selection import train_test_split
 
     # Dropping any rows with Nan values
@@ -217,15 +217,35 @@ def ransac(data):
     print("RMSE:",rmse)
 
 def read_data(filename):
-    df = pd.read_csv(filename, sep=',', header=None)
+    df = pd.read_csv(filename, sep=',')
     #print(df.values)
+    #print(df)
     return df.values, df
+def evaluate_virtual_vs_ida(y_true, y_pred):
+    from sklearn.metrics import mean_absolute_error,mean_squared_error
 
+    mae = mean_absolute_error(y_true=y_true,y_pred=y_pred)
+    #squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_true,y_pred=y_pred) #default=True
+    rmse = mean_squared_error(y_true=y_true,y_pred=y_pred,squared=False)
+    
+    print("MAE:",mae)
+    print("MSE:",mse)
+    print("RMSE:",rmse)
+    return mae,mse,rmse
 if __name__ == '__main__':
-    data, data_orig = read_data("collision_data_000.csv")
+    #data, data_orig = read_data("collision_data_000.csv")
+    data, data_orig = read_data("data/collision_data_exp_ida_brute_force_angle.csv")
+    #print(data[1:-1,5:8])
+    X_clustering = data_orig[["N_nodes", "length", "Prob_collision_Brute_force"]].values
+    y_brute = data_orig["Prob_collision_Brute_force"].values
+    y_ida = data_orig["Prob_collision_IDA"].values
+    y_exp = data_orig["Expected Probability Collision"].values
+    evaluate_virtual_vs_ida(y_brute,y_exp)
+
     #data = data_orig.values
-    linear_regression(data)
-    yhat = isotonic_regression(data)
+    #linear_regression(data)
+    #yhat = svm_regression(data)
     #ransac(data)
     #print (data)
     #print(data[:,0:2])
