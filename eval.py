@@ -76,7 +76,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
     risk = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
-        n_episodes_eval = 6
+        n_episodes_eval = config['eval_ep']+1
         n_episodes = n_episodes_eval
     for episode in range(1, n_episodes):
         collision_ida = []
@@ -263,9 +263,9 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
     print("Risk: ", risk/(n_episodes-1))
     print("Risk sqrt: ", np.sqrt(risk/(n_episodes-1)))
 
-    return risk/(n_episodes-1)
+    return np.sqrt(risk/(n_episodes-1))
 
-def mains(mode=True, mcts_eval="IDA"):
+def mains(mode=True, mcts_eval="IDA", combined_eval=False):
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
