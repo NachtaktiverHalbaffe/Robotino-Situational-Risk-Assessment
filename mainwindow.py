@@ -54,14 +54,14 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 import numpy as np
 from threading import *
-from AutoLabel import AutoLabel, read_data
+from AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
 
 # setting path
 sys.path.insert(1, "../thesis")
 from scripts.Velocity import move
 from scripts.py_ros_launch import ros_launch_without_core
 import config as config
-from main import mains
+from eval import mains as evaluation
 import subprocess
 
 prv_txt = "GUI started"
@@ -95,6 +95,7 @@ class MainWindow(QMainWindow):
         self.thread = {}
         self.corners = []
         self.filename = ""
+        self.combined_eval = False
 
         # Textcolors for textboxes
         self.ERROR = QColor(255, 0, 0)
@@ -115,6 +116,7 @@ class MainWindow(QMainWindow):
         self.ui.tree_selector.addItem("BRUTE_FORCE")
         self.ui.tree_selector.addItem("BINARY_SEARCH")
         self.ui.tree_selector.addItem("IDA")
+        
 
         self.ui.ml_algo_selector.addItem("select algorithm")
         self.ui.ml_algo_selector.addItem("Kmeans")
@@ -135,7 +137,7 @@ class MainWindow(QMainWindow):
         self.ui.tree_selector.currentIndexChanged.connect(self.treeselector_changed)
         self.ui.ml_algo_selector.currentIndexChanged.connect(self.select_algo)
 
-        self.ui.actionOpen_Map.triggered.connect(self.file_open)
+        self.ui.actionOpen_Map.triggered.connect(lambda: self.file_open(map=True),)
         self.ui.actionInfo.triggered.connect(self.showDialog)
         self.ui.save_map_btn.clicked.connect(
             lambda: self.show_info(self.ui.path_to_map.text(), new_line=True)
@@ -157,6 +159,7 @@ class MainWindow(QMainWindow):
         self.ui.close_window_btn.clicked.connect(lambda: self.destroy_windows())
 
         self.ui.ML_autolabel.clicked.connect(lambda: self.predict_clusters())
+        self.ui.ML_test.clicked.connect(lambda: self.evaluate_ida())
 
     def start_robot(self):
         """
@@ -285,6 +288,9 @@ class MainWindow(QMainWindow):
             self.ui.Test_btn.setEnabled(False)
         else:
             self.ui.info_box_rl.setText(tree_type)
+            self.print_rl("Combined evaluation: " + str(self.ui.combined_ida_and_brute.isChecked()), append=True)
+            self.combined_eval = self.ui.combined_ida_and_brute.isChecked()
+            #print(self.ui.combined_ida_and_brute.isChecked())
             self.ui.Test_btn.setEnabled(True)
 
     def onshape_selector_changed(self):
@@ -333,6 +339,41 @@ class MainWindow(QMainWindow):
             self.ui.info_box_rl.setText(text)
         self.ui.info_box_rl.setTextColor(self.NORMAL)
 
+    def evaluate_ida(self):
+        """
+        Evaluate IDA and map probability of collisions.
+
+        Args:
+            Uses the file the user has opend over the "Open Map" in the file menu
+        """
+        # Input validation of file
+        if len(self.filename) < 10:
+            self.print_ml(
+                "Please select the data/collision_data_*.csv file", append=True, color=self.WARNING
+            )
+        elif self.filename.split(".")[-1] != "csv":
+            self.print_ml(
+                "Please select the appropriate file", append=True, color=self.WARNING
+            )
+
+        # Start autolabeling
+        else:
+            self.ui.info_box_ml.append("ML Started")
+            data, df = read_data(self.filename)
+            y_brute = df["Prob_collision_Brute_force"].values
+            y_ida = df["Prob_collision_IDA"].values
+            y_exp = df["Expected Probability Collision"].values
+            mae,mse,rmse = evaluate_virtual_vs_ida(y_brute,y_ida)
+            self.print_ml(
+                "MAE: "+str(mae), append=True, color=self.BLUE
+            )
+            self.print_ml(
+                "MSE: "+str(mse), append=True, color=self.BLUE
+            )
+            self.print_ml(
+                "RMSE: "+str(rmse), append=True, color=self.BLUE
+            )
+
     def predict_clusters(self):
         """
         Starts the autolabeling.
@@ -345,7 +386,7 @@ class MainWindow(QMainWindow):
         # Input validation of file
         if len(self.filename) < 10:
             self.print_ml(
-                "Please select the collision_data.csv", append=True, color=self.WARNING
+                "Please select the data/collision_data_*.csv file", append=True, color=self.WARNING
             )
         elif self.filename.split(".")[-1] != "csv":
             self.print_ml(
@@ -356,6 +397,7 @@ class MainWindow(QMainWindow):
         else:
             self.ui.info_box_ml.append("ML Started")
             data, df = read_data(self.filename)
+            data= df[["N_nodes", "length", "Prob_collision_Brute_force"]].values
             al = AutoLabel(data, n_clusters=3)
             if algo_type == "Kmeans":
                 al.K_Means()
@@ -392,9 +434,10 @@ class MainWindow(QMainWindow):
             mode (bool): If the model should be trained (True) or evaluated (False)
         """
         mcts_eval = self.ui.tree_selector.currentText()
+        self.combined_eval = self.ui.combined_ida_and_brute.isChecked()
         # Setup and start thread
         self.thread[1] = ThreadClass(
-            parent=None, mode=mode, mcts_eval=mcts_eval, index=1
+            parent=None, mode=mode, mcts_eval=mcts_eval, index=1, combined_eval=self.combined_eval
         )
         self.thread[1].start()
         self.thread[1].any_signal.connect(self.train_test)
@@ -474,13 +517,15 @@ class MainWindow(QMainWindow):
         Args:
             map (bool): If map should also be showed when opened (True) or not (False). Defaults to True
         """
-        name = QFileDialog.getOpenFileName(self)
-        if map:
+        name = QFileDialog.getOpenFileName(self)       
+            
+        if self.ui.tabWidget.tabText(0) == "Mapper":
             self.show_map(name[0])
+            
         self.filename = name[0]
         # return name[0]
         # file = open(name, 'r')
-        # print(name[0])
+        #print(name[0])
 
     def showDialog(self):
         """
@@ -677,12 +722,13 @@ class ThreadClass(QThread):
 
     any_signal = Signal(float)
 
-    def __init__(self, parent=None, mode=False, mcts_eval="BRUTE_FORCE", index=0):
+    def __init__(self, parent=None, mode=False, mcts_eval="IDA", index=0, combined_eval = False):
         super(ThreadClass, self).__init__(parent)
         self.mode = mode
         self.is_running = True
         self.index = index
         self.mcts = mcts_eval
+        self.combined_eval = combined_eval
 
     def run(self):
         """
@@ -693,7 +739,7 @@ class ThreadClass(QThread):
         """
         print("Starting Thread...", self.mode)
         # cnt=0
-        done, risk = mains(mode=self.mode, mcts_eval=self.mcts)
+        done, risk = evaluation(mode=self.mode, mcts_eval=self.mcts, combined_eval=self.combined_eval)
         self.is_running = False
         if done:
             self.any_signal.emit(risk)
