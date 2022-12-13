@@ -4,7 +4,10 @@ from move_utils import *
 from move_utils_cords import *
 
 def get_box_and_klapp():
-
+    # this is a list of the true postions of the movable objects on the map
+    # having it like this allows us to move them quickly. This is only used
+    # when the localisation is running without the detection or we want to
+    # measure the detections performance
     x_shift_klapp = 0.0
     y_shift_klapp = 0.0
 
@@ -27,26 +30,18 @@ def get_box_and_klapp():
     objects.append(klapp)
     objects.append(box)
     objects.append(chair)
-    return objects    
+
+    names = [object['name'] for object in objects]
+    return objects, names
 
 
 def get_objects():
     objects = []
-    ex_1 = {'name': 'wm4',
-            'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([-0.42+2, 0.0, 4.32-2.5]),
-            'angle': 1.57}
-    ex_2 = {'name': 'wm4',
-            'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([-0.42+2, 0.0, 4.32]),
-            'angle': 1.57}
-    ex_3 = {'name': 'ex3',
-            'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([-1.92, 0.0, 4.32]),
-            'angle': 1.57}
-#     objects.append(ex_1)
-#     objects.append(ex_2)
-#     objects.append(ex_3)
+    # This is a list of the postions of the workstations alligned 
+    # to the real labs floor grid. This gets better results than using
+    # the pre existing image recognition to place them on the map. Seeing
+    # as we use this informaion to backcalculate the postion of the robot
+    # this needed to pre accurate
 
     wm_1 = {'name': 'wm1',
             'size': np.array([0.96, 1.15, 0.80]),
@@ -58,25 +53,20 @@ def get_objects():
             'angle': 0}
     wm_3 = {'name': 'wm3',
             'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([-2.855+0.124, 0.0, 3.72+0.69]),
-            'location': np.array([-2.855+0.44, 0.0, 3.72+0.12]),
-            'angle': 0.85}
+            'location': np.array([-2.335, 0.0, 3.75]),
+            'angle': 0.80}
     wm_4 = {'name': 'wm4',
             'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([-0.42-0.1, 0.0, 4.32]),
-            'angle': 1.57}
+            'location': np.array([-0.42-0.08, 0.0, 4.20]),
+            'angle': 1.55}
     wm_5 = {'name': 'wm5',
             'size': np.array([0.96, 1.15, 0.80]),
-            'location': np.array([1.18-0.15, 0.0, 4.12-0.1]),
-            'angle': 2.19}
+            'location': np.array([1.03, 0.0, 4.00]),
+            'angle': 2.22}
     wm_6 = {'name': 'wm5',
             'size': np.array([0.96*2, 1.15, 0.80]),
-            'location': np.array([2.23-0.25, 0.0, 3.52-0.2]),
-            'angle': 2.19}
-    checkerboard = {'name': 'checkerboard',
-                    'size': np.array([0.001, 0.6, 0.6]),
-                    'location': np.array([0.30, 0.0, 2.10]),
-                    'angle': 0.0}
+            'location': np.array([1.98, 0.0, 3.30]),
+            'angle': 2.22}
 
     objects.append(wm_1)
     objects.append(wm_2)
@@ -84,34 +74,8 @@ def get_objects():
     objects.append(wm_4)
     objects.append(wm_5)
     objects.append(wm_6)
-    # objects.append(checkerboard)
-
-    return objects
-
-
-def get_FoV_points():
-    outer_points = []
-    lf = {'name': 'left_front',
-          'size': np.array([0.001, 0.2, 0.2]),
-          'location': np.array([-0.59, 0.0, 1.45]),
-          'angle': 0.0}
-    rf = {'name': 'right_front',
-          'size': np.array([0.001, 0.2, 0.2]),
-          'location': np.array([0.80, 0.0, 1.380]),
-          'angle': 0.0}
-    rb = {'name': 'right_back',
-          'size': np.array([0.001, 0.2, 0.2]),
-          'location': np.array([3.35, 0.0, 5.8]),
-          'angle': 0.0}
-    lb = {'name': 'left_back',
-          'size': np.array([0.001, 0.2, 0.2]),
-          'location': np.array([-2.35, 0.0, 5.85]),
-          'angle': 0.0}
-    outer_points.append(lf)
-    outer_points.append(rf)
-    outer_points.append(rb)
-    outer_points.append(lb)
-    return outer_points
+    names = [object['name'] for object in objects]
+    return objects, names
 
 def corners_from_center(x,y,rotation,sizes):
     # x = depth, y = horizontal shift
@@ -137,10 +101,9 @@ def corners_from_center(x,y,rotation,sizes):
     corners_3D[2,:] = corners_3D[2,:] + x#object.t(2);
     return corners_3D
 
-
-
 def object_grid_to_pixel(pixel_map_info,object):
-
+    """ Here we are moving the postions from the locaion in the grid map into
+    the postion on the pixel image"""
     left_close_corner =  object['location']
     # here we correct the coordinate system    
     d_real = object['size'][2]
@@ -155,7 +118,7 @@ def object_grid_to_pixel(pixel_map_info,object):
     depth = left_close_corner[0]+2.35# should be more
     horizontal_shift = left_close_corner[2]-0.6
     if pixel_map_info[-2]==48:
-        depth = left_close_corner[0]+0.10# should be more
+        depth = left_close_corner[0]#+0.10# should be more
         horizontal_shift = left_close_corner[2]-4.5
     corner_points = corners_from_center(depth,horizontal_shift,-rotation,size)
 
@@ -170,16 +133,12 @@ def object_grid_to_pixel(pixel_map_info,object):
         pixel_corners.append(get_pixel_location_from_acml(*convert_grid_to_robo(corner[2], corner[0]),*pixel_map_info))
 
     return pixel_corners
-    # we then want to return the corners beause that is what obstales needs as a init
-    # sort so that we start with max max
-
-
 
 def get_obstacles_in_pixel_map(pixel_map_info,objects = 'ws'):
     if objects =='ws':
-        grid_objects = get_objects()
+        grid_objects, names = get_objects()
     if objects == 'movable':
-        grid_objects = get_box_and_klapp()
+        grid_objects, names = get_box_and_klapp()
     pixel_corners_all = []
     for object in grid_objects:
         # translate and rotate the objects to match the pixel map given by base info
@@ -189,6 +148,8 @@ def get_obstacles_in_pixel_map(pixel_map_info,objects = 'ws'):
     for corners in pixel_corners_all:
         obstacles.append(Obstacle(corners))
     
-    return obstacles
+    return obstacles, names
+
+
 
 

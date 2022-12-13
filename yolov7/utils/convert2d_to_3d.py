@@ -11,9 +11,10 @@ def infer_depth(top,bot,h_real):
 
 def infer_depth_from_top(top,h_real):
     """infer the distance of the object based on how high it is relative to the vanishing point"""
-    offset = 278.9999553571429
-    hight = 600-top-285.0887749553571
-    a = 285.0887749553571*(h_real)/0.8
+    offset = 245
+    print(600-top)
+    hight = 600-top-offset
+    a = 420.17*(h_real-0.415)/(0.95-0.415)
     return a/np.abs(hight)
 
 def infer_width(shift_p, depth):
@@ -39,22 +40,21 @@ def infer_rot(top,bot,d,w,dir):
         print('except unknown roation, name either c or a')
     return y
 
-def cube_rules(xyxy, label,h_real,w_real,d_real):
+def cube_rules(xyxy, label,h_real,w_real,d_real,use_pure_hight):
     top, bot = xyxy[0:2], xyxy[2:4]
     depth = infer_depth(top[1],bot[1],h_real)
-    #depth = infer_depth_from_top(top[1],h_real)
-
-    if label[-6]== 'c':
+    if use_pure_hight and bot[1]>595:
+        depth = infer_depth_from_top(top[1],h_real)
+    if label[-1]== 'c':
         shift = infer_width(bot[0],depth)
         y_diff = infer_rot(top,bot,depth,w_real,'c')
         rot = np.arcsin(y_diff/w_real)
         if math.isnan(rot):
-            # the *top is just to ensure that is passes back a tensor
             rot = torch.tensor(0,dtype=torch.float32)
         depth_c = depth+np.sin(rot)*w_real/2+np.cos(rot)*d_real/2
         shift_c = shift-np.cos(rot)*w_real/2+np.sin(rot)*d_real/2
         # if the object is likley not fully in frame change start point for possible states to a visible point
-        # if bot[0]>790:
+        # if bot[0]>795:
         #     shift = infer_width(top[0],depth)
         #     shift = shift+w_real/2
         # else:
@@ -62,7 +62,7 @@ def cube_rules(xyxy, label,h_real,w_real,d_real):
         # depth = depth+d_real/2
 
     # if the roation is in the other direction
-    elif label[-6] == 'a':
+    elif label[-1] == 'a':
         shift = infer_width(top[0],depth)
         y_diff = infer_rot(top,bot,depth,w_real,'a')
         rot = np.arcsin(y_diff/w_real)
@@ -71,7 +71,7 @@ def cube_rules(xyxy, label,h_real,w_real,d_real):
             rot = torch.tensor(0,dtype=torch.float32)
         depth_c = depth+np.sin(-rot)*w_real/2+np.cos(-rot)*d_real/2
         shift_c = shift+np.cos(-rot)*w_real/2-np.sin(-rot)*d_real/2
-        # if top[0]<10:
+        # if top[0]<5:
         #     shift = infer_width(bot[0],depth)
         #     shift = shift-w_real/2
         # else:
@@ -105,19 +105,27 @@ def corners_from_center(x,y,rotation,sizes):
     return corners_3D
 
 def apply_for_cube(xyxy,label, corners_3D,boundry,h_real,w_real,d_real):
-    depth, shift, depth_c, shift_c, rot,sizes = cube_rules(xyxy,label,h_real,w_real,d_real)
-    depth_c-0.25
+    use_pure_hight = True
+    depth, shift, depth_c, shift_c, rot,sizes = cube_rules(xyxy,label,h_real,w_real,d_real,use_pure_hight)
+    # depth_c = depth_c+0.11
     corners_3D.append(corners_from_center(depth_c, shift_c, rot,sizes))
-    # TODO this currently does not distinguish between top and sides, should only be sides and top and bottom should have serperate handling for inference 
-    if max(xyxy)>795 or min(xyxy)<5:
+    if label_reaches_border(xyxy,use_pure_hight):
         boundry = True
         corners_3D_rot_0 = corners_from_center(depth, shift, 0,sizes)
         corners_3D.append(corners_3D_rot_0)
     return depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D
 
-def label_reaches_border(label):
-    # check if label is at max pixel values if both top and bottom is at max then we have to
-    pass
+def label_reaches_border(xyxy,use_pure_hight):
+    if use_pure_hight:
+        min_y = -1
+    else:
+        min_y = 5
+    # check if label far enough at the edge to make a partial detection likely
+    if max(xyxy[0],xyxy[2])>795 or min(xyxy[0],xyxy[2])<5:
+        return True
+    if min(xyxy[1],xyxy[3])>595 or min(xyxy[1],xyxy[3])<min_y:
+        return True
+    return False
 
 def convert_2d_3d(xyxy, im0, label):
     """Converting a 2d object detection to a 3d bounding box, this is done based on know information about the sizes of the
@@ -135,36 +143,32 @@ def convert_2d_3d(xyxy, im0, label):
     movable_names = ['sklappbox_c','sklappbox_a','box_c','box_a','chair','klappbox_c','klappbox_a','sbox_c','sbox_a']
     boundry = False
     corners_3D = []
-    if label == 'workstation_c' or 'workstation_a':
+    label = label[0:-5]
+    if label in ['workstation_c','workstation_a']:
         h_real = 0.95
         w_real = 1.15
         d_real = 0.80
         depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
     elif(label in movable_names):
         if label in ['sklappbox_c','sklappbox_a','klappbox_c','klappbox_a']:
-            if label[0] == 'k':
-                h_real = 0.465
-                w_real = 0.48
-                d_real = 0.35    
-                depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
-            else:
-                h_real = 0.465
-                w_real = 0.35
-                d_real = 0.48    
-                depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
+            h_real = 0.465
+            w_real = 0.48
+            d_real = 0.35
+            if label[0]=='s':
+                w_real_ = w_real
+                w_real = d_real
+                d_real = w_real_
+            depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
 
         if label in ['sbox_c','sbox_a','box_c','box_a']:
-            if label[0] == 'k':
-                h_real = 0.482
-                w_real = 0.353
-                d_real = 0.238    
-                depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
-            else:
-                h_real = 0.482
-                w_real = 0.238
-                d_real = 0.353    
-                depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
-
+            h_real = 0.482
+            w_real = 0.353
+            d_real = 0.238    
+            if label[0]=='s':
+                w_real_ = w_real
+                w_real = d_real
+                d_real = w_real_
+            depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
 
         if label == 'chair':
                 h_real = 1.04
@@ -174,9 +178,6 @@ def convert_2d_3d(xyxy, im0, label):
                 depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
     else:
         raise ValueError('unknown label')
-    if label_reaches_border(False and label):
-        # redo without roation or add flag to discard 3d entirely
-        pass
 
     return corners_3D, boundry, (depth, shift, depth_c, shift_c, rot)
 

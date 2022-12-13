@@ -69,11 +69,21 @@ def get_dists_workstation(corners_map_all, obstacle):
     return np.array(dists)
     
 def best_match_workstation_index(corners_map_all, obstacle,detection_corners, rots_ws, old_loc_assumption, rotation_detected,base_info):
+    """finds the workstation that best matches the detection based on the currently assumed postion
+    @param corners_map_all: the corners of the workstations in the map
+    @param obstacle: the detected workstation based on the old location
+    @param detection_corners: the distance from detected workstation to the camera
+    @param rots_ws: the rotation of the workstations on the map
+    @param old_loc_assumption: where we currently assume to be based on the last detecion and motor commands
+    @param rotation_detected: the rotation the object detection infered
+    @param base_info: this is the set of calibration data needed to correctly transform from acml to pixel cords
+    @return: detected_obst: the detected object as an Obstacle
+    """
     dists_ws = get_dists_workstation(corners_map_all, obstacle)
     # arg_smallest_dist_rot, dists_rot = get_smalles_dist_rotations(corners_map_all, obstacle,old_loc_assumption)
     global map_config
-    if local_acml_location[0] =='real_data' or True:
-        old_rot_assumption = 2*np.arcsin(local_acml_location[3])
+    if old_loc_assumption[0] =='real_data' or True:
+        old_rot_assumption = 2*np.arcsin(old_loc_assumption[3])
     else:
         old_rot_assumption = local_acml_location[3]
     # calculating rotation from detected and cord transforms
@@ -179,23 +189,25 @@ def draw_map_location_acml(x,y,rot,draw_frame,base_info,color_FoV=(255, 0, 255),
     draw_frame.pieslice((x-robo_r, y-robo_r, x+robo_r, y+robo_r), start=60-rot, end=300-rot, fill=color_outer, outline=color_outer)
 
 
-
-if __name__ == '__main__':
+def run_detec_and_localise_PRM(weights_detection, weights_localise,use_detection_cam = False,use_localise_cam = True):
     """This code is used to have the robot navigate from a known starting position to any end position using the object detection"""
     global acml_x
     global acml_y
     global acml_rot
-    global conf
     global img_glob
     global real_data
-    # Loads the model
-    conf = get_conf_and_model()
+    global map_config
+    # Loads the models
+    if use_detection_cam:
+        conf_detection = get_conf_and_model(weights_detection)
+    if use_localise_cam:
+        conf_localise = get_conf_and_model(weights_localise)
     # gets the set of calibration data that needs to measured for each new png map
     base_info, map_config = get_base_info()
     # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
-    obstacles_ws = get_obstacles_in_pixel_map(base_info)
+    obstacles_ws, names_ws = get_obstacles_in_pixel_map(base_info)
     # the movable obstacles that need to be placed in the robots way
-    obstacles_movable = get_obstacles_in_pixel_map(base_info, 'movable')
+    obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, 'movable')
     # all obstacles for PRM
     all_obst = deepcopy(obstacles_ws)+deepcopy(obstacles_movable)
     #rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
@@ -212,6 +224,7 @@ if __name__ == '__main__':
     # map_ref.save('./image/test_loc.png') if you want to see/save the map at this point
 
     # TODO this is for debugging the offset of inaccuracy postion of lidar vs center of robot
+    matplotlib.use('QtAgg')
 
     # TODO This is to use the actuall ROS info
     rospy.init_node('test_loc_odom', anonymous=True)
@@ -221,18 +234,34 @@ if __name__ == '__main__':
     rospy.sleep(3)
     #we use the acml locaion as our start postion
     local_acml_location = deepcopy(real_data)# TODO is debug
+    local_acml_location = offset_to_robo(local_acml_location)
     new_rotation = 2*np.arcsin(real_data[3])
     new_loc = (real_data[1],real_data[2])
     change_angle = 0
-    change_dist = 0
     # if the location was updated by the image sice the last movement
     updated_location = False
     # while not rospy.is_shutdown():
-
     start = get_pixel_location_from_acml(*new_loc, *base_info)
     start = ([int(start[0]),int(start[1])])
-    # init_nodes for the new map and get the trajectory from point one to point two TODO FIXME add the start and End NODE
-    # trajectory_vanilla, nodes_vanilla, edges_all_vanilla = initialize_traj(map_ref_PRM,all_obst, nodes=None,start = start, end = [88,127])
+
+    if use_detection_cam:
+        img_local = deepcopy(img_glob)
+        detec_movables = loaded_detect(img_local,*conf_detection)
+        detec_movables_obstacles = []
+        index_names = []
+        for detec_m in detec_movables:
+            index_names.append(names_movables.index(detec_m['label']))
+            detec_movables_obstacle = get_obstacles_from_detection(detec_m['birds_eye'],local_acml_location,base_info)
+            detec_movables_obstacles.append(detec_movables_obstacle)
+        if detec_movables_obstacles:
+            objects_to_move = [obstacles_movable[i] for i in index_names]
+            map_ref_PRM = modify_map(map_ref_PRM, objects_to_move, detec_movables_obstacles, color = (255,255,255))
+            # NOTE this is debug code,remove to correcly move object
+            objects_to_move = []
+            map_ref = modify_map(map_ref,objects_to_move,detec_movables_obstacles,color=(0,255,255),convert_back_to_grey=False)
+            cv2.imshow('map', np.kron(np.asarray(map_ref.convert('RGB')),np.ones((2,2,1))))
+            cv2.waitKey(100)
+
     trajectory_vanilla, nodes_vanilla, edges_all_vanilla = initialize_traj(map_ref_PRM,all_obst, nodes=None,start = start, end = [124,68])
     traj_updt = []
     # get the updated trajetory in meters instead of pixels
@@ -256,6 +285,7 @@ if __name__ == '__main__':
         img_local = deepcopy(img_glob)
         dc_obstacles_ws = deepcopy(obstacles_ws)
         local_acml_location = deepcopy(real_data)
+        local_acml_location = offset_to_robo(local_acml_location)
         # copy map and create a drawing frame
         
 
@@ -282,9 +312,10 @@ if __name__ == '__main__':
         corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
 
         # getting the detection based on the newest image
-        detected_workstation_dist, rotation_detected  = loaded_detect(img_local,*conf)
+        localise_dict = loaded_detect(img_local,*conf_localise)
         # if there was a detection
-        if not detected_workstation_dist is None:
+        if localise_dict:
+            detected_workstation_dist, rotation_detected = localise_dict['birds_eye'],localise_dict['rotation']
             # turning the detected corners into an obstacle
             new_loc_as_real = ['new_loc',traj_updt[counter][0],traj_updt[counter][1],np.sin(new_rotation/2)]
             # detected_obst = get_obstacles_from_detection(detected_workstation_dist,new_loc_as_real, base_info)
@@ -318,7 +349,7 @@ if __name__ == '__main__':
             updated_location = False
         # map_ref_loc.save('./image/test_loc_circle.png')
         cv2.imshow('map', np.kron(np.asarray(map_ref_loc.convert('RGB')),np.ones((2,2,1))))
-        cv2.waitKey(100)
+        cv2.waitKey(10)
 
         # navigating to the new point, returns change that needs to be added to the location we detected to get the new one
         if updated_location:
@@ -336,6 +367,10 @@ if __name__ == '__main__':
         # now we drive to the next node in a straight line from our current position
         change_angle, change_dist = navigate_to_point(trajectory_node,detec_as_real)
 
+if __name__ == '__main__':
+    use_detection_cam = True
+    use_localise_cam = True
+    weights_detection = 'yolov7/weights/movable_last_chair.pt'
+    weights_localise = 'yolov7/weights/ws_tiny5.pt'
 
-
-
+    run_detec_and_localise_PRM(weights_detection, weights_localise,use_detection_cam = use_detection_cam,use_localise_cam = use_localise_cam)

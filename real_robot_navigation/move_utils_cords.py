@@ -40,38 +40,42 @@ def get_pixel_location_from_acml(x_a,y_a,x3,y3,x5_3,x5_3_p,y5_3,y5_3_p,x3_p,y3_p
     global normal2
     global changed
     global changed2
-    if not rot == None:
-        rot = rot-0.55
-        if rot>np.pi:
-            rot = rot-np.pi*2
-        normal.update({rot:y_a})
-        lists = sorted(normal.items())
-        x,y = zip(*lists)
-        plt.clf()
-        plt.plot(x,y)
-        #plt.plot([1, 2, 3, 4,5,2,6,3])
-        #plt.close()
-        normal2 = min(x_a,normal2)
-        # print(normal,normal2,'normal')
-        x_a = x_a-np.cos(rot)*0.17
-        y_a = y_a-np.sin(rot)*0.17
-        changed.update({rot:y_a})
-        lists = sorted(changed.items())
-        x,y = zip(*lists)
-        plt.plot(x,y)
-        changed2 = min(x_a,changed2)
-        # print(changed,changed2,'changed')
+    # This was part of debugging the delay in the acml rotation in respect to the
+    # change of postion based on the same positon. for some reason the offset in 
+    # postion is knows the angle more quickly
+    # if not rot == None:
+    #     rot = rot
+    #     if rot>np.pi:
+    #         rot = rot-np.pi*2
+    #     normal.update({rot:x_a})
+    #     lists = sorted(normal.items())
+    #     x,y = zip(*lists)
+    #     plt.clf()
+    #     plt.plot(x,y)
+    #     #plt.plot([1, 2, 3, 4,5,2,6,3])
+    #     #plt.close()
+    #     normal2 = min(x_a,normal2)
+    #     # print(normal,normal2,'normal')
+    #     x_a = x_a-np.cos(rot)*0.17
+    #     y_a = y_a-np.sin(rot)*0.17
+    #     changed.update({rot:x_a})
+    #     lists = sorted(changed.items())
+    #     x,y = zip(*lists)
+    #     plt.plot(x,y)
+    #     changed2 = min(x_a,changed2)
+    #     # print(changed,changed2,'changed')
         
-        plt.ylabel('some numbers')
-        # plt.show(block=False)
-        # plt.pause(0.2)
-        # print(min(normal,key=normal.get))
-        # print(min(changed,key=changed.get))
+    #     plt.ylabel('some numbers')
+    #     plt.show(block=False)
+    #     plt.pause(0.2)
+    #     # print(min(normal,key=normal.get))
+    #     # print(min(changed,key=changed.get))
 
-        # print(x_a,y_a,'changed_xy')
-        # print(np.cos(rot)*0.235,np.sin(rot)*0.235,rot,'change')
-    x_convert = x5_3_p/x5_3 #pixel per meter in width, pixels have flipped x axis (is also offset, applied below)
-    y_convert = y5_3_p/y5_3 #pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
+    #     # print(x_a,y_a,'changed_xy')
+    #     # print(np.cos(rot)*0.235,np.sin(rot)*0.235,rot,'change')
+    x_convert = 21 #pixel per meter in width, pixels have offset x axis 
+    y_convert = -21 #pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
+    
     offset_x = -x3*x_convert+x3_p # calculating x offset based on the pixel location of x3
     offset_y = y3*x_convert+y3_p # calculating y offset based on the pixel location of y3
     x_p = x_a*x_convert+offset_x # calulating pixel value of x
@@ -80,18 +84,16 @@ def get_pixel_location_from_acml(x_a,y_a,x3,y3,x5_3,x5_3_p,y5_3,y5_3_p,x3_p,y3_p
 
 def get_amcl_from_pixel_location(x_p,y_p,x3,y3,x5_3,x5_3_p,y5_3,y5_3_p,x3_p,y3_p,rot_unused,rot=None):
     "get pixel location from acml pos"
-    x_convert = x5_3_p/x5_3 #pixel per meter in width, pixels have flipped x axis (is also offset, applied below)
-    y_convert = y5_3_p/y5_3 #pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
+    x_convert = 21 #pixel per meter in width, pixels have offset x axis
+    y_convert = -21 #pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
     offset_x = -x3*x_convert+x3_p # calculating x offset based on the pixel location of x3
     offset_y = y3*x_convert+y3_p # calculating y offset based on the pixel location of y3
-    #x_p = x_a*x_convert+offset_x # calulating pixel value of x
-    #y_p = y_a*y_convert+offset_y # calulating pixel value of y
     x_a = (x_p - offset_x)/ x_convert
     y_a = (y_p- offset_y)/y_convert
-    if not rot == None:
-        rot = 2*np.arcsin(rot)
-        x_a = x_a-np.cos(rot)*0.17
-        y_a = y_a-np.sin(rot)*0.17
+    # if not rot == None:
+    #     rot = 2*np.arcsin(rot)
+    #     x_a = x_a-np.cos(rot)*0.17
+    #     y_a = y_a-np.sin(rot)*0.17
     return x_a, y_a
 
 def convert_robo_to_cam(x_r,y_r, rot):
@@ -139,6 +141,16 @@ def get_base_info():
     rot_glob = config_Map['rot']
 
     return (x3,y3,x5_3,x5_3_p,y5_3,y5_3_p,x3_p,y3_p,config_Map['rot']),config_Map
+
+def offset_to_robo(lidar_position_acml_pose):
+    lidar_position_acml_pose
+    rot = 2*np.arcsin(lidar_position_acml_pose[3])
+    if rot>np.pi:
+        rot = rot-np.pi*2
+    lidar_position_acml_pose[1] = lidar_position_acml_pose[1]-np.cos(lidar_position_acml_pose[3])*0.095
+    lidar_position_acml_pose[2] = lidar_position_acml_pose[2]-np.sin(lidar_position_acml_pose[3])*0.095
+    return lidar_position_acml_pose
+
 
 
 if __name__ == '__main__':

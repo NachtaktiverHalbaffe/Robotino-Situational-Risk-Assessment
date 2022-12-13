@@ -345,6 +345,7 @@ def modify_map(map_ref, obstacles_org, obstacles, color = (255,255,255), convert
     map_ref_adv = map_ref_adv.convert('RGB')
     map_ref_adv_draw = ImageDraw.Draw(map_ref_adv)
     add = [(2,2),(2,-2),(-2,-2),(-2,2)]
+    add = [(0,0),(0,-0),(-0,-0),(-0,0)]
     for obstacle in obstacles_org:
         # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='black')
         # increase the size of the obstacle by one pixel

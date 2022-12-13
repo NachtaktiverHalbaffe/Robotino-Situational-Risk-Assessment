@@ -15,7 +15,7 @@ from utils.plots import plot_one_box, plot_3d_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 from utils.convert2d_to_3d import convert_2d_3d
 
-def detect_custom(opt, calc_3d = True, plot_3d = True):
+def load_model_and_conf(opt, calc_3d = True, plot_3d = True):
     """load the detection model and the settings
     @param opt: the args of the detection
     @param calc_3d: if the 3d boxes should be calculated
@@ -77,7 +77,7 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
     """
     t0 = time.time()
     dataset = LoadImagesDelivered(img_size=imgsz, stride=stride,limg=limg)
-    highest_conf = 0
+    detected_3d_boxes = []
     for img, im0 in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.float()  # uint8 to fp16/32
@@ -105,25 +105,75 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
                 for *xyxy, conf, cls in reversed(det):
 
                     label = f'{names[int(cls)]} {conf:.2f}'
-                    if calc_3d:
-                        corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
-                    if view_img:  # Add bbox to image
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
-                    if calc_3d and not boundry and highest_conf< float(label[-3:]):
-                        highest_conf = float(label[-3:])
-                        for options in corners_3d:
-                            # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
-                            if view_img and plot_3d:  # Add bbox to image
-                                plot_3d_box(options, im0, p_matrix, label=label,color=[random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)], line_thickness=1)
-                                cv2.imshow('Detections', im0)
-                                cv2.waitKey(1)  # 1 millisecond
-                            h_shifts = shifts
-                            h_options = options
-        
-    if highest_conf:
-        return h_options[(0,2),4:8], h_shifts[-1]
+                    # TODO REMOVE  next line and indent once chair no longer an object
+                    if not label[0:3]=='cha':
+                        if calc_3d:
+                            corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
+                        if view_img:  # Add bbox to image
+                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                        if calc_3d and not boundry:
+                            for options in corners_3d:
+                                # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
+                                if view_img and plot_3d:  # Add bbox to image
+                                    plot_3d_box(options, im0, p_matrix, label=label,color=[random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)], line_thickness=1)
+                                    cv2.imshow('Detections', im0)
+                                    cv2.waitKey(1)  # 1 millisecond
+                                h_shifts = shifts
+                                h_options = options
+                                detec_dict = {'label':label[0:-5],'birds_eye':h_options[(0,2),4:8],'rotation':h_shifts[-1],'conf':float(label[-5:]),'boundry':boundry}
+                                detected_3d_boxes.append(detec_dict)
+    # if we did not detect any boxes
+    if not detected_3d_boxes:
+        return {}
+    # the detection is split between workstations and movable objects, if one is present the other isn't
+    elif detected_3d_boxes[0]['label'][0:-2] == 'workstation':
+        # for the worstations we will simply use the one with the highest confidence as the location
+        highest_conf = 0
+        for i, detection in enumerate(detected_3d_boxes):
+            if highest_conf<detection['conf']:
+                highest_conf = detection['conf']
+                index_highest_conf = i
+        return detected_3d_boxes[i]
     else:
-        return None, None
+        # for the moveable boxes we use the highest conf for each type, possibly using a preference for the larger face
+        # TODO Needs testing which is better
+        # we currently only work with one object per class, if you want to use more this would need to be expanded to check ...
+        # wether two objects are on the same space or not
+        best_in_class_detection = []
+        # determining which detection of each class was best
+        highest_conf_box = 0
+        highest_conf_klapp = 0
+        index_highest_conf_box = -1
+        index_highest_conf_klapp = -1     
+        for i, detection in enumerate(detected_3d_boxes):
+            if detection['label'][0:-2] in ['box','sbox']:
+                # TODO here we could be checking if the object we are detection is the large face and give it for example a 0.1 improvement in conf
+                if highest_conf_box<detection['conf']:
+                    highest_conf_box = detection['conf']
+                    index_highest_conf_box = i                
+            if detection['label'][0:-2] in ['klappbox','sklappbox']:
+                if highest_conf_klapp<detection['conf']:
+                    highest_conf_klapp = detection['conf']
+                    index_highest_conf_klapp = i
+        # if a box or klapp was detected, add the best one to detections       
+        if index_highest_conf_box!=-1:
+            box_detection = detected_3d_boxes[index_highest_conf_box]
+            box_detection['label'] = 'box'
+            best_in_class_detection.append(box_detection)
+        if index_highest_conf_klapp!=-1:
+            klapp_detection = detected_3d_boxes[index_highest_conf_klapp]
+            klapp_detection['label'] = 'klapp'
+            best_in_class_detection.append(klapp_detection)
+        return best_in_class_detection
+
+
+    # if detected_3d_boxes
+    # if highest_conf:
+    #     highest_conf = 0
+    #     if highest_conf< float(label[-5:]):
+    #         highest_conf = float(label[-5:])
+    #     return h_options[(0,2),4:8], h_shifts[-1]
+
 
 def detect_args_parse(args):
     """ add some args that are normally keept the same to the args
@@ -159,13 +209,13 @@ def detect_args_parse(args):
     with torch.no_grad():
         if opt.update:  # update all models (to fix SourceChangeWarning)
             for opt.weights in ['yolov7.pt']:
-                conf = detect_custom(opt)
+                conf = load_model_and_conf(opt)
                 strip_optimizer(opt.weights)
         else:
-            conf = detect_custom(opt)
+            conf = load_model_and_conf(opt)
             return conf
 
-def get_conf_and_model():
+def get_conf_and_model(weights = 'yolov7/weights/ws_tiny5.pt'):
     """the most frequently changed arguments are here, others above
     loads the model and returns it with its' parameters
     @return conf: the model and its' args
@@ -173,7 +223,7 @@ def get_conf_and_model():
     args = []
 
     # args.extend(['--weights', 'yolov7_robo_first.pt'])
-    args.extend(['--weights', 'yolov7/weights/ws_tiny5.pt'])
+    args.extend(['--weights', weights])
     args.extend(['--conf', '0.50','--view-img', '--no-trace'])
     args.extend(['--img-size', '640'])
 
