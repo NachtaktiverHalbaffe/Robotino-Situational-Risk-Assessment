@@ -24,7 +24,8 @@ config_1 = {
     'goal':[109,125],
     'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
-    'prob_const': 200
+    'prob_const': 200,
+    'eval_ep': 6
 }
 
 config_2 = {
@@ -51,7 +52,8 @@ config_2 = {
     'goal':[109,125],
     'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
-    'prob_const': 200
+    'prob_const': 200,
+    'eval_ep': 5
 }
 
 config_3 = {
