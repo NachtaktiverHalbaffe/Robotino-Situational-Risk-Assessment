@@ -1,11 +1,13 @@
 import sklearn
 from numpy import where, unique
+
 # synthetic classification dataset
 from sklearn.datasets import make_classification
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.metrics import silhouette_score
+
 """
     A list of 10 of the more popular algorithms is as follows:
 
@@ -20,10 +22,10 @@ from sklearn.metrics import silhouette_score
     Spectral Clustering
     Mixture of Gaussians
 """
-#figure, axis = pyplot.subplots(2, 2)
-def plot_data(X,y,n_features):
+# figure, axis = pyplot.subplots(2, 2)
+def plot_data(X, y, n_features):
     # create scatter plot for samples from each class
-    for class_value in [0,0.5]:
+    for class_value in [0, 0.5]:
         # get row indexes for samples with this class
         row_ix = where(y >= class_value)
         # create scatter of these samples
@@ -31,27 +33,38 @@ def plot_data(X,y,n_features):
     # show the plot
     plt.show()
 
+
 def main(data=None):
     # define dataset
-    X, y = make_classification(n_samples=1000, n_features=3, n_informative=2, n_redundant=0, n_clusters_per_class=1, random_state=4)
-    #print(X,y)
-    #plot_3d(data)
-    
-    #plot_data(data,data[:,2],2)
-    #affinity(data,y=None)
-    #agglomerative(data,y=None)
-    #birch(data)
-    #DBSCAN(data,y=None)
-    #K_Means(data,y=None)
+    X, y = make_classification(
+        n_samples=1000,
+        n_features=3,
+        n_informative=2,
+        n_redundant=0,
+        n_clusters_per_class=1,
+        random_state=4,
+    )
+    # print(X,y)
+    # plot_3d(data)
+
+    # plot_data(data,data[:,2],2)
+    # affinity(data,y=None)
+    # agglomerative(data,y=None)
+    # birch(data)
+    # DBSCAN(data,y=None)
+    # K_Means(data,y=None)
     # MiniBatch_KMeans(data,y=None)
-    #MeanShift(data,y=None)
-    #OPTICS(data,y=None)
-    #SpectralClustering(data,y=None)
-    #MixtureofGaussians(data,y=None)
+    # MeanShift(data,y=None)
+    # OPTICS(data,y=None)
+    # SpectralClustering(data,y=None)
+    # MixtureofGaussians(data,y=None)
+
 
 def predict_collision(data, y=None):
     from sklearn.linear_model import LinearRegression
+
     pass
+
 
 class AutoLabel:
     def __init__(self, X, y=None, n_clusters=3, method=0, plot=True):
@@ -59,6 +72,7 @@ class AutoLabel:
         self.method = method
         self.X = X
         self.plot = plot
+
     #     self.algorithms = [K_Means(), MiniBatch_KMeans(), MixtureofGaussians(), agglomerative()]
 
     # def create_clusters(self):
@@ -74,32 +88,34 @@ class AutoLabel:
         # show the plot
         plt.show()
 
-        
     def agglomerative(self):
-        #https://en.wikipedia.org/wiki/Hierarchical_clustering
+        # https://en.wikipedia.org/wiki/Hierarchical_clustering
         from sklearn.cluster import AgglomerativeClustering
+
         # define the model
         model = AgglomerativeClustering(n_clusters=self.clusters)
         # fit model and predict clusters
         yhat = model.fit_predict(self.X)
         # retrieve unique clusters
         clusters = unique(yhat)
-        #print(yhat)
+        # print(yhat)
         if self.plot:
-            self.plot_clusters(self.X,clusters,yhat)
+            self.plot_clusters(self.X, clusters, yhat)
         return yhat
+
     def K_Means(self):
         # define the model
         from sklearn.cluster import KMeans
+
         model = KMeans(n_clusters=self.clusters, n_init=100)
         # fit model and predict clusters
-        yhat = model.fit_predict(self.X) # , sample_weight=self.X[:,-1]
+        yhat = model.fit_predict(self.X, sample_weight=self.X[:, -1])
         # retrieve unique clusters
         clusters = unique(yhat)
-        #print(yhat)
+        # print(yhat)
         if self.plot:
-            self.plot_clusters(self.X,clusters,yhat)
-        score= silhouette_score(self.X, model.labels_)
+            self.plot_clusters(self.X, clusters, yhat)
+        score = silhouette_score(self.X, model.labels_)
         # print(model.labels_)
         # print(yhat)
         print(score)
@@ -107,159 +123,89 @@ class AutoLabel:
 
     def MiniBatch_KMeans(self):
         from sklearn.cluster import MiniBatchKMeans
+
         # define the model
         model = MiniBatchKMeans(n_clusters=self.clusters)
         # fit model and predict clusters
         yhat = model.fit_predict(self.X)
         # retrieve unique clusters
         clusters = unique(yhat)
-        #print(yhat)
+        # print(yhat)
         if self.plot:
-            self.plot_clusters(self.X,clusters,yhat)
+            self.plot_clusters(self.X, clusters, yhat)
         return yhat
 
     def MixtureofGaussians(self):
         from sklearn.mixture import BayesianGaussianMixture
+
         # define the model
-        model = BayesianGaussianMixture(n_components=self.clusters,covariance_type='tied',weight_concentration_prior_type='dirichlet_distribution', init_params='kmeans')
+        model = BayesianGaussianMixture(
+            n_components=self.clusters,
+            covariance_type="tied",
+            weight_concentration_prior_type="dirichlet_distribution",
+            init_params="kmeans",
+        )
         # fit model and predict clusters
         yhat = model.fit_predict(self.X)
-        #print(yhat)
+        # print(yhat)
         # retrieve unique clusters
         clusters = unique(yhat)
         # score= silhouette_score(self.X, yhat)
         # print(score)
         if self.plot:
-            self.plot_clusters(self.X,clusters,yhat)
+            self.plot_clusters(self.X, clusters, yhat)
         return yhat
+
 
 def linear_regression(data):
     from sklearn.model_selection import train_test_split
 
     # Dropping any rows with Nan values
-    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.2)
+    X_train, X_test, y_train, y_test = train_test_split(
+        data[:, 0:2], data[:, -1], test_size=0.2
+    )
 
     print(len(X_train), len(X_test), len(y_test))
     from sklearn.linear_model import LinearRegression
+
     regr = LinearRegression()
     regr.fit(X_train, y_train)
     print(regr.score(X_test, y_test))
 
-    
-    my_data = [[142,78,89,57,5.0,57.185]]
-    from sklearn.metrics import mean_absolute_error,mean_squared_error
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+
     y_pred = regr.predict(X_test)
-    print(regr.predict(my_data))
+    mae = mean_absolute_error(y_true=y_test, y_pred=y_pred)
+    # squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_test, y_pred=y_pred)  # default=True
+    rmse = mean_squared_error(y_true=y_test, y_pred=y_pred, squared=False)
 
-    mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
-    #squared True returns MSE value, False returns RMSE value.
-    mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
-    rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
-    
-    print("MAE:",mae)
-    print("MSE:",mse)
-    print("RMSE:",rmse)
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
 
-def svm_regression(data):
-    from sklearn.model_selection import train_test_split
-
-    # Dropping any rows with Nan values
-    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.1)
-
-    #from sklearn import svm
-    from sklearn.svm import SVR
-    #regr = svm.SVR()
-    regr = SVR()
-
-    regr.fit(X_train, y_train)
-    print(regr.score(X_test, y_test))
-
-    
-    my_data = [[142,78,89,57,5.0,57.185]]
-    from sklearn.metrics import mean_absolute_error,mean_squared_error
-    y_pred = regr.predict(X_test)
-    print(regr.predict(my_data))
-
-    mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
-    #squared True returns MSE value, False returns RMSE value.
-    mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
-    rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
-    
-    print("MAE:",mae)
-    print("MSE:",mse)
-    print("RMSE:",rmse)
-    return regr.predict(data[:,0:6]).round(4)
-def ransac(data):
-    from sklearn.model_selection import train_test_split
-
-    # Dropping any rows with Nan values
-    X_train, X_test, y_train, y_test = train_test_split(data[:,0:6], data[:,-1], test_size = 0.2)
-
-    print(len(X_train), len(X_test), len(y_test))
-    from sklearn.linear_model import ElasticNet
-    regr = ElasticNet(random_state=0)
-    regr.fit(X_train, y_train)
-    print(regr.score(X_test, y_test))
-
-    
-    my_data = [[142,78,89,57,5.0,57.185]]
-    from sklearn.metrics import mean_absolute_error,mean_squared_error
-    y_pred = regr.predict(X_test)
-    print(regr.predict(my_data))
-
-    mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
-    #squared True returns MSE value, False returns RMSE value.
-    mse = mean_squared_error(y_true=y_test,y_pred=y_pred) #default=True
-    rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
-    
-    print("MAE:",mae)
-    print("MSE:",mse)
-    print("RMSE:",rmse)
 
 def read_data(filename):
-    df = pd.read_csv(filename, sep=',')
-    #print(df.values)
-    #print(df)
+    df = pd.read_csv(filename, sep=",", header=None)
+    # print(df.values)
     return df.values, df
-def evaluate_virtual_vs_ida(y_true, y_pred):
-    from sklearn.metrics import mean_absolute_error,mean_squared_error
 
-    mae = mean_absolute_error(y_true=y_true,y_pred=y_pred)
-    #squared True returns MSE value, False returns RMSE value.
-    mse = mean_squared_error(y_true=y_true,y_pred=y_pred) #default=True
-    rmse = mean_squared_error(y_true=y_true,y_pred=y_pred,squared=False)
-    
-    print("MAE:",mae)
-    print("MSE:",mse)
-    print("RMSE:",rmse)
-    return mae,mse,rmse
-if __name__ == '__main__':
-    #data, data_orig = read_data("collision_data_000.csv")
-    data, data_orig = read_data("data/collision_data_exp_ida_brute_force_angle.csv")
-    #print(data[1:-1,5:8])
-    X_clustering = data_orig[["N_nodes", "length", "Prob_collision_Brute_force"]].values
-    y_brute = data_orig["Prob_collision_Brute_force"].values
-    y_ida = data_orig["Prob_collision_IDA"].values
-    y_exp = data_orig["Expected Probability Collision"].values
-    evaluate_virtual_vs_ida(y_brute,y_exp)
 
-    #data = data_orig.values
-    #linear_regression(data)
-    #yhat = svm_regression(data)
-    #ransac(data)
-    #print (data)
-    #print(data[:,0:2])
-    #print(data[:,2])
-    #print(where(data[:,2] >= 0.5))
-    #main(data)
-    #al = AutoLabel(data, n_clusters=3, method=0)
-    #yhat = al.MixtureofGaussians()
-    #al.K_Means()
+if __name__ == "__main__":
+    data, data_orig = read_data("collision_data.csv")
+    # data = data_orig.values
+    linear_regression(data)
+    # print (data)
+    # print(data[:,0:2])
+    # print(data[:,2])
+    # print(where(data[:,2] >= 0.5))
+    # main(data)
+    al = AutoLabel(data, n_clusters=3, method=0)
+    yhat = al.MixtureofGaussians()
+    al.K_Means()
+    # data_orig.insert(3, "label", yhat, True)
+    # print(data_orig)
+    # data_orig.to_csv('labelled_data.csv', header=False, index=False)
 
-    # data_orig.insert(7, "Expected Prob collision", yhat, True)
-    # #print(data_orig)
-    # data_orig.to_csv('labelled_data_pc.csv', header=False, index=False)
-
-    #print(data[:,0:2])
-    #read_data("collision_data.csv")
-
+    # print(data[:,0:2])
+    # read_data("collision_data.csv")
