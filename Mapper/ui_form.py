@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'form.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.2.4
+## Created by: Qt User Interface Compiler version 6.4.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -328,6 +328,7 @@ class Ui_MainWindow(object):
         self.gridLayout_3.setHorizontalSpacing(6)
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+
         self.combined_ida_and_brute = QCheckBox(self.groupBox)
         self.combined_ida_and_brute.setObjectName(u"combined_ida_and_brute")
 
@@ -340,6 +341,7 @@ class Ui_MainWindow(object):
 
         self.shape_selector = QComboBox(self.groupBox)
         self.shape_selector.setObjectName(u"shape_selector")
+
         self.shape_selector.setEnabled(True)
 
         self.verticalLayout_2.addWidget(self.shape_selector)
@@ -487,6 +489,7 @@ class Ui_MainWindow(object):
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
         self.menubar.setGeometry(QRect(0, 0, 916, 22))
+
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menuEdit = QMenu(self.menubar)
@@ -567,6 +570,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Mapper", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Reinforcment Learning", None))
         self.combined_ida_and_brute.setText(QCoreApplication.translate("MainWindow", u"Combined Evaluation", None))
+
         self.virtual_obj_btn.setText(QCoreApplication.translate("MainWindow", u"Virtual Objects", None))
         self.Test_btn.setText(QCoreApplication.translate("MainWindow", u"Test", None))
         self.stop_train_test.setText(QCoreApplication.translate("MainWindow", u"Stop RL", None))

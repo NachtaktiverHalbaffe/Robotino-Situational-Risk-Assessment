@@ -291,6 +291,7 @@ class MainWindow(QMainWindow):
             self.print_rl("Combined evaluation: " + str(self.ui.combined_ida_and_brute.isChecked()), append=True)
             self.combined_eval = self.ui.combined_ida_and_brute.isChecked()
             #print(self.ui.combined_ida_and_brute.isChecked())
+
             self.ui.Test_btn.setEnabled(True)
 
     def onshape_selector_changed(self):
@@ -387,6 +388,7 @@ class MainWindow(QMainWindow):
         if len(self.filename) < 10:
             self.print_ml(
                 "Please select the data/collision_data_*.csv file", append=True, color=self.WARNING
+
             )
         elif self.filename.split(".")[-1] != "csv":
             self.print_ml(
@@ -398,6 +400,7 @@ class MainWindow(QMainWindow):
             self.ui.info_box_ml.append("ML Started")
             data, df = read_data(self.filename)
             data= df[["N_nodes", "length", "Prob_collision_Brute_force"]].values
+
             al = AutoLabel(data, n_clusters=3)
             if algo_type == "Kmeans":
                 al.K_Means()
@@ -438,6 +441,7 @@ class MainWindow(QMainWindow):
         # Setup and start thread
         self.thread[1] = ThreadClass(
             parent=None, mode=mode, mcts_eval=mcts_eval, index=1, combined_eval=self.combined_eval
+
         )
         self.thread[1].start()
         self.thread[1].any_signal.connect(self.train_test)
@@ -449,8 +453,10 @@ class MainWindow(QMainWindow):
         """
         Stops the worker which runs the adversary
         """
+
         if self.thread[1].is_running==False:
             self.thread[1].stop()
+
 
         # # 1 adversary running
         # if len(self.thread) >= 1:
@@ -517,15 +523,18 @@ class MainWindow(QMainWindow):
         Args:
             map (bool): If map should also be showed when opened (True) or not (False). Defaults to True
         """
+
         name = QFileDialog.getOpenFileName(self)       
             
         if self.ui.tabWidget.tabText(0) == "Mapper":
+
             self.show_map(name[0])
             
         self.filename = name[0]
         # return name[0]
         # file = open(name, 'r')
         #print(name[0])
+
 
     def showDialog(self):
         """
@@ -668,6 +677,7 @@ class MainWindow(QMainWindow):
         configs = config.configs[0]
         map = cv2.imread(configs["map_path"], cv2.IMREAD_GRAYSCALE)
 
+
         scale_percent = 200  # percent of original size
         width = int(map.shape[1] * scale_percent / 100)
         height = int(map.shape[0] * scale_percent / 100)
@@ -766,3 +776,4 @@ if __name__ == "__main__":
         pass
 
     sys.exit(app.exec())
+
