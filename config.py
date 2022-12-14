@@ -47,7 +47,7 @@ config_2 = {
     'log_interval': 20,
     'log_name': 'adv_1',    # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary
     'map_path': './maps/map_y.png',
-    'geo_path': './maps/map_g.png',
+    'geo_path': './maps/map_geo.png',
     'start': [85,52], 
     'goal':[109,125],
     'eval_ep': 5,
