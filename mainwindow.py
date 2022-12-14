@@ -666,7 +666,7 @@ class MainWindow(QMainWindow):
         """
         object_type = self.ui.shape_selector.currentText()
         configs = config.configs[0]
-        map = cv2.imread(configs["map_path"], cv2.IMREAD_GRAYSCALE)
+        map = cv2.imread(configs["map_path"])#, cv2.IMREAD_GRAYSCALE)
 
         scale_percent = 200  # percent of original size
         width = int(map.shape[1] * scale_percent / 100)
