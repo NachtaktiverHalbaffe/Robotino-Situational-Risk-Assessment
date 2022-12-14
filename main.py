@@ -87,16 +87,17 @@ def count_parameters(model):
 
 def run_session_adv(config, test_mode):
     """
-    This function starts the training or evaluation process of the simulation-gap-adversary
-    be sure to pass the right path to your map in Environment.
+    This function starts the training or evaluation process of the simulation-gap-adversary be sure\
+    to pass the right path to your map in Environment.
+    
     If visualization is wished (generate images of traj. while running) set visualized parameter in Environment = True
 
     Args:
         config: config file with all the relevant environment variables and hyperparameters -> see config.py
-        test_mode (bool): test mode is true if we don't want to train a model but evaluate it (no exploration)
+        test_mode (bool): test mode is True if we don't want to train a model but evaluate it (no exploration)
 
     Returns:
-        Nothing
+        bool: True if adversary ran successfully, otherwise False
     """
     ######################################################################################################
     # ----------------------------------------------------------  Setup --------------------------------------------------------------
@@ -118,7 +119,6 @@ def run_session_adv(config, test_mode):
         value_loss_coef=config["value_loss_coef"],
     )
 
-    # adv1.load_models(path=config['log_name'] + '_models/', name='best')
     print(config["start"], config["goal"])
     env = Environment(
         map_path=config["map_path"],
@@ -129,9 +129,18 @@ def run_session_adv(config, test_mode):
         start=config["start"],
         goal=config["goal"],
     )
-    # env = Environment('./maps/custom_map_scanner_test_adv.png', training_agent='does not matter', custom_trajectory=False, relevant_segments=config['relevant_segments'], done_after_collision=config['done_after_collision'], adversary=None, visualize=False)
+    # env = Environment(
+    #     "./maps/custom_map_scanner_test_adv.png",
+    #     training_agent="does not matter",
+    #     custom_trajectory=False,
+    #     relevant_segments=config["relevant_segments"],
+    #     done_after_collision=config["done_after_collision"],
+    #     adversary=None,
+    #     visualize=False,
+    # )
 
-    count_parameters(adv1.actor)  # count controllable parameters
+    # count controllable parameters
+    count_parameters(adv1.actor)
 
     if test_mode:
         adv1.load_models(path=config["log_name"] + "_models/", name="best")
@@ -230,6 +239,9 @@ def run_session_adv(config, test_mode):
         done = False
         score = 0
 
+        ############################################
+        #### ------------- Run one episode -----------------
+        ############################################
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones, = (
             [],
             [],
@@ -240,26 +252,23 @@ def run_session_adv(config, test_mode):
             [],
         )
         action_value = []
-        ############################################
-        #### ------------- Run one episode -----------------
-        ############################################
         while not done:
             ##############################
             # --------- Run one step -----------
             ##############################
             step_counter += 1
-            # Choose action
-            t1 = time.perf_counter()
-            action_index, prob, val, raw_probs = adv1.choose_action(
-                observation, test_mode=test_mode
-            )
-            choose_action_total_time += time.perf_counter() - t1
 
             ##############################
             # Choose and perform one action
             # in simulation environment
             ##############################
+            t1 = time.perf_counter()
+            action_index, prob, val, raw_probs = adv1.choose_action(
+                observation, test_mode=test_mode
+            )
+            choose_action_total_time += time.perf_counter() - t1
             t3 = time.perf_counter()
+
             # converting the action from 0 to 100 into angle
             action_angle_offset = np.deg2rad(
                 ACTION_SPACE_STEP_ADVERSARY * action_index
@@ -269,16 +278,18 @@ def run_session_adv(config, test_mode):
             # choosing the position offset
             pos_offset = choose_action(action_index)
             action_prob_value = action_prob(action_index)
+
+            # Perform step
             observation_, reward, done, collision_status, _ = env.step_adv1(
                 action_angle_offset, action_prob_value
             )
             step_total_time += time.perf_counter() - t3
 
+            # Append necessary step data to track session
             steps_episodes_log.append(episode_counter)
             steps_probs_log.append(
                 np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2)
             )
-            # Append necessary step data to track session
             steps_val_log.append(np.round(val, 2))
             steps_reward_log.append(np.round(reward, 2))
             steps_collisions_log.append(collision_status)
@@ -301,11 +312,9 @@ def run_session_adv(config, test_mode):
             ep_dones.append(done)
             action_value.append(pos_offset)
             action_count = thisdict.get(pos_offset)
+            # Track how much each position offset was chosen over all episodes and steps
             thisdict.update({pos_offset: action_count + 1})
 
-            ##############################
-            # Processing steps
-            ##############################
             if done:
                 ############################
                 # Episode will terminate
@@ -320,7 +329,6 @@ def run_session_adv(config, test_mode):
                         + "Collision occured and not reached"
                         + bcolors.ENDC,
                     )
-
                 else:
                     collisions.append(0)
                     print(
@@ -331,6 +339,7 @@ def run_session_adv(config, test_mode):
                         + bcolors.ENDC,
                     )
 
+                # Write adversary parameters into memory
                 adv1.remember(
                     ep_states,
                     ep_actions,
@@ -340,6 +349,7 @@ def run_session_adv(config, test_mode):
                     ep_entropy,
                     ep_dones,
                 )
+
             observation = observation_
 
         if episode % config["memory_size"] == 0:
@@ -350,12 +360,13 @@ def run_session_adv(config, test_mode):
                 adv1.critic.optimizer.param_groups[0]["lr"] = lrnow
                 print("annealing_lr:", lrnow)
 
+            # Train model
             adv1.learn(test_mode=test_mode)
             learn_iters += 1
 
-        #############################
-        # Evaluate episode
-        ############################
+        ################################
+        # Evaluation and logging of episode
+        ################################
         episode_counter += 1
         ep_episodes_log.append(steps_episodes_log)
         ep_probs_log.append(steps_probs_log)
@@ -374,7 +385,7 @@ def run_session_adv(config, test_mode):
                 collision_status=ep_collisions_log,
                 length_ratio=ep_length_ratio_log,
             )
-            # Reset episode variables
+            # Reset episode logging variables
             (
                 ep_episodes_log,
                 ep_probs_log,
@@ -383,6 +394,7 @@ def run_session_adv(config, test_mode):
                 ep_collisions_log,
                 ep_length_ratio_log,
             ) = ([], [], [], [], [], [])
+
         (
             steps_episodes_log,
             steps_probs_log,
@@ -391,10 +403,6 @@ def run_session_adv(config, test_mode):
             steps_collisions_log,
             steps_length_ratio_log,
         ) = ([], [], [], [], [], [])
-
-        ###############################
-        # Evaluation and logging of episode
-        ###############################
 
         #  Average sliding window
         score_history.append(score)
@@ -412,8 +420,12 @@ def run_session_adv(config, test_mode):
         if len(score_history) > avg_window_score:
             score_history = score_history[-avg_window_score:]
             collisions = collisions[-avg_window_score:]
-        # this number determines how frequently we save our model
+
+        ####################################################################
+        # ---------------------- End of session  ==> Save data -----------------------------
+        ####################################################################
         if (episode % 800 == 0) and (not test_mode):
+            # Save weights of every 800th episode
             adv1.save_models(path=config["log_name"] + "_models/", name=str(episode))
 
         # Save model if episode had best reward
@@ -434,9 +446,6 @@ def run_session_adv(config, test_mode):
             avg_score_best = avg_score
             adv1.save_models(path=config["log_name"] + "_models/", name="best")
 
-        ####################################################################
-        # ---------------------- End of session  ==> Save data -----------------------------
-        ####################################################################
         print(
             "episode",
             episode,
@@ -461,11 +470,9 @@ def mains(mode=True):
 
     Args:
         mode (bool): If model should be trained (False) or evaluated (True). Defaults to True
-        mcts_eval (str):
 
     Returns:
         done (bool): If it has finished the session
-        risk (float): The calculated risk from the session
     """
     n_sessions = 1
     done = False

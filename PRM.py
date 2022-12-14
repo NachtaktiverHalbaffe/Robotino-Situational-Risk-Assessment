@@ -45,14 +45,22 @@ class Node:
 
     def __init__(self, x, y):
         self.x = x
+        """x-coordinate of the node"""
         self.y = y
+        """y-coordinate of the node"""
         self.coordinates = np.array([x, y])
+        """Coordinate of the node"""
         self.neighbours = []
+        """Connected Nodes"""
         self.edges = []
+        """Edges to which the node is connected"""
         # for deijkstra
         self.tentative_dist = math.inf
+        """Deijkstra distance"""
         self.visited = False
+        """If node was already visited by dijsktra"""
         self.predecessor = None
+        """Predecessor Node in deijkstra"""
 
     def __str__(self):
         return str(self.coordinates)
@@ -72,12 +80,14 @@ class Edge:
     """
 
     def __init__(self, node1, node2, length, cost=0):
-        # start of edge
         self.node1 = node1
-        # end of edge
+        """First/start node of the edge"""
         self.node2 = node2
+        """Second/end node of the edge"""
         self.length = length
+        """Length of the edge -> doesn't regard the "color" of the traversed pixels"""
         self.cost = cost
+        """Cost value of the edge -> depends on length of the edge and the color of traversed pixels. Defaults to 0"""
         self.edge_points = []
 
     def set_cost(self, cost):

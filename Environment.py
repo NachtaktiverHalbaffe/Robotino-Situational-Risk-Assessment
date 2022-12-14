@@ -50,9 +50,16 @@ class StateAdv1:
 
     def __init__(self, obs, pos, angle=0):
         self.obs = obs
+        """Obs is basically what the state is (the normalized reference map with trajectory) in general I wanted to \
+            distinguish between observation and state but in the end didn't so the notation will be kinda random throughout this code"""
         self.traj_index = 1
+        """Just an attribut to keep track at which waypoint of the trajectory we are in our episode\
+            -> You could say traj_index (or rather trajectory[traj_index]) gives us the step, while trajectory is the episode\
+            but this should not be important anymore since it probably doesn't have to be changed anymore"""
         self.position = pos
+        """Current position"""
         self.angle = angle
+        """Current angle"""
 
     def __str__(self):
         print(
@@ -76,13 +83,16 @@ class StateProt:
     Attributes:
         obs: obs is basically what the state is (the normalized reference map with trajectory)
         position: current position
-        vanilla_cost = total cost of the vanilla trajectory before applying the adversary
+        vanilla_cost: total cost of the vanilla trajectory before applying the adversary
     """
 
     def __init__(self, obs, pos, vanilla_cost):
         self.obs = obs
+        """Obs is basically what the state is (the normalized reference map with trajectory)"""
         self.position = pos
+        """Current position"""
         self.vanilla_cost = vanilla_cost
+        """Total cost of the vanilla trajectory before applying the adversary"""
 
 
 class Command:
@@ -93,8 +103,11 @@ class Command:
 
     def __init__(self, angle, v, t):
         self.angle = angle
+        """Angle which the Robotino should rotate befor driving forward """
         self.v = v
+        """Velocity with which the Robotino should move forward"""
         self.t = t
+        """Duration how long the Robotino should drive"""
 
     def __str__(self):
         return f"rotate: {str(self.angle)} speed: {str(self.v)} duration: {str(self.t)}"
@@ -472,30 +485,53 @@ class Environment:
         # self.action_space = gym.spaces.Discrete(5)          # {-10, -5, 0, 5, 10}
         # self.observation_space = gym.spaces.Box(low=np.full((160, 160), 0), high=np.full((160, 160), 1), shape=(160, 160), dtype=int) # 0: empty, 1: object, 2: trajectory segment (planned), 3: current position
         self.adversary = adversary
-        self.map_ref, self.obstacles = initialize_map(map_path)
+        """Trained adversary (consists of 2 models -> actor and critic) - necessary for step_prot()"""
+        temp = initialize_map(map_path)
+        self.map_ref, _ = temp
+        """Reference map"""
+        _, self.obstacles = temp
+        """List of Obstacles-objects with their detected borders"""
         self.observation_space = self.map_ref.size
-        (
-            self.trajectory_vanilla,
-            self.nodes_vanilla,
-            self.edges_all_vanilla,
-        ) = initialize_traj(
+        """Size of the reference map represents the observation space. -> this attribute is not used..."""
+        temp = initialize_traj(
             self.map_ref, self.obstacles, nodes=None, start=start, goal=goal
         )
-        self.nodes_prot, self.edges_all_prot = copy_nodes(self.edges_all_vanilla)
+        self.trajectory_vanilla, _, _ = temp
+        """This is the "original" trajectory just after applying PRM without any agents interfering"""
+        _, self.nodes_vanilla, _ = temp
+        """The "original" nodes (or basically the graph), used to generate trajectory_vanilla via PRM"""
+        self.edges_all_vanilla, _, _ = temp
+        """All "original" edges connecting the nodes_vanilla. -> List of Edge-objects\
+        all_edges_vanilla hahve their costs calculated based on nodes_vanilla and map_ref"""
+        temp = copy_nodes(self.edges_all_vanilla)
+        self.nodes_prot, _ = temp
+        """The nodes (or graph..) after changing the map with protagonist -> used to calculate the new trajectory"""
+        _, self.edges_all_prot = temp
+        """All edges with their respective costs after changing the map with protagonist"""
         self.relevant_segments = relevant_segments
+        """config parameter that determines how many segments of a trajectory are "seen"\
+         "0" means the agents will see the whole trajectory (which there is not so much reason to change)"""
         self.state_adv1 = initialize_state_adv1(
             self.map_ref,
             self.trajectory_vanilla,
             relevant_segments=relevant_segments,
             visualize=True,
         )
+        """Initial state of the sim-gap-adv"""
         self.edges_vanilla = get_traj_edges(self.trajectory_vanilla)
+        """Edges of the vanilla trajectory"""
         self.done_after_collision = done_after_collision
+        """Config parameter that determines if the episode (for sim-gap-adv) should terminate after\
+         collision was detected or not -> there is not really a reason to not choose it as "True"""
         self.visualize = visualize
+        """If this is "True" some png files will be created in the process of training/evaluating the agents.\
+            Mainly for debugging (the result is not influenced in any way by this, except it might be a bit slower)"""
         self.state_prot = initialize_state_prot(self, visualize=True)
+        """Initial state of the protagonist"""
 
         """ Swapnil code"""
         self.traj_adversary = []
+        """Trajectory after the adversary has applied his actions"""
 
     def reset_traj(self, node_num=1, pos=[-1, -1]):
         self.state_adv1.traj_index = node_num

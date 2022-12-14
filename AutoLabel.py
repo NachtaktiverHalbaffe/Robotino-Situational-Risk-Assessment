@@ -23,8 +23,14 @@ from sklearn.metrics import silhouette_score
     Mixture of Gaussians
 """
 # figure, axis = pyplot.subplots(2, 2)
-def plot_data(X, y, n_features):
-    # create scatter plot for samples from each class
+def plot_data(X, y):
+    """
+    Create scatter plot for samples from each class and shows it
+
+    Args:
+        x: Data to plot
+        y:
+    """
     for class_value in [0, 0.5]:
         # get row indexes for samples with this class
         row_ix = where(y >= class_value)
@@ -67,11 +73,24 @@ def predict_collision(data, y=None):
 
 
 class AutoLabel:
+    """
+    Class for automatic labeling of data. Implemented methods are:
+        - Agglomerative
+        - K-Means
+        - Mini-Batch K-Means
+        - Mixture of Gaussian
+    """
+
     def __init__(self, X, y=None, n_clusters=3, method=0, plot=True):
         self.clusters = n_clusters
+        """ int: Number of clusters into which the data should be labeled """
         self.method = method
+        """ int: Method which should be chosen. Is specified with the index of the according list\
+             [K_Means(), MiniBatch_KMeans(), MixtureofGaussians(), agglomerative()]. Defaults to 0 """
         self.X = X
+        """Data which should be clustered"""
         self.plot = plot
+        """bool, optional: If clusters should be plotted. Defaults to True"""
 
     #     self.algorithms = [K_Means(), MiniBatch_KMeans(), MixtureofGaussians(), agglomerative()]
 
@@ -79,7 +98,14 @@ class AutoLabel:
     #     detection = self.algorithms[self.method]
 
     def plot_clusters(self, X, clusters, yhat):
-        # create scatter plot for samples from each cluster
+        """
+        Create scatter plot for samples from each cluster
+
+        Args:
+            X: Data to plot
+            clusters:
+            yhat:
+        """
         for cluster in clusters:
             # get row indexes for samples with this cluster
             row_ix = where(yhat == cluster)
@@ -104,6 +130,9 @@ class AutoLabel:
         return yhat
 
     def K_Means(self):
+        """
+        Clusters the data with help of k-means
+        """
         # define the model
         from sklearn.cluster import KMeans
 

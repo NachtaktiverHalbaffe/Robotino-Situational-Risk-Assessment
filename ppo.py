@@ -41,13 +41,19 @@ class PPOMemory:
 
     def __init__(self, batch_size):
         self.states = []
+        """List of all "remembered" states"""
         self.probs = []
+        """List of all "remembered" probs -> probs are the output values (softmax) of the actor (of the agent)"""
         self.vals = []
+        """List of all "remembered" values -> values as they were estimated by the critic (output of critic) (of the agent)"""
         self.actions = []
+        """List of all "remembered" actions -> actions that were taken at the corresponding step"""
         self.rewards = []
+        """List of all "remembered" reward values"""
         self.entropy = []
+        """List of all "remembered" entropy values"""
         self.dones = []
-
+        """List of all "remembered" done values -> tells us if it was the last step in a particular episode"""
         self.batch_size = batch_size
 
     def get_episodes(self):
@@ -126,6 +132,7 @@ class ActorNetwork(nn.Module):
         super(ActorNetwork, self).__init__()
 
         self.model_arch = model_arch
+        """Just for faster testing of different hyperparameters. usually model_arch will just be "normal" """
 
         if model_arch == "small":
             print("small")
@@ -291,6 +298,7 @@ class CriticNetwork(nn.Module):
     def __init__(self, lr, model_arch="normal"):
         super(CriticNetwork, self).__init__()
         self.model_arch = model_arch
+        """Just for faster testing of different hyperparameters. Usually model_arch will just be "normal" """
 
         if model_arch == "small":
             print("small")
@@ -446,16 +454,18 @@ class Agent:
 
     Attributes:
         n_actions:
-        gamma (float): Learning rate. Defaults to 0.99
+        gamma (float): Discount factor. Defaults to 0.99
         alpha (float): Defaults to 0.0003
-        gae_lambda (float): Defaults to 0.95
+        gae_lambda (float): General advantage estimation: Smoothing parameter used\
+                                          for reducing the variance in training which makes it more stable. Defaults to 0.9
         policy_clip (float): Clipping ratio. Policy adjustments are clipped to this value if network makes adjustments outside this ratio. Defaults to 0.2
         batch_size (int): Batch size for training. Defaults to 64
         n_epochs (int): Number of epochs. Defaults to 10
         model_arch (str): Just for faster testing of different hyperparameters. Usually model_arch will just be "normal"
         epsilon (float): Defines clipping interval. Defaults to 0.5
-        entropy_coef (float): Defaults to 0.01
-        value:loss_coef (float): Defaults to 0.5
+        entropy_coef (float): Regularizer.  Helps prevent premature convergence of one action probability dominating\
+             the policy and preventing exploration. Defaults to 0.01
+        value_loss_coef (float): Loss coefficient of neural network. Defaults to 0.5
     """
 
     def __init__(
@@ -473,17 +483,30 @@ class Agent:
         value_loss_coef=0.5,
     ):
         self.gamma = gamma
+        """Discount factor. Defaults to 0.99"""
         self.policy_clip = policy_clip
+        """Clipping ratio. Policy adjustments are clipped to this value\
+            if network makes adjustments outside this ratio. Defaults to 0.2"""
         self.n_epochs = n_epochs
+        """Number of epochs. Defaults to 10"""
         self.gae_lambda = gae_lambda
+        """General advantage estimation: Smoothing parameter used\
+             for reducing the variance in training which makes it more stable. Defaults to 0.95"""
         self.epsilon = epsilon
+        """Defines clipping interval. Defaults to 0.5"""
         self.n_actions = n_actions
+        """Number of actions"""
         self.entropy_coef = entropy_coef
+        """Regularizer.  Helps prevent premature convergence of one action probability dominating\
+             the policy and preventing exploration. Defaults to 0.01"""
         self.value_loss_coef = value_loss_coef
-
+        """"Loss coefficient of neural network. Defaults to 0.5"""
         self.actor = ActorNetwork(n_actions, alpha, model_arch=model_arch)
+        """Actor neural network"""
         self.critic = CriticNetwork(alpha, model_arch=model_arch)
+        """Critic neural network"""
         self.memory = PPOMemory(batch_size)
+        """Memory where the last episodes are stored"""
 
     def remember(self, state, action, probs, vals, reward, entropy, done):
         """
