@@ -17,13 +17,15 @@ config_1 = {
     'log_interval': 10,
     'log_name': 'adv_1',    # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
     #'map_path': './maps/map_y.png',
-    'map_path': './maps/FinalGridMapv2.png',
-    'geo_path': './maps/map_g.png',
+    #'map_path': './maps/FinalGridMapv2.png',
+    'map_path': './maps/map_g.png',
+    'geo_path': './maps/map_geo.png',
     'start': [62,74], 
     'goal':[109,125],
     'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
-    'prob_const': 200
+    'prob_const': 200,
+    'eval_ep': 6
 }
 
 config_2 = {
@@ -50,7 +52,8 @@ config_2 = {
     'goal':[109,125],
     'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
-    'prob_const': 200
+    'prob_const': 200,
+    'eval_ep': 5
 }
 
 config_3 = {

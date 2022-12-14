@@ -8,7 +8,7 @@ def real_to_pixel(action_index):
     x_room = 400
     y_room= 400
     pixel_value = (x_room*y_room)/(x_max* y_max)
-    action_to_take = (action_index-2)*((pixel_value)/2)
+    action_to_take = (action_index-2)*6
 
     return action_to_take
 

@@ -104,8 +104,8 @@ class CSV_Reader:
                 self.values.append(np.float(row[value_index]))
                 self.collisions.append(np.float(row[collision_index]))
                 self.length_ratios.append(np.float(row[length_ratio_index]))
-                if i == 8512:
-                    break
+                # if i == 8512:
+                #     break
 
             avg = np.mean(self.rewards)
             var = np.var(self.rewards)

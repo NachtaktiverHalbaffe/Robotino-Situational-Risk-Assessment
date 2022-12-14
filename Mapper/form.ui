@@ -402,10 +402,21 @@ background-image: url(Mapper/ml_rl_background.jpeg)
                <item row="1" column="2">
                 <layout class="QVBoxLayout" name="verticalLayout_2">
                  <item>
+                  <widget class="QCheckBox" name="combined_ida_and_brute">
+                   <property name="text">
+                    <string>Combined Evaluation</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <widget class="QComboBox" name="tree_selector"/>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="shape_selector"/>
+                  <widget class="QComboBox" name="shape_selector">
+                   <property name="enabled">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
                  </item>
                 </layout>
                </item>
@@ -628,7 +639,7 @@ background-image: url(Mapper/ml_rl_background.jpeg)
      <x>0</x>
      <y>0</y>
      <width>916</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

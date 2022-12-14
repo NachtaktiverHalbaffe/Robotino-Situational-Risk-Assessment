@@ -177,9 +177,9 @@ def initialize_map(map_path):
     map_ref, obstacles = apply_object_detection(map_path)
 
     # --- only for test we use the already processed map ---
-    # obstacles = None
+    #obstacles = None
     # ref_map_path = 'map_ref.png'
-    # map_ref = Image.open(ref_map_path)
+    #map_ref = Image.open(map_path)
 
     return map_ref, obstacles
 
@@ -393,12 +393,13 @@ class Environment:
         """ Swapnil code"""
         self.traj_adversary = []
 
-    def reset_traj(self, node_num=1, pos=[-1,-1]):
+    def reset_traj(self, node_num=1, pos=[-1, -1]):
         self.state_adv1.traj_index = node_num
-        if pos[0] == -1:
-            self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
-            #print("in -1 pos")
-        else: self.state_adv1.position = pos
+        if len(pos) > 0:
+            if pos[0] == -1:
+                self.state_adv1.position = self.trajectory_vanilla[node_num-1].coordinates 
+                #print("in -1 pos")
+            else: self.state_adv1.position = pos
         self.state_adv1.angle = 0
     # todo: for now action is just simply the angle-offset but later this should actually be a combination of angle_offset and v_offset
     def step_adv1(self, action, action_prob):
@@ -412,27 +413,20 @@ class Environment:
                  adv1_node2 - only used for applying the adversary after protagonist in step_prot(..)
                  -> this is the new "measured" position, resulting of the adversaries action
         """
-        # if keep_searching:
-        #     self.state_adv1.traj_index = 1
-        #     self.state_adv1.position = self.trajectory_vanilla[0].coordinates 
-        #     self.state_adv1.angle = 0
             
         done = False
-        #print("self.state_adv1.traj_index: ", self.state_adv1.traj_index)
-        #print(self.trajectory_vanilla[self.state_adv1.traj_index], self.state_adv1.traj_index)
-        #print("Position and angle: ", self.state_adv1.position, self.state_adv1.angle)
-        #print("self.trajectory_vanilla[0] :", self.trajectory_vanilla[0].coordinates) 
+
         command_vanilla = calc_command(self.state_adv1.position, self.state_adv1.angle, self.trajectory_vanilla[self.state_adv1.traj_index].coordinates)
         """ Stephan"""
-        #angle_comm_new = command_vanilla.angle+action
+        angle_comm_new = command_vanilla.angle+action
         """ Swapnil"""
-        angle_comm_new = command_vanilla.angle
+        #angle_comm_new = command_vanilla.angle
         v_comm_new = command_vanilla.v
         command_disturbed = Command(angle_comm_new, v_comm_new, command_vanilla.t)
 
         # t0 = time.perf_counter()
         pos_new, angle_new = calc_new_position(self.state_adv1.position, self.state_adv1.angle, command_disturbed)
-        pos_new[0] = pos_new[0]+action
+        #pos_new[0] = pos_new[0]+action
 
         # this block deals with the situation when the adversary coincidentally steers the robot on the position of the next node in the trajectory (which would end up in a segment with distance 0)
         if not (self.state_adv1.traj_index + 1 >= len(self.trajectory_vanilla)):
@@ -453,15 +447,15 @@ class Environment:
         segment_adv_coordinates = [self.state_adv1.position, pos_new]
 
         """ Swapnil: Change the position by adding pixels, once it has reached the new position"""
-        if(self.state_adv1.position[0]== pos_new[0] and self.state_adv1.position[1]== pos_new[1]  ):
-            pos_new[1]= pos_new[1]+action+1
-            pos_new[0]= pos_new[0]+1
+        # if(self.state_adv1.position[0]== pos_new[0] and self.state_adv1.position[1]== pos_new[1]  ):
+        #     pos_new[1]= pos_new[1]+action+1
+        #     pos_new[0]= pos_new[0]+1
 
         """ Swapnil code"""
-        self.traj_adversary.append(pos_new)
+        #self.traj_adversary.append(pos_new)
         
         """ Stephan code"""    
-        #segment_adv_coordinates.extend(traj_vanilla_coordinates)
+        segment_adv_coordinates.extend(traj_vanilla_coordinates)
         
         # t3 = time.perf_counter()
         segment_adv_nodes, segments_adv = calc_adv_traj(self.map_ref, segment_adv_coordinates, self.obstacles)
