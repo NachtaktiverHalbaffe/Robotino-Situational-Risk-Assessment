@@ -406,8 +406,9 @@ class MainWindow(QMainWindow):
         """
         Stops the worker which runs the adversary
         """
-        if self.thread[1].is_running==False:
-            self.thread[1].stop()
+        for thread in self.thread:
+            if thread.is_running == False:
+                thread.stop()
 
         # # 1 adversary running
         # if len(self.thread) >= 1:
