@@ -74,6 +74,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
     n_episodes = config['n_games']+1
     mcts_total_time = 0
     risk = 0
+    cumm_po_ida = 0
+    po_pc = 0
     if test_mode:
         # set the number of episodes to evaluate the model here
         n_episodes_eval = config['eval_ep']+1
@@ -108,7 +110,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones,  = [], [], [], [], [], [], []
         mcts = MonteCarloTreeSearch(config['N_actions'], traj_vanilla, env, adv1, obeservation_orig, test_mode= test_mode)
         action_space = mcts.expand()
-
+        print(action_space)
+        assert(2==1)
         pc_ida_max = 0
         
         if test_mode == True and mcts_eval == "BRUTE_FORCE"  or ida_brute_combine==True:
@@ -168,8 +171,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                 if test_mode:
                     if mcts_eval=="IDA" or ida_brute_combine:
                         print("p_o_ida: ", p_o_ida)
+                        cumm_po_ida += p_o_ida
 
-                        p_o_ida = 1
                         new_action_index, prob_prev , node_num, pos_prev = mcts.find_best_child(probs, positions, node_num=1)
                         while (len(traj_vanilla) - node_num-1)>0:
                             done = False
@@ -242,6 +245,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
             total_collisions = sum(x == 1 for x in collision_ida)
             residual = (((total_collisions-total_success + constant)/(total_success+total_collisions+constant))* (1/(len(traj_vanilla)-step_counter+constant)) * learning_rate)
             estimated_prob_collision = round(abs(pc_ida_max + residual),4)
+            po_pc += estimated_prob_collision * p_o_ida
+            p_o_ida = 1
             length = traj_length(traj_vanilla)
 
         temp_data = [traj_vanilla,
@@ -257,13 +262,19 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         collision_data.append(temp_data)
         
         episode_counter += 1
-
+        print("episode_counter: ", episode_counter)
     save_data(data=collision_data, create_header=True)
 
-    print("Risk: ", risk/(n_episodes-1))
-    print("Risk sqrt: ", np.sqrt(risk/(n_episodes-1)))
+    if mcts_eval == "BRUTE_FORCE" or ida_brute_combine:
+        cumm_risk = risk/(n_episodes-1)
+        
+    else:
+        cumm_risk = po_pc/(n_episodes-1)
 
-    return np.sqrt(risk/(n_episodes-1))
+    print("Risk: ", cumm_risk)
+    print("Risk sqrt: ", np.sqrt(cumm_risk))
+
+    return np.sqrt(cumm_risk)
 
 def mains(mode=True, mcts_eval="IDA", combined_eval=False):
     n_sessions = 1
