@@ -14,7 +14,7 @@ sys.setrecursionlimit(2000)
 # todo: these parameters should also be part of the config file...
 N_NODES = 300       # amount of nodes sampled in the map
 N_NEIGHBOURS = 20   # amount of neighbours for each node -> the "k" of "k-nearest neighbour"
-RADIUS_ROBOT = 6    # 5/6 seems to represent the robotino quite good
+RADIUS_ROBOT = 8    # 5/6 seems to represent the robotino quite good
 
 # don't change these COLOR values (they are used in Environment.py hardcoded..)
 NODE_COLOR = 160
