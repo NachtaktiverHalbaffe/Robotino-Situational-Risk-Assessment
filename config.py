@@ -22,7 +22,7 @@ config_1 = {
     'geo_path': './maps/map_geo.png',
     'start': [62,74], 
     'goal':[109,125],
-    'eval_ep': 100,
+    'eval_ep': 6,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
     'prob_const': 200,
 }
