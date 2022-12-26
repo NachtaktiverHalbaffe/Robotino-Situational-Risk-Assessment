@@ -110,8 +110,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones,  = [], [], [], [], [], [], []
         mcts = MonteCarloTreeSearch(config['N_actions'], traj_vanilla, env, adv1, obeservation_orig, test_mode= test_mode)
         action_space = mcts.expand()
-        print(action_space)
-        assert(2==1)
+        #print(action_space)
+
         pc_ida_max = 0
         
         if test_mode == True and mcts_eval == "BRUTE_FORCE"  or ida_brute_combine==True:
@@ -121,6 +121,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
             length = traj_length(traj_vanilla)
             #temp_data = [traj_vanilla,traj_vanilla[0].coordinates[0],traj_vanilla[0].coordinates[1], traj_vanilla[len(traj_vanilla)-1].coordinates[0],traj_vanilla[len(traj_vanilla)-1].coordinates[1], len(traj_vanilla),length, prob_collision]
             #collision_data.append(temp_data)
+            print("Risk: ", np.sqrt(risk_ep))
             risk += risk_ep
             
         done = False
@@ -281,7 +282,7 @@ def mains(mode=True, mcts_eval="IDA", combined_eval=False):
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
     for i in range(0, n_sessions):
-        risk = run_session_adv(config.configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=True)
+        risk = run_session_adv(config.configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=combined_eval)
 
     print('evaluation finished')
     done = True
