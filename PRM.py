@@ -762,7 +762,6 @@ def draw_traj(map_visu, traj, forAgent, color=None):
             fill=traj_color,
         )
 
-    # TODO nest it into statement below
     for traj_node in traj:
         if not forAgent:
             im_draw.point(

@@ -450,19 +450,20 @@ class MonteCarloTreeSearch:
         self, raw_probs, positions, node_num=1, prev_prob=0, pos_prev=[]
     ):
         """
+        Searches for the child node with the 2nd highest probability
 
         Args:
             raw_probs: The raw probabilities in which it is searched
-            positions:
+            positions: The positions of the node
             node_num (int, optional): Defaults to 1
             prev_prob (int, optional): Defaults to 0
             pos_prev (list, optional): Defaults to empty list
 
         Returns:
-            action_index:
-            prev_prob:
-            m_node_num:
-            pos_prev:
+            action_index: The action to take to get to the found node
+            prev_prob: The probability of the previous node
+            m_node_num: Number of the found node
+            pos_prev: position of the previous node
         """
         temp_prev = prev_prob
         m_node_num = node_num
