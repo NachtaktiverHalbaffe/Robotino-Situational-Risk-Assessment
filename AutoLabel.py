@@ -214,27 +214,117 @@ def linear_regression(data):
     print("RMSE:", rmse)
 
 
+def svm_regression(data):
+    from sklearn.model_selection import train_test_split
+
+    # Dropping any rows with Nan values
+    X_train, X_test, y_train, y_test = train_test_split(
+        data[:, 0:6], data[:, -1], test_size=0.1
+    )
+
+    # from sklearn import svm
+    from sklearn.svm import SVR
+
+    # regr = svm.SVR()
+    regr = SVR()
+
+    regr.fit(X_train, y_train)
+    print(regr.score(X_test, y_test))
+
+    my_data = [[142, 78, 89, 57, 5.0, 57.185]]
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+    y_pred = regr.predict(X_test)
+    print(regr.predict(my_data))
+
+    mae = mean_absolute_error(y_true=y_test, y_pred=y_pred)
+    # squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_test, y_pred=y_pred)  # default=True
+    rmse = mean_squared_error(y_true=y_test, y_pred=y_pred, squared=False)
+
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
+    return regr.predict(data[:, 0:6]).round(4)
+
+
+def ransac(data):
+    from sklearn.model_selection import train_test_split
+
+    # Dropping any rows with Nan values
+    X_train, X_test, y_train, y_test = train_test_split(
+        data[:, 0:6], data[:, -1], test_size=0.2
+    )
+
+    print(len(X_train), len(X_test), len(y_test))
+    from sklearn.linear_model import ElasticNet
+
+    regr = ElasticNet(random_state=0)
+    regr.fit(X_train, y_train)
+    print(regr.score(X_test, y_test))
+
+    my_data = [[142, 78, 89, 57, 5.0, 57.185]]
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+    y_pred = regr.predict(X_test)
+    print(regr.predict(my_data))
+
+    mae = mean_absolute_error(y_true=y_test, y_pred=y_pred)
+    # squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_test, y_pred=y_pred)  # default=True
+    rmse = mean_squared_error(y_true=y_test, y_pred=y_pred, squared=False)
+
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
+
+
 def read_data(filename):
     df = pd.read_csv(filename, sep=",", header=None)
     # print(df.values)
     return df.values, df
 
 
+def evaluate_virtual_vs_ida(y_true, y_pred):
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+    mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
+    # squared True returns MSE value, False returns RMSE value.
+    mse = mean_squared_error(y_true=y_true, y_pred=y_pred)  # default=True
+    rmse = mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False)
+
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
+    return mae, mse, rmse
+
+
 if __name__ == "__main__":
-    data, data_orig = read_data("collision_data.csv")
+    # data, data_orig = read_data("collision_data_000.csv")
+    data, data_orig = read_data("data/collision_data_exp_ida_brute_force_angle.csv")
+    # print(data[1:-1,5:8])
+    X_clustering = data_orig[["N_nodes", "length", "Prob_collision_Brute_force"]].values
+    y_brute = data_orig["Prob_collision_Brute_force"].values
+    y_ida = data_orig["Prob_collision_IDA"].values
+    y_exp = data_orig["Expected Probability Collision"].values
+    evaluate_virtual_vs_ida(y_brute, y_exp)
+
     # data = data_orig.values
-    linear_regression(data)
+    # linear_regression(data)
+    # yhat = svm_regression(data)
+    # ransac(data)
     # print (data)
     # print(data[:,0:2])
     # print(data[:,2])
     # print(where(data[:,2] >= 0.5))
     # main(data)
-    al = AutoLabel(data, n_clusters=3, method=0)
-    yhat = al.MixtureofGaussians()
-    al.K_Means()
-    # data_orig.insert(3, "label", yhat, True)
-    # print(data_orig)
-    # data_orig.to_csv('labelled_data.csv', header=False, index=False)
+    # al = AutoLabel(data, n_clusters=3, method=0)
+    # yhat = al.MixtureofGaussians()
+    # al.K_Means()
+
+    # data_orig.insert(7, "Expected Prob collision", yhat, True)
+    # #print(data_orig)
+    # data_orig.to_csv('labelled_data_pc.csv', header=False, index=False)
 
     # print(data[:,0:2])
     # read_data("collision_data.csv")
