@@ -17,7 +17,7 @@ N_NODES = 300
 # amount of neighbours for each node -> the "k" of "k-nearest neighbour"
 N_NEIGHBOURS = 20
 # 5/6 seems to represent the robotino quite good
-RADIUS_ROBOT = 6
+RADIUS_ROBOT = 8
 
 # !! Don't change these COLOR values (they are used in Environment.py hardcoded..) !!
 NODE_COLOR = 160

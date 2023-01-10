@@ -22,10 +22,9 @@ config_1 = {
     'geo_path': './maps/map_geo.png',
     'start': [62,74], 
     'goal':[109,125],
-    'eval_ep': 5,
+    'eval_ep': 6,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
     'prob_const': 200,
-    'eval_ep': 6
 }
 
 config_2 = {
@@ -50,10 +49,9 @@ config_2 = {
     'geo_path': './maps/map_geo.png',
     'start': [85,52], 
     'goal':[109,125],
-    'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
     'prob_const': 200,
-    'eval_ep': 5
+    'eval_ep': 100
 }
 
 config_3 = {
