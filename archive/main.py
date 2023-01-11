@@ -9,11 +9,11 @@ from torch.distributions import Categorical
 import config
 from Environment import Environment
 from ppo import Agent
-from CSV_Logger import CSV_Logger
+from archive.CSV_Logger import CSV_Logger
 from mcts import *
 
 from probability_cal import real_to_pixel, action_prob_cal, risk_calculation, cumm_risk
-from plotgraph import plt_action
+from archive.plotgraph import plt_action
 
 
 ACTION_SPACE_STEP_ADVERSARY = 6
