@@ -2,7 +2,7 @@ import time
 import numpy as np
 import evaluate_logs
 
-from CSV_Logger import CSV_Reader
+from archive.CSV_Logger import CSV_Reader
 
 avg_window = 1000  # determines how many episodes are averaged in plots
 

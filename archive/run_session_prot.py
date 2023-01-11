@@ -9,7 +9,7 @@ from torch.distributions import Categorical
 import config
 from Environment import Environment
 from ppo import Agent
-from CSV_Logger import CSV_Logger
+from archive.CSV_Logger import CSV_Logger
 
 ACTION_SPACE_STEP_ADVERSARY = 5
 ACTION_SPACE_STEP_PROT = 4  # has to be even!
