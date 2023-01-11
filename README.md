@@ -3,6 +3,11 @@
 Name: Felix Brugger.
 Email: st157476@stud.uni-stuttgart.de
 
+Name: Abdul Rehman.
+Email: st171920@stud.uin-stuttgart.de
+
+Name: Kai Binder.
+Email: st141569@stud.uin-stuttgart.de
 ### Installation Guide
 
 The prototype was developed using below configurations.

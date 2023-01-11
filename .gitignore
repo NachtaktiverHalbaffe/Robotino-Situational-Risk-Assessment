@@ -1,7 +1,3 @@
-# Created by https://www.toptal.com/developers/gitignore/api/python,ros,qt
-# Edit at https://www.toptal.com/developers/gitignore?templates=python,ros,qt
-
-### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -24,6 +20,7 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -87,6 +84,7 @@ profile_default/
 ipython_config.py
 
 # pyenv
+.python-version
 #   For a library or package, you might want to ignore these files since the code is
 #   intended to run in multiple environments; otherwise, check them in:
 # .python-version
@@ -98,6 +96,7 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
@@ -150,6 +149,14 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+#dataset
+/yolov5/data
+/Error_Dataset/bbox_txt
+/Error_Dataset/images
+/ModifiedOpenLabelling-main/dataset_test
+/ModifiedOpenLabelling-main/yolo
+/yolov5
+/pcg_gazebo
 # pytype static type analyzer
 .pytype/
 
@@ -275,3 +282,7 @@ qtcreator-*
 CATKIN_IGNORE
 
 # End of https://www.toptal.com/developers/gitignore/api/python,ros,qt
+real_robot_navigation/error_dist_csvs/
+adv_1_models/
+image/
+rl_output_folder/kai/

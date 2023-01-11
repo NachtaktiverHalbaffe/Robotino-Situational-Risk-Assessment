@@ -919,8 +919,9 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
     return nodes, edges
 
 
+# def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [62,74], goal=[109, 125]):
 def apply_PRM_init(
-    map_ref, obstacles, start_node=None, goal_node=None, start=[62, 74], goal=[109, 125]
+    map_ref, obstacles, start_node=None, goal_node=None, start=None, goal=None
 ):
     """
     Applies the whole PRM process which includes all steps like sampling nodes, building a graph and\
@@ -952,7 +953,14 @@ def apply_PRM_init(
         for i in range(0, len(nodes)):
             nodes[i] = Node(nodes[i].coordinates[0], nodes[i].coordinates[1])
     else:
-        map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles)  # , starts, ends
+        if None in [start, goal]:
+            map_visu, nodes = add_nodes(
+                map_ref_copy, N_NODES, obstacles
+            )  # , starts, ends
+        else:
+            map_visu, nodes = add_nodes(
+                map_ref_copy, N_NODES, obstacles, start, goal
+            )  # , starts, ends
         map_visu.save("./image/map_nodes.png")
 
     t0 = time.perf_counter()
@@ -976,9 +984,9 @@ def apply_PRM_init(
         start_node = nodes[0]
         goal_node = nodes[1]
         print(start_node, goal_node)
-    while (start_node.coordinates == goal_node.coordinates).all():
-        print("loop")
-        goal_node = nodes[np.random.randint(0, len(nodes))]
+        while (start_node.coordinates == goal_node.coordinates).all():
+            print("loop")
+            goal_node = nodes[np.random.randint(0, len(nodes))]
     t2 = time.perf_counter()
 
     # calculate and draw trajectory with deijkstra's algorithm

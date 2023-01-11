@@ -66,6 +66,70 @@ def plot_scores(path, log_reader, avg_window=500):
     plt.savefig(path+"_scores.png")
     plt.savefig(path+"_scores.pdf")
 
+def plot_scores_dual(path, log_reader_1,log_reader_2, avg_window=500):
+
+    rewards_1 = np.array(log_reader_1.rewards)
+    rewards_2 = np.array(log_reader_2.rewards)
+    steps_1 = np.array(log_reader_1.steps)
+    steps_2 = np.array(log_reader_2.steps)
+    scores_1 = []
+    score_1 = 0
+    for i in range(0, len(steps_1)-1):
+        score_1 += rewards_1[i]
+        if steps_1[i+1] <= steps_1[i]:
+            scores_1.append(score_1)
+            score_1 = 0
+        if i == len(steps_1)-2:
+            if steps_1[-1] <= steps_1[-2]:
+                scores_1.append(score_1)
+                scores_1.append(rewards_1[-1])
+            else:
+                scores_1.append(score_1+rewards_1[-1])
+
+    n_windows = int(len(scores_1)/avg_window)
+    scores_avg_1 = []
+
+    # calculate average reward
+    for i in range(0, n_windows):
+        scores_window_1 = scores_1[(i*avg_window):(i*avg_window+avg_window)]
+        scores_avg_1.append(np.mean(scores_window_1))
+
+    
+    scores_2 = []
+    score_2 = 0
+    for i in range(0, len(steps_2)-1):
+        score_2 += rewards_2[i]
+        if steps_2[i+1] <= steps_2[i]:
+            scores_2.append(score_2)
+            score_2 = 0
+        if i == len(steps_2)-2:
+            if steps_2[-1] <= steps_2[-2]:
+                scores_2.append(score_2)
+                scores_2.append(rewards_2[-1])
+            else:
+                scores_2.append(score_2+rewards_2[-1])
+
+    #n_windows = int(len(scores_1)/avg_window)
+    scores_avg_2 = []
+
+    # calculate average reward
+    for i in range(0, n_windows):
+        scores_window_2 = scores_2[(i*avg_window):(i*avg_window+avg_window)]
+        scores_avg_2.append(np.mean(scores_window_2))
+    plt.close()
+
+    x = list(range(0, n_windows))
+    x = np.array(x)*avg_window
+    plt.plot(x, scores_avg_1,label= "Probability aware MAARL", color = 'g')
+    plt.plot(x, scores_avg_2, label = "MAARL without probabilities",color =  'y')
+
+    plt.xlabel('episode')
+    plt.ylabel('average score')
+    plt.grid()
+    plt.legend()
+
+    plt.savefig(path+"_scores.png")
+    plt.savefig(path+"_scores.pdf")
 
 def plot_collisions(path, log_reader, avg_window=500):
 
@@ -189,6 +253,104 @@ def plot_collisions_special(path, log_reader, avg_window=500):
     plt.savefig(path+"_collisions.png")
     plt.savefig(path+"_collisions.pdf")
 
+def plot_collisions_dual(path, log_reader1,log_reader2, avg_window=500):
+
+    collisions_1 = np.array(log_reader1.collisions)
+    steps_1 = np.array(log_reader1.steps)
+
+    collisions_2 = np.array(log_reader2.collisions)
+    steps_2 = np.array(log_reader2.steps)
+
+    collisions_scores_1 = []
+    collision_1 = 0
+    for i in range(0, len(steps_1)-1):
+        collision_1 += collisions_1[i]
+        if steps_1[i+1] <= steps_1[i]:
+            collisions_scores_1.append(collision_1)
+            collision_1 = 0
+        if i == len(steps_1)-2:
+            if steps_1[-1] <= steps_1[-2]:
+                collisions_scores_1.append(collision_1)
+                collisions_scores_1.append(collisions_1[-1])
+            else:
+                collisions_scores_1.append(collision_1+collisions_1[-1])
+
+    n_windows = int(len(collisions_scores_1)/avg_window)
+    collisions_scores_avg_1 = []
+
+    # calculate average reward
+    for i in range(0, n_windows):
+        collisions_window_1 = collisions_scores_1[(i*avg_window):(i*avg_window+avg_window)]
+        collisions_scores_avg_1.append(np.mean(collisions_window_1))
+
+    # test
+    collisions_scores_2 = []
+    collision_2 = 0
+    for i in range(0, len(steps_2)-1):
+        collision_2 += collisions_2[i]
+        if steps_2[i+1] <= steps_2[i]:
+            collisions_scores_2.append(collision_2)
+            collision_2 = 0
+        if i == len(steps_2)-2:
+            if steps_2[-1] <= steps_2[-2]:
+                collisions_scores_2.append(collision_2)
+                collisions_scores_2.append(collisions_2[-1])
+            else:
+                collisions_scores_2.append(collision_2+collisions_2[-1])
+
+    #n_windows = int(len(collisions_scores_1)/avg_window)
+    collisions_scores_avg_2 = []
+
+    # calculate average reward
+    for i in range(0, n_windows):
+        collisions_window_2 = collisions_scores_2[(i*avg_window):(i*avg_window+avg_window)]
+        collisions_scores_avg_2.append(np.mean(collisions_window_2))
+    plt.close()
+
+    x = list(range(0, n_windows))
+    x = np.array(x)*avg_window
+    plt.plot(x, collisions_scores_avg_1,label= "Probability aware MAARL", color = 'g')
+    plt.plot(x, collisions_scores_avg_2, label = "MAARL without probabilities",color =  'y')
+    plt.xlabel('episode')
+    plt.ylabel('average collision rate')
+    plt.grid()
+    plt.legend()
+ 
+
+
+    plt.savefig(path+"_collisions.png")
+    plt.savefig(path+"_collisions.pdf")
+
+def plot_rewards_dual(path, log_reader_1,log_reader_2, avg_window=1000):
+
+    rewards_1 = np.array(log_reader_1.rewards)
+    rewards_2 = np.array(log_reader_2.rewards)
+    n_windows = int(len(rewards_1)/avg_window)
+    rewards_avg_1 = []
+    rewards_avg_2 = []
+
+    # calculate average reward
+    for i in range(0, n_windows):
+        rewards_window_1 = rewards_1[(i*avg_window):(i*avg_window+avg_window)]
+        rewards_avg_1.append(np.mean(rewards_window_1))
+
+    for i in range(0, n_windows):
+        rewards_window_2 = rewards_2[(i*avg_window):(i*avg_window+avg_window)]
+        rewards_avg_2.append(np.mean(rewards_window_2))
+    x = list(range(0, n_windows))
+    x = np.array(x)*avg_window
+
+    plt.close()
+
+    plt.plot(x, rewards_avg_1,label= "Probability aware MAARL", color = 'g')
+    plt.plot(x, rewards_avg_2, label = "MAARL without probabilities",color =  'y')
+    plt.xlabel('steps')
+    plt.ylabel('average reward')
+    plt.legend()
+    plt.grid()
+
+    plt.savefig(path+"_rewards.png")
+    plt.savefig(path+"_rewards.pdf")
 
 def calc_probabilities(log_reader):
     actions_0 = np.array(log_reader.actions_0)
