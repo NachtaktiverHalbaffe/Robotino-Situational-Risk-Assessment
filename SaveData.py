@@ -55,7 +55,7 @@ def save_data(data=None, create_header=True):
     # data.append(data1)
     # data.append(data2)
 
-    with open("collision_data.csv", "w", newline="") as f:
+    with open("logs/collision_data.csv", "w", newline="") as f:
         writer = csv.writer(f)
 
         # write the header

@@ -81,7 +81,7 @@ class AutoLabel:
             clusters:
             yhat:
         """
-        self.path = "evaluation/figures/"
+        self.path = "logs/evaluation/figures/"
         prob_collision = []
         mean_ar = []
         for cluster in clusters:
@@ -370,7 +370,7 @@ def calculate_risk(prob_collision, length, nodes):
 if __name__ == "__main__":
     # data, data_orig = read_data("collision_data_000.csv")
     data, data_orig = read_data(
-        "evaluation/data/collision_data_exp_ida_brute_force_angle.csv"
+        "logs/evaluation/data/collision_data_exp_ida_brute_force_angle.csv"
     )
     # print(data[1:-1,5:8])
     # X_clustering = data_orig[["N_nodes", "length", "Prob_collision_Brute_force"]].values

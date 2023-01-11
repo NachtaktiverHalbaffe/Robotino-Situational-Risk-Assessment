@@ -225,7 +225,7 @@ compile_commands.json
 
 ### ROS ###
 devel/
-logs/
+# logs/
 bin/
 msg_gen/
 srv_gen/

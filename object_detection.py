@@ -406,7 +406,7 @@ def apply_object_detection(map_path):
     map_grey = map_grey.convert("L")
     # map_grey = crop_to_ref_map(map_grey) # better not use this, except when using the 160x160 handcrafted map
     print("image size after crop:", map_grey.size)
-    map_grey.save("map_cropped.png")
+    map_grey.save("maps/map_cropped.png")
     # map_grey = Image.open(map_path)
     map_grey = (
         np.array(map_grey.getdata())
