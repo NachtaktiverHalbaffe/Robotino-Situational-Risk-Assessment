@@ -58,7 +58,7 @@ def load_model_and_conf(opt, calc_3d = True, plot_3d = True):
 
     return (imgsz,stride,device,model,opt,names,view_img,colors,calc_3d,p_matrix,plot_3d)
 
-def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_3d,p_matrix,plot_3d):
+def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_3d,p_matrix,plot_3d,show=True):
     """run the detection for a passed image, also passes the bb to the 2d->3d converter
     @param limg: the img to run detection on 
     @param imgz: size of the img
@@ -116,8 +116,9 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
                                 # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
                                 if view_img and plot_3d:  # Add bbox to image
                                     plot_3d_box(options, im0, p_matrix, label=label,color=[random.randint(0, 255),random.randint(0, 255),random.randint(0, 255)], line_thickness=1)
-                                    cv2.imshow('Detections', im0)
-                                    cv2.waitKey(1)  # 1 millisecond
+                                    if (show):
+                                        cv2.imshow('Detections', im0)
+                                        cv2.waitKey(1)  # 1 millisecond
                                 h_shifts = shifts
                                 h_options = options
                                 detec_dict = {'label':label[0:-5],'birds_eye':h_options[(0,2),4:8],'rotation':h_shifts[-1],'conf':float(label[-5:]),'boundry':boundry}
@@ -143,8 +144,10 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
         # determining which detection of each class was best
         highest_conf_box = 0
         highest_conf_klapp = 0
+        highest_conf_hocker = 0
         index_highest_conf_box = -1
         index_highest_conf_klapp = -1     
+        index_highest_conf_hocker = -1     
         for i, detection in enumerate(detected_3d_boxes):
             if detection['label'][0:-2] in ['box','sbox']:
                 # TODO here we could be checking if the object we are detection is the large face and give it for example a 0.1 improvement in conf
@@ -155,6 +158,10 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
                 if highest_conf_klapp<detection['conf']:
                     highest_conf_klapp = detection['conf']
                     index_highest_conf_klapp = i
+            if detection['label'][0:-2] in ['hocker']:
+                if highest_conf_hocker<detection['conf']:
+                    highest_conf_hocker = detection['conf']
+                    index_highest_conf_hocker = i
         # if a box or klapp was detected, add the best one to detections       
         if index_highest_conf_box!=-1:
             box_detection = detected_3d_boxes[index_highest_conf_box]
@@ -164,6 +171,11 @@ def loaded_detect(limg,imgsz,stride,device,model,opt,names,view_img,colors,calc_
             klapp_detection = detected_3d_boxes[index_highest_conf_klapp]
             klapp_detection['label'] = 'klapp'
             best_in_class_detection.append(klapp_detection)
+        if index_highest_conf_hocker!=-1:
+            hocker_detection = detected_3d_boxes[index_highest_conf_hocker]
+            hocker_detection['label'] = 'hocker'
+            # TODO uncomment this when using the hocker
+            best_in_class_detection.append(hocker_detection)
         return best_in_class_detection
 
 

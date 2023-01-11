@@ -155,29 +155,54 @@ def draw_map_location_acml(x,y,rot,draw_frame,base_info,color_FoV=(255, 0, 255),
     else:
         x,y = get_pixel_location_from_acml(x,y,*base_info)
         # we only want to save the diff for the location recorded by the detection
+        if write_to_cvs and color_FoV==(0, 0, 255):
+            x_shift = float(x-acml_x)
+            y_shift = float(y-acml_y)
+            # The roation diff needs to account for wrapping around back to 0
+            rot_shift = float(min(abs(rot+np.pi-(acml_rot+np.pi)),abs(rot+3*np.pi-(acml_rot+np.pi)),abs(rot+np.pi-(acml_rot+3*np.pi))))
+            dist_shift = float(np.sqrt(np.power(x_shift,2)+np.power(y_shift,2)))
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_x_PRM.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_y_PRM.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([y_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([rot_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_PRM.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([dist_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_PRM.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift,y_shift,rot_shift,dist_shift])
+            if rot_shift<0.20:
+                with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM.csv','a') as f1:
+                    write = csv.writer(f1)
+                    write.writerow([dist_shift])
         if write_to_cvs and color_FoV==(255, 0, 0):
             x_shift = float(x-acml_x)
             y_shift = float(y-acml_y)
             # The roation diff needs to account for wrapping around back to 0
             rot_shift = float(min(abs(rot+np.pi-(acml_rot+np.pi)),abs(rot+3*np.pi-(acml_rot+np.pi)),abs(rot+np.pi-(acml_rot+3*np.pi))))
             dist_shift = float(np.sqrt(np.power(x_shift,2)+np.power(y_shift,2)))
-            with open('dist_loc/error_dist_loc_x5.csv','a') as f1:
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([x_shift])
-            with open('dist_loc/error_dist_loc_y5.csv','a') as f1:
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([y_shift])
-            with open('dist_loc/error_dist_loc_rot_abs_chair5.csv','a') as f1:
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([rot_shift])
-            with open('dist_loc/error_dist_loc_dist5.csv','a') as f1:
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([dist_shift])
-            with open('dist_loc/error_dist_loc5.csv','a') as f1:
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_PRM_end.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([x_shift,y_shift,rot_shift,dist_shift])
             if rot_shift<0.20:
-                with open('dist_loc/error_dist_loc_dist_filtered5.csv','a') as f1:
+                with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv','a') as f1:
                     write = csv.writer(f1)
                     write.writerow([dist_shift])
     # converting to degrees
@@ -349,7 +374,7 @@ def run_detec_and_localise_PRM(weights_detection, weights_localise,use_detection
             updated_location = False
         # map_ref_loc.save('./image/test_loc_circle.png')
         cv2.imshow('map', np.kron(np.asarray(map_ref_loc.convert('RGB')),np.ones((2,2,1))))
-        cv2.waitKey(10)
+        cv2.waitKey(100)
 
         # navigating to the new point, returns change that needs to be added to the location we detected to get the new one
         if updated_location:
@@ -370,7 +395,7 @@ def run_detec_and_localise_PRM(weights_detection, weights_localise,use_detection
 if __name__ == '__main__':
     use_detection_cam = True
     use_localise_cam = True
-    weights_detection = 'yolov7/weights/movable_last_chair.pt'
+    weights_detection = 'yolov7/weights/tiny10_hocker.pt'
     weights_localise = 'yolov7/weights/ws_tiny5.pt'
 
     run_detec_and_localise_PRM(weights_detection, weights_localise,use_detection_cam = use_detection_cam,use_localise_cam = use_localise_cam)

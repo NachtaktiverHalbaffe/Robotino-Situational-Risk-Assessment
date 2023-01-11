@@ -282,3 +282,7 @@ qtcreator-*
 CATKIN_IGNORE
 
 # End of https://www.toptal.com/developers/gitignore/api/python,ros,qt
+real_robot_navigation/error_dist_csvs/
+adv_1_models/
+image/
+rl_output_folder/kai/

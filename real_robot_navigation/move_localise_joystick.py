@@ -146,45 +146,49 @@ def draw_map_location_acml(x,y,rot,draw_frame,base_info,color_FoV=(255, 0, 255),
     global acml_y
     global acml_rot
     write_to_cvs = False
+    # we need to convert the location to pixels
     if color_FoV==(255, 0, 255):
         x,y = get_pixel_location_from_acml(x,y,*base_info,rot)
         acml_x = x
         acml_y = y
         acml_rot = rot
-    elif(write_to_cvs):
+    else:
         x,y = get_pixel_location_from_acml(x,y,*base_info)
-        x_shift = float(x-acml_x)
-        y_shift = float(y-acml_y)
-        # The roation diff needs to account for wrapping around back to 0
-        rot_shift = float(min(abs(rot+np.pi-(acml_rot+np.pi)),abs(rot+3*np.pi-(acml_rot+np.pi)),abs(rot+np.pi-(acml_rot+3*np.pi))))
-        dist_shift = float(np.sqrt(np.power(x_shift,2)+np.power(y_shift,2)))
-        with open('/real_robot_navigation/error_dist_csvs/error_dist_loc_x6.csv','a') as f1:
-            write = csv.writer(f1)
-            write.writerow([x_shift])
-        with open('/real_robot_navigation/error_dist_csvs/error_dist_loc_y6.csv','a') as f1:
-            write = csv.writer(f1)
-            write.writerow([y_shift])
-        with open('/real_robot_navigation/error_dist_csvs/error_dist_loc_rot_abs_chair6.csv','a') as f1:
-            write = csv.writer(f1)
-            write.writerow([rot_shift])
-        with open('/real_robot_navigation/error_dist_csvs/error_dist_loc_dist6.csv','a') as f1:
-            write = csv.writer(f1)
-            write.writerow([dist_shift])
-        with open('/real_robot_navigation/error_dist_csvs/error_dist_loc6.csv','a') as f1:
-            write = csv.writer(f1)
-            write.writerow([x_shift,y_shift,rot_shift,dist_shift])
-        if rot_shift<0.20:
-            with open('/real_robot_navigation/error_dist_csvs/error_dist_loc_dist_filtered6.csv','a') as f1:
+        # we only want to save the diff for the location recorded by the detection
+        if write_to_cvs and color_FoV==(0, 0, 255):
+            x_shift = float(x-acml_x)
+            y_shift = float(y-acml_y)
+            # The roation diff needs to account for wrapping around back to 0
+            rot_shift = float(min(abs(rot+np.pi-(acml_rot+np.pi)),abs(rot+3*np.pi-(acml_rot+np.pi)),abs(rot+np.pi-(acml_rot+3*np.pi))))
+            dist_shift = float(np.sqrt(np.power(x_shift,2)+np.power(y_shift,2)))
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_x1.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_y1.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([y_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([rot_shift])
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist1.csv','a') as f1:
                 write = csv.writer(f1)
                 write.writerow([dist_shift])
-
-
+            with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc1.csv','a') as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift,y_shift,rot_shift,dist_shift])
+            if rot_shift<0.20:
+                with open('./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv','a') as f1:
+                    write = csv.writer(f1)
+                    write.writerow([dist_shift])
+    # converting to degrees
     rot = rot/(2*np.pi)*360
+    # the robot has a radius of about 20~25 so 5 pixels would also be fine
     robo_r = 4
+    # drawing a circle with a cutout in a different color to represent the FoV
     draw_frame.pieslice((x-robo_r, y-robo_r, x+robo_r, y+robo_r), start=0, end=360, fill=color_FoV, outline=color_FoV)
     draw_frame.pieslice((x-robo_r, y-robo_r, x+robo_r, y+robo_r), start=60-rot, end=300-rot, fill=color_outer, outline=color_outer)
 
-def run_detec_and_localise_joystick(weights_detection, weights_localise, use_detection_cam = False,use_localise_cam = True,log_detection_error = False):
+def run_detec_and_localise_joystick(weights_detection, weights_localise, use_detection_cam = False,use_localise_cam = True,log_detection_error = True):
     global acml_x
     global acml_y
     global acml_rot
@@ -240,30 +244,41 @@ def run_detec_and_localise_joystick(weights_detection, weights_localise, use_det
         map_ref_loc_draw = ImageDraw.Draw(map_ref_loc)
         
         if use_detection_cam:
-            detec_movables = loaded_detect(img_local,*conf_detection)
+            detec_movables = loaded_detect(img_local,*conf_detection, True)
             detec_movables_obstacles = []
+            rotations_detected = [] 
             index_names = []
             for detec_m in detec_movables:
                 index_names.append(names_movables.index(detec_m['label']))
                 detec_movables_obstacle = get_obstacles_from_detection(detec_m['birds_eye'],local_acml_location,base_info)
                 detec_movables_obstacles.append(detec_movables_obstacle)
+                rotations_detected.append(detec_m['rotation'])
             if detec_movables_obstacles:
                 objects_to_move = [obstacles_movable[i] for i in index_names]
                 # NOTE this is debug code,remove to correcly move object
-                objects_to_move = []
-                map_ref_loc = modify_map(map_ref_loc,objects_to_move,detec_movables_obstacles,color=(0,255,255),convert_back_to_grey=False)
+                # objects_to_move = []
+                map_ref_loc = modify_map(map_ref_loc,[],detec_movables_obstacles,color=(0,255,255),convert_back_to_grey=False)
+                # map_ref_loc = modify_map(map_ref_loc,objects_to_move,detec_movables_obstacles,color=(0,255,255),convert_back_to_grey=False)
                 map_ref_loc_draw = ImageDraw.Draw(map_ref_loc)
-            if log_detection_error:
-                for ground_truth, detection_assumption in zip(objects_to_move,detec_movables_obstacles):
+            if log_detection_error and detec_movables_obstacles:
+                for ground_truth, detection_assumption, rotation_detected in zip(objects_to_move,detec_movables_obstacles,rotations_detected):
                     # here we need to split stuff into x,y
                     g_truth = np.array(ground_truth.corners)
                     detec_assum = np.array(detection_assumption.corners)
                     # summing over the corners and then subtracting before deviding by number of corners gives the distances of centers
-                    differences = np.sum(g_truth,axis=1)-np.sum(detec_assum,axis=1)
-                    differences_pyt = np.sqrt(np.power(differences,2))
-                    with open('/real_robot_navigation/error_dist_csvs/error_dist_detec.csv','a') as f1:
+                    differences = np.sum(g_truth,axis=0)/4-np.sum(detec_assum,axis=0)/4
+                    differences_pyt = np.sqrt(np.sum(np.power(differences,2)))
+                    with open('./real_robot_navigation/error_dist_csvs/error_dist_detec_22_12.csv','a') as f1:
                         write = csv.writer(f1)
                         write.writerow([differences[0],differences[1],differences_pyt])
+                    with open('./real_robot_navigation/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv','a') as f1:
+                        write = csv.writer(f1)
+                        old_rot_assumption =2*np.arcsin(local_acml_location[3])
+                        rot = -(0-rotation_detected.numpy()+np.pi-map_config['rot'])+2*np.pi
+                        rot_shift = float(min(abs(rot+np.pi-(old_rot_assumption+np.pi)),abs(rot+3*np.pi-(old_rot_assumption+np.pi)),abs(rot+np.pi-(old_rot_assumption+3*np.pi))))
+                        error = min(abs(rot_shift),abs(rot_shift-np.pi/2),abs(rot_shift-np.pi))
+                        print(error)
+                        write.writerow([error])
 
 
 
@@ -306,20 +321,21 @@ def run_detec_and_localise_joystick(weights_detection, weights_localise, use_det
                     # subtracting the detected distance from the workstation on the map                
                     loc_detec = (ws_map[0]-corner[0],ws_map[1]-corner[1])
                 # print(loc_detec)
+                print('adding to map')
                 draw_map_location_acml(*loc_detec,detected_rotation,map_ref_loc_draw,base_info,color_FoV=(0, 0, 255), color_outer=(0,255,0))
             
                 print(detected_rotation,np.arcsin(local_acml_location[3])*2)
         # map_ref_loc.save('./image/test_loc_circle.png')
         cv2.imshow('map', np.kron(np.asarray(map_ref_loc.convert('RGB')),np.ones((2,2,1))))
         cv2.waitKey(1)
-        sleep(0.5)# in seconds
+        # sleep(0.5)# in seconds
         # sleep(100000)
 
 
 if __name__ == '__main__':
     use_detection_cam = True
     use_localise_cam = True
-    weights_detection = 'yolov7/weights/movable_last_chair.pt'
+    weights_detection = 'yolov7/weights/tiny10_hocker.pt'
     weights_localise = 'yolov7/weights/ws_tiny5.pt'
 
     run_detec_and_localise_joystick(weights_detection, weights_localise,use_detection_cam = use_detection_cam,use_localise_cam = use_localise_cam)

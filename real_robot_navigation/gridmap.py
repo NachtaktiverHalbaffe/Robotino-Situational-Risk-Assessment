@@ -23,13 +23,17 @@ def get_box_and_klapp():
             'size': np.array([0.482, 0.353, 0.238]),
             'location': np.array([-1.20+0.238/2+x_shift_box, 0.0, 2.40-0.353/2+y_shift_box]),
             'angle': 0}
-    chair = {'name': 'chair',
-            'size': np.array([1.04, 0.70, 0.70]),
-            'location': np.array([0.6, 0.0, 1.80]),
+    hocker = {'name': 'hocker',
+            'size': np.array([0.51, 0.32, 0.32]),
+            'location': np.array([0+0.16, 0.0, 1.80-0.16]),
             'angle': 0}
+    # chair = {'name': 'chair',
+    #         'size': np.array([1.04, 0.70, 0.70]),
+    #         'location': np.array([0.6, 0.0, 1.80]),
+    #         'angle': 0}
     objects.append(klapp)
     objects.append(box)
-    objects.append(chair)
+    objects.append(hocker)
 
     names = [object['name'] for object in objects]
     return objects, names

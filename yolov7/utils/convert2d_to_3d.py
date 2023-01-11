@@ -140,7 +140,7 @@ def convert_2d_3d(xyxy, im0, label):
     """
     """movable objects  are ['sklappbox_c','sklappbox_a','box_c','box_a','chair','klappbox_c','klappbox_a','sbox_c','sbox_a']
     workstations can be ['workstation_c', 'workstation_a]'"""
-    movable_names = ['sklappbox_c','sklappbox_a','box_c','box_a','chair','klappbox_c','klappbox_a','sbox_c','sbox_a']
+    movable_names = ['sklappbox_c','sklappbox_a','box_c','box_a','chair','klappbox_c','klappbox_a','sbox_c','sbox_a','hocker_c','hocker_a']
     boundry = False
     corners_3D = []
     label = label[0:-5]
@@ -168,6 +168,12 @@ def convert_2d_3d(xyxy, im0, label):
                 w_real_ = w_real
                 w_real = d_real
                 d_real = w_real_
+            depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
+        
+        if label in ['hocker_c','hocker_a']:
+            h_real = 0.51
+            w_real = 0.32
+            d_real = 0.32    
             depth, shift, depth_c, shift_c, rot,sizes, boundry, corners_3D = apply_for_cube(xyxy,label,corners_3D,boundry,h_real,w_real,d_real)
 
         if label == 'chair':
