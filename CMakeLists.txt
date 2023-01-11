@@ -111,13 +111,14 @@ catkin_package(
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
-
+# TODO Include all scripts
 catkin_install_python(PROGRAMS 
-                  scripts/Velocity.py 
-                  Mapper/mainwindow.py 
-                  Mapper/ui_form.py 
-                  scripts/camera.py
+                  gui/ui_form.py 
                   scripts/py_ros_launch.py
+                  scripts/Velocity.py
+                  scripts/path_planner.py 
+                  scripts/fleetias_client.py 
+                  scripts/workstation_mapper.py 
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########

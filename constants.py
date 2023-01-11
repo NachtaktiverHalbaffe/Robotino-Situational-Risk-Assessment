@@ -7,3 +7,10 @@ class Topics(Enum):
     TARGET_ID = "/target_id"
     ACML = "/acml_pose"
     OBSTACLES = "/obstacles"
+    IMAGE_RAW = "'image_raw'"
+
+
+class Nodes(Enum):
+    PATH_PLANNER = "path_planner"
+    WORKSTATION_MAPPER = "workstation_mapper"
+    SLAM = "slam"

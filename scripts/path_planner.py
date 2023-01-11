@@ -5,7 +5,7 @@ from nav_msgs.msg import Path
 
 from PRM import apply_PRM_init, Node
 from msg import ObstacleList
-from constants import Topics
+from constants import Topics, Nodes
 
 
 # --------------------------- Global variables ---------------------------------
@@ -60,7 +60,10 @@ def runPRM(targetMessage: Point):
 
     # Publish path
     publisher = rospy.Publisher(Path, Topics.PATH.value)
-    publisher.publish(path)
+    try:
+        publisher.publish(path)
+    except:
+        print(f"Error, cant publish path to topic {Topics.PATH.value}")
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
@@ -78,7 +81,7 @@ def planner():
     Runs the node itself and subscribes to all necessary topics. This is basically a adapter for the PRM\
     node and holds some utils stuff for path planning
     """
-    rospy.init_node("path_planner")
+    rospy.init_node(Nodes.PATH_PLANNER.value)
     # Starts the PRM
     rospy.Subscriber(Topics.TARGET.value, Point, runPRM)
     # Sets the currentPoint_acml global variable
