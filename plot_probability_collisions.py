@@ -65,14 +65,17 @@ def plot_collsions(data_orig):
     end_y = data_orig["EndY"].values[0:total_entries]
     N_nodes_raw = data_orig["N_nodes"].values[0:total_entries]
     risk = data_orig["Risk"].values[0:total_entries]
-    y_pred_real_world_raw = generate_synthetic_data(data_orig)[0:total_entries]
+    #y_pred_real_world_raw = generate_synthetic_data(data_orig[""])[0:total_entries]
     #y_pred_cal_error_raw = generate_synthetic_data(data_orig)[0:total_entries]
     #y_pred_lights_error_raw = generate_synthetic_data(data_orig)[0:total_entries]
     y_raw_brute = y_brute
+    y_ida_raw = y_ida
     y_brute = y_brute + length_raw*0.0013
     y_ida = y_ida + length_raw*0.0013
     y_exp = y_exp + length_raw*0.0013
     
+    y_brute_good = data_orig["Prob_collision_Brute_force_good"].values[0:total_entries]
+    y_ida_good = data_orig["Prob_collision_IDA_good"].values[0:total_entries]
 
 
     #print(y_real_world)
@@ -82,7 +85,7 @@ def plot_collsions(data_orig):
     prob_collision_real_1 = np.array(y_real_world)
     prob_collision_ida_1 = np.array(y_ida)
     prob_collision_expected_1 = np.array(y_exp)
-    y_pred_real_world_1 = np.array(y_pred_real_world_raw)
+    #y_pred_real_world_1 = np.array(y_pred_real_world_raw)
     prob_collision_cal_error_1 = np.array(y_cal_error)
     prob_collision_lights_error_1 = np.array(y_lights_error)
     prob_collision_brute_force_old = np.array(y_raw_brute)
@@ -97,13 +100,13 @@ def plot_collsions(data_orig):
     prob_collision_ida = prob_collision_ida_1[indices]
     prob_collision_expected = prob_collision_expected_1[indices]
     N_nodes = N_nodes_1[indices]
-    y_pred_real_world = y_pred_real_world_1[indices]
+    #y_pred_real_world = y_pred_real_world_1[indices]
     prob_collision_cal_error = prob_collision_cal_error_1[indices]
     prob_collision_lights_error = prob_collision_lights_error_1[indices]
     prob_collision_brute_old = prob_collision_brute_force_old[indices]
     risk_sorted = risk_sorted[indices]
 
-    avg_window = 25
+    avg_window = 50
     n_windows = int(len(length)/avg_window)
     length_avg = []
     prob_collision_brute_force_avg = []
@@ -126,7 +129,7 @@ def plot_collsions(data_orig):
         ida_window = prob_collision_ida[(i*avg_window):(i*avg_window+avg_window)]
         expected_window = prob_collision_expected[(i*avg_window):(i*avg_window+avg_window)]
         N_nodes_window = N_nodes[(i*avg_window):(i*avg_window+avg_window)]
-        y_pred_real_world_window = y_pred_real_world[(i*avg_window):(i*avg_window+avg_window)]
+        #y_pred_real_world_window = y_pred_real_world[(i*avg_window):(i*avg_window+avg_window)]
         prob_collision_cal_error_window = prob_collision_cal_error[(i*avg_window):(i*avg_window+avg_window)]
         prob_collision_lights_error_window = prob_collision_lights_error[(i*avg_window):(i*avg_window+avg_window)]
         prob_collision_brute_old_window = prob_collision_brute_old[(i*avg_window):(i*avg_window+avg_window)]
@@ -138,7 +141,7 @@ def plot_collsions(data_orig):
         prob_collision_ida_avg.append(np.mean(ida_window))
         prob_collision_expected_avg.append(np.mean(expected_window))
         N_nodes_avg.append(np.mean(N_nodes_window))
-        y_pred_real_world_avg.append(np.mean(y_pred_real_world_window))
+        ##y_pred_real_world_avg.append(np.mean(y_pred_real_world_window))
         prob_collision_cal_error_avg.append(np.mean(prob_collision_cal_error_window))
         prob_collision_lights_error_avg.append(np.mean(prob_collision_lights_error_window))
         prob_collision_brute_old_avg.append(np.mean(prob_collision_brute_old_window))
@@ -156,14 +159,14 @@ def plot_collsions(data_orig):
 
     plt.figure(1)
     
-    ax.plot(length_avg, prob_collision_brute_old_avg, label='Brute force 48 cm')
+    #ax.plot(length_avg, prob_collision_brute_old_avg, label='Brute force 48 cm')
     ax.plot(length_avg, prob_collision_brute_force_avg, 'r--', label='Brute force 64 cm') 
     ax.plot(length_avg, prob_collision_ida_avg, 'g', label='IDA 64cm')
-    ax.plot(length_avg, prob_collision_expected_avg, 'b', label='Expected 64cm')
+    #ax.plot(length_avg, prob_collision_expected_avg, 'b', label='Expected 64cm')
     ax.plot(length_avg, prob_collision_real_avg, 'c', label='Real world')
     #ax.plot(length_avg, y_pred_real_world_avg, 'm', label='real world pred')
-    ax.plot(length_avg, prob_collision_cal_error_avg, 'y', label='Calibration error')
-    ax.plot(length_avg, prob_collision_lights_error_avg, 'k', label='Lights error')
+    #ax.plot(length_avg, prob_collision_cal_error_avg, 'y', label='Calibration error')
+    #ax.plot(length_avg, prob_collision_lights_error_avg, 'k', label='Lights error')
 
     ax.legend(loc='upper left', shadow=False, fontsize='small')
     ax.set_title('Probability of collisions')
@@ -176,10 +179,10 @@ def plot_collsions(data_orig):
     fig, ax = plt.subplots()
     plt.figure(2)
 
-    ax.bar(list(np.asarray(length_avg) + 0), prob_collision_brute_old_avg, width = 4, label='Brute force 48 cm')
+    #ax.bar(list(np.asarray(length_avg) + 0), prob_collision_brute_old_avg, width = 4, label='Brute force 48 cm')
     ax.bar(list(np.asarray(length_avg) + 4), prob_collision_brute_force_avg, width = 4, label='Brute force 64 cm')
     ax.bar(list(np.asarray(length_avg) + 8), prob_collision_ida_avg, width = 4, label='IDA 64 cm')
-    ax.bar(list(np.asarray(length_avg) + 12), prob_collision_expected_avg, width = 4, label='Exp. 64 cm')
+    #ax.bar(list(np.asarray(length_avg) + 12), prob_collision_expected_avg, width = 4, label='Exp. 64 cm')
     ax.bar(list(np.asarray(length_avg) + 16), prob_collision_real_avg, width = 4, label='Real world')
     ax.bar(list(np.asarray(length_avg) + 20), prob_collision_cal_error_avg, width = 4, label='Calibration error')
     ax.bar(list(np.asarray(length_avg) + 24), prob_collision_lights_error_avg, width = 4, label='Lights error')
@@ -218,8 +221,8 @@ def plot_collsions(data_orig):
     ax = fig.add_subplot(projection='3d')
     ax.scatter(length_raw, N_nodes_1, y_brute, marker="o", label = "Brute Force")
     ax.scatter(length_raw, N_nodes_1, y_real_world, marker="^", label = "Real World")
-    ax.scatter(length_raw, N_nodes_1, y_lights_error, marker="v", label = "Lights Error")
-    ax.scatter(length_raw, N_nodes_1, y_cal_error, marker=",", label = "Calibration Error")
+    #ax.scatter(length_raw, N_nodes_1, y_lights_error, marker="v", label = "Lights Error")
+    #ax.scatter(length_raw, N_nodes_1, y_cal_error, marker=",", label = "Calibration Error")
     ax.legend(loc='upper left', shadow=False, fontsize='small')
     ax.set_xlabel('Length')
     ax.set_ylabel('Nodes')
@@ -233,24 +236,24 @@ def plot_collsions(data_orig):
     ax = fig.add_subplot(projection='3d')
     ax.scatter(start_x, start_y, y_brute, marker="o", label = "Brute Force")
     ax.scatter(start_x, start_y, y_real_world, marker="^", label = "Real World")
-    ax.scatter(start_x, start_y, y_lights_error, marker="v", label = "Lights Error")
-    ax.scatter(start_x, start_y, y_cal_error, marker=",", label = "Calibration Error")
+    #ax.scatter(start_x, start_y, y_lights_error, marker="v", label = "Lights Error")
+    #ax.scatter(start_x, start_y, y_cal_error, marker=",", label = "Calibration Error")
     #Todo: for other prob collisions
 
     ax.legend(loc='upper left', shadow=False, fontsize='small')
     ax.set_xlabel('StartX')
     ax.set_ylabel('StartY')
     ax.set_zlabel('Prob. Collision')
-    ax.set_title('3D plot for startx, endx, prob_collsion')
-    plt.savefig(path+"3D plot for startx endx prob_collsion.png")
+    ax.set_title('3D plot for startx, starty, prob_collsion')
+    plt.savefig(path+"3D plot for startx starty prob_collsion.png")
 
     """ 3D plot for endx, endx, prob_collsion"""
     fig = plt.figure(6)
     ax = fig.add_subplot(projection='3d')
     ax.scatter(end_x, end_y, y_brute, marker="o", label = "Brute Force")
     ax.scatter(end_x, end_y, y_real_world, marker="^", label = "Real World")
-    ax.scatter(end_x, end_y, y_lights_error, marker="v", label = "Lights Error")
-    ax.scatter(end_x, end_y, y_cal_error, marker=",", label = "Calibration Error")
+    #ax.scatter(end_x, end_y, y_lights_error, marker="v", label = "Lights Error")
+    #ax.scatter(end_x, end_y, y_cal_error, marker=",", label = "Calibration Error")
     #Todo: for other prob collisions
     ax.legend(loc='upper left', shadow=False, fontsize='small')
     ax.set_xlabel('EndX')
@@ -291,9 +294,165 @@ def plot_collsions(data_orig):
     ax.set_title('3D plot for length, nodes and risk')
     plt.savefig(path+"3D plot for length nodes and risk.png")
 
-    """ Distribution plots"""
+    """ 3D plot for Risk, length, nodes"""
+    fig = plt.figure(9)
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(length_raw, N_nodes_1, risk, marker="o", label = "Risk")
+    ax.legend(loc='upper left', shadow=False, fontsize='small')
+    ax.set_xlabel('Length')
+    ax.set_ylabel('Nodes')
+    ax.set_zlabel('Risk')
+    ax.set_title('3D plot for length, nodes and risk')
+    plt.savefig(path+"3D plot for length nodes and risk.png")
+
+    """ Bar chart for probability of collsions"""
     fig, ax = plt.subplots()
     plt.figure(10)
+    
+    i = 0
+    #ax.bar(i*20, y_raw_brute[i], width = 4, color = 'r', label='Brute force 48 cm')
+    ax.bar(0 + i*20, y_brute[i], width = 4, color = 'g', label='Brute force 64 cm')
+    #ax.bar(8 + i*20, y_ida[i], width = 4, color = 'b', label='IDA 64 cm')
+    ax.bar(4 + i*20, y_real_world[i], width = 4, color = 'c', label='Real world')
+    ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm', label='Calibration error')
+    ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y', label='Lights error')
+    ax.bar(16 + i*20, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5, label='seperator')
+
+    for i in range(1,30):
+        if y_brute[i] > 1 or y_ida[i] > 1: 
+            y_brute[i] = 1
+            y_ida[i] = 1
+        #ax.bar(i*28, y_raw_brute[i], width = 4, color = 'r')
+        ax.bar(0 + i*20, y_brute[i], width = 4, color = 'g')
+        #ax.bar(8 + i*28, y_ida[i], width = 4, color = 'b')
+        ax.bar(4 + i*20, y_real_world[i], width = 4, color = 'c')
+        ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm')
+        ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y')
+        ax.bar(16 + i*20, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5)
+    
+    y_pos = np.arange(10,5*4*30,20)
+
+    y_label = np.arange(1,31,1)
+    plt.xticks(y_pos, y_label, rotation=45, horizontalalignment='right')
+    ax.legend(loc='upper left', shadow=False, fontsize='small')
+    ax.set_title('Bar chart for probability of collsions')
+    ax.set_ylabel('Prob. Collision')
+    ax.set_xlabel('Experiments')
+
+    plt.savefig(path+"Bar chart for probability of collsions Experiments.png", dpi=400)
+
+    """ Bar chart for probability of collsions Real world, IDA and Brute Force"""
+    fig, ax = plt.subplots()
+    plt.figure(11)
+    
+    i = 0
+    #ax.bar(i*20, y_raw_brute[i], width = 4, color = 'r', label='Brute force 48 cm')
+    ax.bar(0 + i*20, y_real_world[i], width = 4, color = 'tab:blue', label='Real world')
+    ax.bar(4 + i*20, y_brute[i], width = 4, color = 'tab:orange', label='Brute force 64 cm')
+    ax.bar(8 + i*20, y_ida[i], width = 4, color = 'tab:green', label='IDA 64 cm')
+    # ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm', label='Calibration error')
+    # ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y', label='Lights error')
+    ax.bar(12 + i*20, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5, label='seperator')
+
+    for i in range(1,30):
+        if y_brute[i] > 1 or y_ida[i] > 1: 
+            y_brute[i] = 1
+            y_ida[i] = 1
+        #ax.bar(i*28, y_raw_brute[i], width = 4, color = 'r')
+        ax.bar(0 + i*16, y_real_world[i], width = 4, color = 'tab:blue')
+        ax.bar(4 + i*16, y_brute[i], width = 4, color = 'tab:orange')
+        ax.bar(8 + i*16, y_ida[i], width = 4, color = 'tab:green')
+        #ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm')
+        #ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y')
+        ax.bar(12 + i*16, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5)
+    
+    y_pos = np.arange(4,4*4*30,16)
+
+    y_label = np.arange(1,31,1)
+    plt.xticks(y_pos, y_label, rotation=45, horizontalalignment='right')
+    ax.legend(loc='upper left', shadow=False, fontsize='small')
+    ax.set_title('Bar chart for probability of collsions Real world, Brute Force and IDA')
+    ax.set_ylabel('Prob. Collision')
+    ax.set_xlabel('Experiments')
+
+    plt.savefig(path+"Bar chart for probability of collsions Experiments Real_IDA_Brute.png", dpi=400)
+
+    """ Bar chart for probability of collsions Real world and Brute Force"""
+    fig, ax = plt.subplots()
+    plt.figure(12)
+    
+    i = 0
+    #ax.bar(i*20, y_raw_brute[i], width = 4, color = 'r', label='Brute force 48 cm')
+    ax.bar(0 + i*20, y_real_world[i], width = 4, color = 'tab:blue', label='Real world')
+    ax.bar(4 + i*20, y_brute[i], width = 4, color = 'tab:orange', label='Brute force')
+    #ax.bar(8 + i*20, y_ida[i], width = 4, color = 'b', label='IDA 64 cm')
+    # ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm', label='Calibration error')
+    # ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y', label='Lights error')
+    ax.bar(8 + i*20, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5, label='seperator')
+
+    for i in range(1,30):
+        if y_brute[i] > 1 or y_ida[i] > 1: 
+            y_brute[i] = 1
+            y_ida[i] = 1
+        #ax.bar(i*28, y_raw_brute[i], width = 4, color = 'r')
+        ax.bar(0 + i*12, y_real_world[i], width = 4, color = 'tab:blue')
+        ax.bar(4 + i*12, y_brute[i], width = 4, color = 'tab:orange')
+        #ax.bar(8 + i*16, y_ida[i], width = 4, color = 'b')
+        #ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm')
+        #ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y')
+        ax.bar(8 + i*12, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5)
+    
+    y_pos = np.arange(4,3*4*30,12)
+
+    y_label = np.arange(1,31,1)
+    plt.xticks(y_pos, y_label, rotation=45, horizontalalignment='right')
+    ax.legend(loc='upper left', shadow=False, fontsize='small')
+    ax.set_title('Bar chart for probability of collsions Real world and Brute Force')
+    ax.set_ylabel('Prob. Collision')
+    ax.set_xlabel('Experiments')
+
+    plt.savefig(path+"Bar chart for probability of collsions Experiments Real_Brute-Force.png", dpi=400)
+
+    """ Bar chart for probability of collsions Brute Force and IDA Good one"""
+    fig, ax = plt.subplots()
+    plt.figure(13)
+    
+    i = 0
+    #ax.bar(i*20, y_raw_brute[i], width = 4, color = 'r', label='Brute force 48 cm')
+    ax.bar(0 + i*20, y_brute_good[i], width = 4, color = 'tab:blue', label='Brute Force')
+    ax.bar(4 + i*20, y_ida_good[i], width = 4, color = 'tab:orange', label='MCTS')
+    #ax.bar(8 + i*20, y_ida[i], width = 4, color = 'b', label='IDA 64 cm')
+    # ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm', label='Calibration error')
+    # ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y', label='Lights error')
+    ax.bar(8 + i*20, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5, label='seperator')
+
+    for i in range(1,30):
+        # if y_brute[i] > 1 or y_ida[i] > 1: 
+        #     y_brute[i] = 1
+        #     y_ida[i] = 1
+        #ax.bar(i*28, y_raw_brute[i], width = 4, color = 'r')
+        ax.bar(0 + i*12, y_brute_good[i], width = 4, color = 'tab:blue')
+        ax.bar(4 + i*12, y_ida_good[i], width = 4, color = 'tab:orange')
+        #ax.bar(8 + i*16, y_ida[i], width = 4, color = 'b')
+        #ax.bar(8 + i*20, y_cal_error[i], width = 4, color = 'm')
+        #ax.bar(12 + i*20, y_lights_error[i], width = 4, color = 'y')
+        ax.bar(8 + i*12, 1.5, width = 4, hatch = 'x', edgecolor = 'black', color='w', alpha = 0.5)
+    
+    y_pos = np.arange(4,3*4*30,12)
+    y_label = np.arange(1,31,1)
+    plt.xticks(y_pos, y_label, rotation=45, horizontalalignment='right')
+    ax.legend(loc='upper left', shadow=False, fontsize='small')
+    ax.set_title('Bar chart for probability of collsions MCTS and Brute Force')
+    t = ax.text(0.98, .97, 'Max Error: 11%', ha='right', va='top', transform=ax.transAxes, size=12)
+    t.set_bbox(dict(facecolor='tab:green', alpha=0.5, edgecolor='black'))
+    ax.set_ylabel('Prob. Collision')
+    ax.set_xlabel('Experiments')
+
+    plt.savefig(path+"Bar chart for probability of collsions Experiments MCTS_Brute-Force_good.png", dpi=400)
+
+    """ Distribution plots"""
+    fig, ax = plt.subplots()
+    plt.figure(14)
     sns.kdeplot(prob_collision_brute_force, fill=True, color="g", label="Brute Force", alpha=.7)
     sns.kdeplot(prob_collision_ida+2, fill=True, color="deeppink", label="IDA", alpha=.7)
     #sns.kdeplot(prob_collision_expected, fill=True, color="dodgerblue", label="Expected", alpha=.7)
