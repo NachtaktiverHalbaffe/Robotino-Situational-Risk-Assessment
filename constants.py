@@ -6,8 +6,9 @@ class Topics(Enum):
     TARGET = "/target"
     TARGET_ID = "/target_id"
     ACML = "/acml_pose"
+    IMG_LOCALIZATION = "/camera_pose"
     OBSTACLES = "/obstacles"
-    IMAGE_RAW = "'image_raw'"
+    IMAGE_RAW = "'/image_raw'"
 
 
 class Nodes(Enum):

@@ -102,9 +102,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         adv1.load_models(path=config["log_name"] + "_models/", name="best")
 
     collision_data = []
-
     episode_counter = 1
-
     n_episodes = config["n_games"] + 1
     mcts_total_time = 0
     risk = 0
@@ -119,6 +117,9 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
     # ----------------------------------------------------------------- Run the session -----------------------------------------------------------------
     ######################################################################################################################
     for episode in range(1, n_episodes):
+        ############################################
+        #### ------------- Run one episode -----------------
+        ############################################
         # Init params
         collision_ida = []
         reset_total_time = 0
@@ -129,7 +130,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         P_c_ida_ml = 0.000
         positions = []
 
-        t0 = time.perf_counter()
         t2 = time.perf_counter()
         # every n_reset_nodes the map will sample new nodes for PRM. This parameter should be at least 5 times smaller than memory_size
         # the smaller this parameter is the better in general (less overfitting to current nodes) but it also extends training time considerably
@@ -152,9 +152,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         done = False
         p_o_ida = 1
 
-        ############################################
-        #### ------------- Run one episode -----------------
-        ############################################
         ep_states, ep_actions, ep_probs, ep_vals, ep_rewards, ep_entropy, ep_dones, = (
             [],
             [],
@@ -176,7 +173,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         # print(action_space)
 
         pc_ida_max = 0
-
         # Run bruteforce or ida-bruteforc-combination if specified and if we don't train
         if (
             test_mode == True
@@ -201,19 +197,21 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
             # collision_data.append(temp_data)
             print("Risk: ", np.sqrt(risk_ep))
             risk += risk_ep
-
-        done = False
-        # collision_status = False
-        env.reset_traj()
-        while not done:
-            ##############################
-            # --------- Run one step -----------
-            ##############################
-            # Choose and perform one action in simulation environment
-            # Necessary? It is also done after this again
-            action_index, prob, val, raw_probs = adv1.choose_action(
-                observation, test_mode=test_mode
-            )
+        arr = [True, False, False, False, False, False, False]
+        for r in arr:
+            done = False
+            step_counter = 0
+            # collision_status = False
+            env.reset_traj()
+            while not done:
+                ##############################
+                # --------- Run one step -----------
+                ##############################
+                # Choose and perform one action in simulation environment
+                # Necessary? It is also done after this again
+                action_index, prob, val, raw_probs = adv1.choose_action(
+                    observation, test_mode=r
+                )
 
             if test_mode:
                 # Don't run step for bruteforce because it's already done before the loop
@@ -224,7 +222,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                 if mcts_eval == "IDA" or ida_brute_combine == True:
                     # Choose and perform one action in simulation environment
                     action_index, prob, val, raw_probs = adv1.choose_action(
-                        observation, test_mode=test_mode
+                        observation, test_mode=r
                     )
                     # choosing the position offset
                     pos_offset = choose_action(action_index)
@@ -234,7 +232,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                         ACTION_SPACE_STEP_ADVERSARY * action_index
                         - (int(config["N_actions"] / 2) * ACTION_SPACE_STEP_ADVERSARY)
                     )
-
                     # Perform step
                     (
                         observation_,
@@ -244,7 +241,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                         _,
                         position_old,
                     ) = env.step_adv1(action_angle_offset, action_prob_value)
-
                     probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0), 4)
                     # print(probs_all)
                     traj_temp = traj_vanilla
@@ -252,7 +248,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                     # Only done when trajectory is long enough
                     if len(traj_vanilla) > 2 and step_counter > 0:
                         traj_temp = traj_vanilla[step_counter : len(traj_vanilla)]
-
+                    # print(traj_temp)
                     length = traj_length(traj_temp)
                     my_data = [
                         [
@@ -268,12 +264,9 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                     P_c_ida_ml = abs(regr.predict(my_data)[0])
                     if P_c_ida_ml > pc_ida_max:
                         pc_ida_max = P_c_ida_ml
-
-                    # Calculate probabilitie
                     probs.append(probs_all)
-                    p_o_ida *= action_prob_value
-
                     positions.append(position_old)
+                    p_o_ida *= action_prob_value
 
             # if collision_status:
             #     print("Untried actions: ", mcts.untried_actions())
@@ -293,6 +286,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                         + "Collision occured and not reached"
                         + bcolors.ENDC,
                     )
+
                 else:
                     collision_ida.append(0)
                     print(
@@ -324,12 +318,10 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                             done = False
                             env.reset_traj(node_num, pos=pos_prev)
                             prev_node_num = node_num
-
                             probs = []
                             node_num += 1
                             positions = []
 
-                            # -------------- Perform one step in environment ------------------
                             """ swapnil"""
                             pos_offset = choose_action(new_action_index)
                             action_prob_value = action_prob(new_action_index)
@@ -354,11 +346,8 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                             ) = env.step_adv1(action_angle_offset, action_prob_value)
 
                             observation = observation_
-
-                            # Loop will terminate
                             if done:
                                 node_num = len(traj_vanilla)
-                                # Append 1 to variable "collisions" if collision happend, otherwise append 0
                                 if collision_status == 1:
                                     collision_ida.append(1)
                                     print(
@@ -377,96 +366,94 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                                         + "Reached at the destination"
                                         + bcolors.ENDC,
                                     )
-                            # Perform adversary steps for whole sub-tree from the found 2nd maximum
-                            while not done:
-                                action_index, prob, val, raw_probs = adv1.choose_action(
-                                    observation, test_mode=test_mode
-                                )
-                                #  Calculate fault injections
-                                pos_offset = choose_action(action_index)
-                                action_prob_value = action_prob(action_index)
-                                # action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
-                                # observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
-
-                                """ Previous"""
-                                action_angle_offset = np.deg2rad(
-                                    ACTION_SPACE_STEP_ADVERSARY * action_index
-                                    - (
-                                        int(config["N_actions"] / 2)
-                                        * ACTION_SPACE_STEP_ADVERSARY
-                                    )
-                                )
-                                # Perform adversary step
-                                (
-                                    observation_,
-                                    reward,
-                                    done,
-                                    collision_status,
-                                    _,
-                                    position_old,
-                                ) = env.step_adv1(
-                                    action_angle_offset, action_prob_value
-                                )
-                                #  Calculate probabilities
-                                probs_all = np.round(
-                                    raw_probs.cpu().detach().numpy().squeeze(0), 4
-                                )
-                                probs.append(probs_all)
-                                positions.append(position_old)
-
-                                if done:
-                                    # Search for 2nd maximum
+                                while not done:
                                     (
-                                        new_action_index,
-                                        prob_prev,
-                                        node_num,
-                                        pos_prev,
-                                    ) = mcts.find_best_child(
-                                        probs, positions, node_num, pos_prev=pos_prev
+                                        action_index,
+                                        prob,
+                                        val,
+                                        raw_probs,
+                                    ) = adv1.choose_action(observation, test_mode=r)
+
+                                    pos_offset = choose_action(action_index)
+                                    action_prob_value = action_prob(action_index)
+                                    # action_angle_offset = np.deg2rad(ACTION_SPACE_STEP_ADVERSARY * action_index - (int(config['N_actions']/2)*ACTION_SPACE_STEP_ADVERSARY))
+                                    # observation_, reward, done, collision_status, _, position_old = env.step_adv1(pos_offset,action_prob_value)
+
+                                    """ Previous"""
+                                    action_angle_offset = np.deg2rad(
+                                        ACTION_SPACE_STEP_ADVERSARY * action_index
+                                        - (
+                                            int(config["N_actions"] / 2)
+                                            * ACTION_SPACE_STEP_ADVERSARY
+                                        )
                                     )
-                                    # No new best child found
-                                    if node_num == prev_node_num:
-                                        node_num += 1
-                                        pos_prev = [-1, -1]
-                                        new_action_index = 2
+                                    (
+                                        observation_,
+                                        reward,
+                                        done,
+                                        collision_status,
+                                        _,
+                                        position_old,
+                                    ) = env.step_adv1(
+                                        action_angle_offset, action_prob_value
+                                    )
 
-                                    # Append 1 to variable "collisions" if collision happend, otherwise append 0
-                                    if collision_status == 1:
-                                        collision_ida.append(1)
-                                        print(
-                                            "\U0000274c",
-                                            bcolors.BOLD
-                                            + bcolors.WARNING
-                                            + "Collision occured and not reached"
-                                            + bcolors.ENDC,
-                                        )
-                                    else:
-                                        collision_ida.append(0)
-                                        print(
-                                            "\U00002705",
-                                            bcolors.BOLD
-                                            + bcolors.OKBLUE
-                                            + "Reached at the destination"
-                                            + bcolors.ENDC,
-                                        )
-                                        # break
-                                observation = observation_
+                                    probs_all = np.round(
+                                        raw_probs.cpu().detach().numpy().squeeze(0), 4
+                                    )
+                                    probs.append(probs_all)
+                                    positions.append(position_old)
 
-                # Write adversary parameters into memory
-                adv1.remember(
-                    ep_states,
-                    ep_actions,
-                    ep_probs,
-                    ep_vals,
-                    ep_rewards,
-                    ep_entropy,
-                    ep_dones,
-                )
+                                    if done:
+                                        (
+                                            new_action_index,
+                                            prob_prev,
+                                            node_num,
+                                            pos_prev,
+                                        ) = mcts.find_best_child(
+                                            probs,
+                                            positions,
+                                            node_num,
+                                            pos_prev=pos_prev,
+                                        )
+                                        if node_num == prev_node_num:
+                                            node_num += 1
+                                            pos_prev = [-1, -1]
+                                            new_action_index = 2
+                                        if collision_status == 1:
+                                            collision_ida.append(1)
+                                            print(
+                                                "\U0000274c",
+                                                bcolors.BOLD
+                                                + bcolors.WARNING
+                                                + "Collision occured and not reached"
+                                                + bcolors.ENDC,
+                                            )
+                                        else:
+                                            collision_ida.append(0)
+                                            print(
+                                                "\U00002705",
+                                                bcolors.BOLD
+                                                + bcolors.OKBLUE
+                                                + "Reached at the destination"
+                                                + bcolors.ENDC,
+                                            )
+                                            # break
+                                    observation = observation_
+                    adv1.remember(
+                        ep_states,
+                        ep_actions,
+                        ep_probs,
+                        ep_vals,
+                        ep_rewards,
+                        ep_entropy,
+                        ep_dones,
+                    )
             observation = observation_
 
         # --- Probability of collision for IDA and collect data for logging ---
         if mcts_eval == "IDA" or ida_brute_combine:
-            constant = 0.01
+            constant = 0.001
             learning_rate = 0.1
             total_success = sum(x == 0 for x in collision_ida)
             total_collisions = sum(x == 1 for x in collision_ida)
@@ -516,15 +503,6 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
 
 
 def mains(mode=True, mcts_eval="IDA", combined_eval=False):
-    """
-    Starts the adversary session
-
-    Args:
-        mode (bool): If model should be trained (False) or evaluated (True). Defaults to True
-
-    Returns:
-        done (bool): If it has finished the session
-    """
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""

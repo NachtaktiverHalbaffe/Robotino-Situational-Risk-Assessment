@@ -65,12 +65,8 @@ class AutoLabel:
         self.X = X
         """Data which should be clustered"""
         self.plot = plot
-        """bool, optional: If clusters should be plotted. Defaults to True"""
-
-    #     self.algorithms = [K_Means(), MiniBatch_KMeans(), MixtureofGaussians(), agglomerative()]
-
-    # def create_clusters(self):
-    #     detection = self.algorithms[self.method]
+        self.path = "evaluation/figures/"
+        self.y_real = prob_real_world
 
     def plot_clusters(self, X, clusters, yhat):
         """
@@ -89,44 +85,54 @@ class AutoLabel:
             row_ix = where(yhat == cluster)
             plt.scatter(X[row_ix, 2], X[row_ix, 0])
             prob_collision.append(X[row_ix, 2])
-            mean_ar.append(np.mean(X[row_ix, 2]))
+            # mean_ar.append(np.mean(X[row_ix,2]))
+            print(self.y_real[row_ix])
+            mean_ar.append(np.mean(self.y_real[row_ix]))
             print(np.mean(X[row_ix, 2]))
-
+        plt.xlabel("Probability of collisions")
+        plt.ylabel("Length of Trajectory")
+        plt.title("Auto Labeling")
         # show the plot
         fig, ax = plt.subplots()
         plt.figure(2)
         mean_ind = np.argsort(mean_ar)
         color = ["g", "c", "r", "m", "y"]
+        Risk = ["Low", "Medium", "High"]
         for i in range(len(mean_ind)):
             n, bins, patches = ax.hist(
-                prob_collision[mean_ind[i]][0] + i * 5,
+                prob_collision[mean_ind[i]][0] + i * 1,
                 density=True,
                 facecolor=color[i],
                 alpha=0.75,
-                label="Cluster " + str(i),
+                label=Risk[i],
             )
             ax.arrow(
-                mean_ar[mean_ind[i]] + i * 5,
-                0.6,
+                mean_ar[mean_ind[i]] + i * 1,
+                2,
                 0,
-                -0.57,
-                head_width=0.4,
-                head_length=0.03,
+                -1.7,
+                head_width=0.1,
+                head_length=0.3,
                 fc="k",
                 ec="k",
             )
             plt.text(
-                mean_ar[mean_ind[i]] + i * 5 - 2,
-                0.6,
+                mean_ar[mean_ind[i]] + i * 1,
+                2,
                 r"$\mu=$" + str(np.round(mean_ar[mean_ind[i]], 2)),
             )
         ax.legend(loc="upper right", shadow=False, fontsize="small")
-        ax.set_xlabel("Risk")
+        ax.set_xlabel("Probability of collisions")
         ax.set_ylabel("Density")
-        y_label = ["30", "32", "34", "36", "38", "40", "42", "44"]
-        y_pos = [30, 34, 38, 42, 45, 48, 51, 54]
-        plt.xticks(y_pos, y_label, rotation=45, horizontalalignment="right")
-        plt.grid(True)
+        # y_label = ['0', '0.4', '0.4', '0.375', '0.5', '0.625', '0.75', '1.0']
+        y_label = ["0", "1.0"]
+        # y_label = np.arange(0,1.0,0.5)
+        # y_label= ["%.3f" % x for x in y_label]
+        # y_pos = [0,0.125,38,42,45,48,51,54]
+        # y_pos = np.arange(0,3.5,1.75)
+        y_pos = [0, 3]
+        plt.xticks(y_pos, y_label, horizontalalignment="right")
+        # plt.grid(True)
         plt.title("Histogram of Clusters with mean")
         plt.savefig(self.path + "Histogram of Clusters.png")
 
@@ -136,32 +142,36 @@ class AutoLabel:
         # #print(prob_collision[0])
         for i in range(len(mean_ind)):
             sns.kdeplot(
-                prob_collision[mean_ind[i]][0] + i * 5,
+                prob_collision[mean_ind[i]][0] + i * 2,
                 fill=True,
                 color=color[i],
-                label="Cluster " + str(i),
+                label=Risk[i],
                 alpha=0.7,
             )
             ax.arrow(
-                mean_ar[mean_ind[i]] + i * 5,
-                0.6,
+                mean_ar[mean_ind[i]] + i * 2,
+                1.0,
                 0,
-                -0.57,
-                head_width=0.4,
-                head_length=0.03,
+                -0.9,
+                head_width=0.2,
+                head_length=0.1,
                 fc="k",
                 ec="k",
             )
             plt.text(
-                mean_ar[mean_ind[i]] + i * 5 - 2,
-                0.6,
+                mean_ar[mean_ind[i]] + i * 2,
+                1.0,
                 r"$\mu=$" + str(np.round(mean_ar[mean_ind[i]], 2)),
             )
         ax.legend(loc="upper right", shadow=False, fontsize="small")
-        ax.set_xlabel("Risk")
+        ax.set_xlabel("Probability of Collision")
         ax.set_ylabel("Density")
-        y_label = ["30", "32", "34", "36", "38", "40", "42", "44"]
-        y_pos = [30, 34, 38, 42, 45, 48, 51, 54]
+        y_label = ["0", "1.0"]
+        # y_label = np.arange(0,1.0,0.5)
+        # y_label= ["%.3f" % x for x in y_label]
+        # y_pos = [0,0.125,38,42,45,48,51,54]
+        # y_pos = np.arange(0,3.5,1.75)
+        y_pos = [0, 5.25]
         plt.xticks(y_pos, y_label, rotation=45, horizontalalignment="right")
         plt.title("Density of Clusters with mean")
         plt.savefig(self.path + "Density of Clusters.png")
@@ -370,20 +380,22 @@ def calculate_risk(prob_collision, length, nodes):
 if __name__ == "__main__":
     # data, data_orig = read_data("collision_data_000.csv")
     data, data_orig = read_data(
-        "logs/evaluation/data/collision_data_exp_ida_brute_force_angle.csv"
+        "logs/evaluation/data/collision_data_exp_ida_brute_force_angle_cp.csv"
     )
     # print(data[1:-1,5:8])
-    # X_clustering = data_orig[["N_nodes", "length", "Prob_collision_Brute_force"]].values
-    X_clustering = data_orig[["Prob_collision_Brute_force", "N_nodes", "Risk"]].values
+    X_clustering = data_orig[
+        ["length", "length", "Prob_collision_Brute_force_8_pix"]
+    ].values[0:99]
     y_brute = data_orig["Prob_collision_Brute_force"].values
     y_ida = data_orig["Prob_collision_IDA"].values
     y_exp = data_orig["Expected Probability Collision"].values
     y_brute = data_orig["Prob_collision_Brute_force"].values
     length_raw = data_orig["length"].values
     nodes = data_orig["N_nodes"].values
+    y_real = data_orig["Prob_collision_real_world"].values[0:99]
 
-    al = AutoLabel(X_clustering, n_clusters=3, method=0)
-    yhat = al.MixtureofGaussians()
+    al = AutoLabel(X_clustering, n_clusters=3, method=0, prob_real_world=y_real)
+    yhat = al.K_Means()
     # al.K_Means()
 
     # data_orig.insert(7, "Expected Prob collision", yhat, True)
