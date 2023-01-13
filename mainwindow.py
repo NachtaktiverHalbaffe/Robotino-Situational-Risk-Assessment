@@ -48,7 +48,7 @@ from PySide6.QtCore import QThread, Signal, QProcess
 #     pyside2-uic form.ui -o ui_form.py
 # cmd = ['rosrun', 'map_server', 'map_saver', 'map:=dynamic_map', '-f', f1]
 #    self.assertTrue(subprocess.call(cmd) == 0)
-from Mapper.ui_form import Ui_MainWindow
+from gui.ui_form import Ui_MainWindow
 import rospy
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist

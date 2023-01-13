@@ -1,43 +1,46 @@
 #!/usr/bin/env python3
-import os, sys
 import rospy
-import cv2
 import numpy as np
 from sensor_msgs.msg import Image
 from copy import deepcopy
 from cv_bridge import CvBridge
 
 from constants import Topics, Nodes
-from detect_online import get_conf_and_model, loaded_detect
-from move_utils import *
-from move_utils_cords import *
+from yolov7.detect_online import get_conf_and_model, loaded_detect
+from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
+from real_robot_navigation.move_utils import *
+from real_robot_navigation.move_utils_cords import *
+from real_robot_navigation.localization_utils_felix import (
+    draw_map_location_acml,
+    get_obstacles_from_detection,
+    best_match_workstation_index,
+)
 
 WEIGHTS_LOCALIZE = "yolov7/weights/ws_tiny5.pt"
 
-
+# TODO Remove all non-relevant stuff for SLAM and publish position to topic
 def localise():
     """
     Uses the camera to localise the Robotino on the map. Uses the localization from Kai Binder\
     and is only integrated here.
 
     Args:
-        Uses the global variable img_glob to get the
-
+        Uses the global variable img_glob to get the image with which the localization is run
     """
-    global acml_x
-    global acml_y
-    global acml_rot
     global img_glob
     global real_data
     global map_config
+    acml_x = 0
+    acml_y = 0
+    acml_rot = 0
 
     conf_localise = get_conf_and_model(WEIGHTS_LOCALIZE)
     # gets the set of calibration data that needs to measured for each new png map
     base_info, map_config = get_base_info()
     # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
-    obstacles_ws, names_ws = get_obstacles_in_pixel_map(base_info)
+    obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
     # the movable obstacles that need to be placed in the robots way
-    obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, "movable")
+    obstacles_movable, _ = get_obstacles_in_pixel_map(base_info, "movable")
     # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
     # loading the png of the map and running the old detection system on it also configures the map to the right type
@@ -72,12 +75,15 @@ def localise():
 
         # convert the amcl pose rotation to radians
         amcl_rot_radians = 2 * np.arcsin(local_acml_location[3])
-        draw_map_location_acml(
+        acml_x, acml_y, acml_rot = draw_map_location_acml(
             local_acml_location[1],
             local_acml_location[2],
             amcl_rot_radians,
             map_ref_loc_draw,
             base_info,
+            acml_x,
+            acml_y,
+            acml_rot,
         )
 
         # corners of the workstations on the map
@@ -159,15 +165,15 @@ def localise():
                 detected_rotation,
                 map_ref_loc_draw,
                 base_info,
+                acml_x,
+                acml_y,
+                acml_rot,
                 color_FoV=(0, 0, 255),
                 color_outer=(0, 255, 0)
             )
 
-            print(detected_rotation, np.arcsin(local_acml_location[3]) * 2)
-
 
 def setImage(rawImage: Image):
-    global Image_data
     global img_glob
     bridge = CvBridge()
     cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
@@ -176,24 +182,20 @@ def setImage(rawImage: Image):
     width = int(rawImage.width * 0.80)
     height = int(rawImage.height * 0.80)
     dim = (width, height)
-    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
 
     # The unmodified image
     img_glob = deepcopy(cv_image)
 
-    Image_data = [
-        "Image_Data",
-        dim,  # dimensions of resized image
-        img_resized,  # image data
-        rawImage.header.stamp,
-    ]
 
-    # map_ref_loc.save('./image/test_loc_circle.png')
-    cv2.imshow(
-        "map", np.kron(np.asarray(map_ref_loc.convert("RGB")), np.ones((2, 2, 1)))
-    )
-    cv2.waitKey(1)
-    # sleep(0.5)# in seconds
+def setRealData(acmlData: PoseWithCovarianceStamped):
+    global real_data
+    real_data = [
+        "real_data",
+        acmlData.pose.pose.position.x,
+        acmlData.pose.pose.position.y,
+        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
+        acmlData.header.stamp,
+    ]
 
 
 def slam():
@@ -203,8 +205,11 @@ def slam():
     """
     rospy.init_node(Nodes.SLAM.value)
     # Saves the image to a global variable so localization can use the image in its own thread
-    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage)
-
+    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=10)
+    # Saves the acml data to a global variable so the localization can use them
+    rospy.Subscriber(
+        Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=10
+    )
     # Prevents python from exiting until this node is stopped
     rospy.spin()
 
