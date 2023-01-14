@@ -2,18 +2,21 @@
 import json
 import rospy
 import cv2
+import sys
+import os
 import numpy as np
 from std_msgs.msg import Int16
 from geometry_msgs.msg import Point, PoseStamped
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from pyzbar.pyzbar import decode
-from tf_laserlink2map import laser2mapConv
 
+sys.path.append(os.getcwd())
+from utils.tf_laserlink2map import laser2mapConv
+from utils.getDistAngleLidar import getDistAngle
 from constants import Topics, Nodes
+from utils.conversions import polar2Cartesion
 
-# from real_nav_control.getDistAngleLidar import getDistAngle
-# from real_nav_control.conversions import polar2Cartesion
 
 # Global variable to read camera data
 Image_data = []
@@ -37,17 +40,45 @@ def fetchCoordinate(wsID: Int16):
         Coordinate is published to topic "/target"
     """
     targetId = int(wsID)
-    # TODO Logic to find coordinate
+    # Load markers from JSON file
+    json_data = None
+    file = JSON_PATH
+    try:
+        with open(file, "r") as jfile:
+            json_data = json.load(jfile)
 
-    # Create ROS message
-    targetCor = Point()
+        # Create ROS message
+        targetCor = PoseStamped()
+        targetCor.pose.position.x = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["position"]["x"]
+        targetCor.pose.position.y = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["position"]["y"]
+        targetCor.pose.position.z = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["position"]["z"]
+        targetCor.pose.orientation.x = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["orientation"]["x"]
+        targetCor.pose.orientation.y = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["orientation"]["y"]
+        targetCor.pose.orientation.z = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["orientation"]["z"]
+        targetCor.pose.orientation.w = json_data[f"Workstation{targetId}"]["NavPosed"][
+            "posedstamped"
+        ]["pose"]["orientation"]["w"]
+    except:
+        rospy.logerr(f"Error, cant publish target to topic {Topics.TARGET.value}")
 
     # Publish coordinate
-    publisher = rospy.Publisher(Point, Topics.TARGET.value)
+    publisher = rospy.Publisher(PoseStamped, Topics.TARGET.value)
     try:
         publisher.publish(targetCor)
     except:
-        print(f"Error, cant publish target to topic {Topics.TARGET.value}")
+        rospy.logerr(f"Error, cant publish target to topic {Topics.TARGET.value}")
 
 
 def qrCodeScanner(rawImage: Image):
@@ -84,7 +115,7 @@ def qrCodeScanner(rawImage: Image):
 
             for iter in range(1, 251):
                 # Get data from barcode
-                mydata = barcode.data.decode("utf-8")
+                myData = barcode.data.decode("utf-8")
                 # Calculate center of QR-Code
                 pts = np.array([barcode.polygon], np.int32)
                 pts = pts.reshape(-1, 1, 2)
@@ -108,8 +139,8 @@ def qrCodeScanner(rawImage: Image):
             object_x, object_y = polar2Cartesion(objectDist, camera_angle)
             navObject_x, navObject_y = polar2Cartesion(navObjectDist, navObjectAngle)
 
-            if mydata in target_identified.keys():
-                rospy.logdebug(f"{mydata} is already identified")
+            if myData in target_identified.keys():
+                rospy.logdebug(f"{myData} is already identified")
             else:
                 posedstamped = PoseStamped()
                 navPosedstamped = PoseStamped()
@@ -120,7 +151,7 @@ def qrCodeScanner(rawImage: Image):
                     navObject_x, navObject_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0
                 )
 
-                target_identified[mydata] = {
+                target_identified[myData] = {
                     "MarkerPosed": {
                         "posedstamped": {
                             "header": {
@@ -166,21 +197,9 @@ def qrCodeScanner(rawImage: Image):
                         }
                     },
                 }
+                saveMarkersToJson()
         else:
-            rospy.logdebug(f"Target {mydata} is not whithin range")
-
-    #     cv2.putText(
-    #         img_resized,
-    #         mydata,
-    #         (pts2[0], pts2[1]),
-    #         cv2.FONT_HERSHEY_SIMPLEX,
-    #         0.9,
-    #         (255, 0, 255),
-    #         2,
-    #     )
-
-    # cv2.imshow("Camera", img_resized)
-    # cv2.waitKey(1)
+            rospy.logdebug(f"Target {myData} is not within range")
 
 
 def targetLocation():
@@ -226,14 +245,14 @@ def workstationMapper():
             if len(target_identified.keys()) == 4:
                 # unregister subscriber which is responsible for QR code scanning
                 camera_sub.unregister()
-                shutdownProcess()
+                saveMarkersToJson()
             rate.sleep()
 
     # Prevents python from exiting until this node is stopped
     rospy.spin()
 
 
-def shutdownProcess():
+def saveMarkersToJson():
     global target_identified
     file = JSON_PATH
     with open(file, "w") as jsonfile:
