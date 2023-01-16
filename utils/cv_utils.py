@@ -10,6 +10,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)) + "/yolov7")
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
+PATH_ERRORDIST_LOC_X1 = "logs/error_dist_csvs/loc/error_dist_loc_x1.csv"
+PATH_ERRORDIST_LOC_Y1 = "logs/error_dist_csvs/loc/error_dist_loc_y1.csv"
+PATH_ERRORDIST_LOC_ROT = "logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv"
+PATH_ERRORDIST_LOC_DIST = "logs/error_dist_csvs/loc/error_dist_loc_dist1.csv"
+PATH_ERRORDIST_LOC = "logs/error_dist_csvs/loc/error_dist_loc1.csv"
+PATH_ERRORDIST_LOC_FILTERED = (
+    "logs/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv"
+)
+
+PATH_ERRORDIST_PRM_LOC_X1 = "logs/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_Y1 = "logs/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_ROT = (
+    "logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv"
+)
+PATH_ERRORDIST_PRM_LOC_DIST = "logs/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC = "logs/error_dist_csvs/loc/error_dist_loc_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_FILTERED = (
+    "logs/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv"
+)
+
 
 def get_dists_workstation(corners_map_all, obstacle):
     """
@@ -65,6 +85,7 @@ def best_match_workstation_index(
     """
     dists_ws = get_dists_workstation(corners_map_all, obstacle)
     # arg_smallest_dist_rot, dists_rot = get_smalles_dist_rotations(corners_map_all, obstacle,old_loc_assumption)
+    # TODO check if condition checking can be removed
     if old_loc_assumption[0] == "real_data" or True:
         old_rot_assumption = 2 * np.arcsin(old_loc_assumption[3])
     else:
@@ -193,38 +214,55 @@ def draw_map_location_acml(
                 )
             )
             dist_shift = float(np.sqrt(np.power(x_shift, 2) + np.power(y_shift, 2)))
-            with open(
-                "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_x1.csv", "a"
-            ) as f1:
+            with open(PATH_ERRORDIST_LOC_X1, "a") as f1:
                 write = csv.writer(f1)
                 write.writerow([x_shift])
-            with open(
-                "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_y1.csv", "a"
-            ) as f1:
+            with open(PATH_ERRORDIST_LOC_Y1, "a") as f1:
                 write = csv.writer(f1)
                 write.writerow([y_shift])
-            with open(
-                "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv",
-                "a",
-            ) as f1:
+            with open(PATH_ERRORDIST_LOC_ROT, "a") as f1:
                 write = csv.writer(f1)
                 write.writerow([rot_shift])
-            with open(
-                "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist1.csv",
-                "a",
-            ) as f1:
+            with open(PATH_ERRORDIST_LOC_DIST, "a") as f1:
                 write = csv.writer(f1)
                 write.writerow([dist_shift])
-            with open(
-                "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc1.csv", "a"
-            ) as f1:
+            with open(PATH_ERRORDIST_LOC, "a") as f1:
                 write = csv.writer(f1)
                 write.writerow([x_shift, y_shift, rot_shift, dist_shift])
             if rot_shift < 0.20:
-                with open(
-                    "./real_robot_navigation/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv",
-                    "a",
-                ) as f1:
+                with open(PATH_ERRORDIST_LOC_FILTERED, "a") as f1:
+                    write = csv.writer(f1)
+                    write.writerow([dist_shift])
+
+        if write_to_cvs and color_FoV == (255, 0, 0):
+            x_shift = float(x - acml_x)
+            y_shift = float(y - acml_y)
+            # The roation diff needs to account for wrapping around back to 0
+            rot_shift = float(
+                min(
+                    abs(rot + np.pi - (acml_rot + np.pi)),
+                    abs(rot + 3 * np.pi - (acml_rot + np.pi)),
+                    abs(rot + np.pi - (acml_rot + 3 * np.pi)),
+                )
+            )
+            dist_shift = float(np.sqrt(np.power(x_shift, 2) + np.power(y_shift, 2)))
+            with open(PATH_ERRORDIST_PRM_LOC_X1, "a") as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift])
+            with open(PATH_ERRORDIST_PRM_LOC_Y1, "a") as f1:
+                write = csv.writer(f1)
+                write.writerow([y_shift])
+            with open(PATH_ERRORDIST_PRM_LOC_ROT, "a") as f1:
+                write = csv.writer(f1)
+                write.writerow([rot_shift])
+            with open(PATH_ERRORDIST_PRM_LOC_DIST, "a") as f1:
+                write = csv.writer(f1)
+                write.writerow([dist_shift])
+            with open(PATH_ERRORDIST_PRM_LOC, "a") as f1:
+                write = csv.writer(f1)
+                write.writerow([x_shift, y_shift, rot_shift, dist_shift])
+            if rot_shift < 0.20:
+                with open(PATH_ERRORDIST_PRM_LOC_FILTERED, "a") as f1:
                     write = csv.writer(f1)
                     write.writerow([dist_shift])
     # converting to degrees

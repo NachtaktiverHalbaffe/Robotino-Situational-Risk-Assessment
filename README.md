@@ -92,15 +92,18 @@ TODO add manual how to start and use prototype
 ## Technical Docs
 ### ROS Topics
 The prototype mainly communicates over ROS and it's Topics (implementation by Felix Brugger). Following a overview of the used topics is given:
-| **Topic**    | **Message Type**              | **Description**                                           |
-| ------------ | ----------------------------- | --------------------------------------------------------- |
-| /acml_pose   | PoseWithCovarianceStamped     | Current position of Robotino                              |
-| /image_raw   | Image                         | Image from camera sensor                                  |
-| /target      | Point                         | Coordinate to which the Robotino should navigate          |
-| /target_id   | Int16                         | ID of a workstation to which the Robotino should navigate |
-| /path        | Path                          | Trajectory of the Robotino                                |
-| /obstacles   | ObstacleList (Custom message) | List of all detected obstacles                            |
-| /camera_pose | PoseWithCovarianceStamped     | Current position of Robotino based on camera only         |
+| **Topic**            | **Message Type**              | **Description**                                                                      |
+| -------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| /acml_pose           | PoseWithCovarianceStamped     | Current position of Robotino                                                         |
+| /camera_pose         | PoseWithCovarianceStamped     | Current position of Robotino based on camera only                                    |
+| /image_raw           | Image                         | Image from camera sensor                                                             |
+| /target              | Point                         | Coordinate to which the Robotino should navigate                                     |
+| /target_id           | Int16                         | ID of a workstation to which the Robotino should navigate                            |
+| /path_global         | Path                          | Global trajectory of the Robotino planned by PRM                                     |
+| /path_local          | Path                          | Trajectory between two nodes of /path_global (e.g. if dodging a obstacle is needed ) |
+| /obstacles           | ObstacleList (Custom message) | List of all detected obstacles                                                       |
+| /navigation_response | String                        | Response from Robotino when it ended a navigation task                               |
+
 
 ### Module overview (Most important ones)
 #### mainwindow.py

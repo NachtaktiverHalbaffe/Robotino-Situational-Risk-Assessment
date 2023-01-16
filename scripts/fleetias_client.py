@@ -2,9 +2,12 @@
 import json
 import rospy
 import socket
+import sys
+import os
 from std_msgs.msg import Int16
-from geometry_msgs.msg import PoseWithCovarianceStamped, Pose
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
+sys.path.append(os.getcwd())
 from constants import Topics
 
 PORT = 13002
@@ -75,11 +78,11 @@ def pushTarget(id=0, coordinate=(0, 0), type="workstation"):
             return f"Error: Couldn't publish workstation target {id}"
         return f"Success: Started navigation to workstation {id}"
     elif type == "coordinate":
-        target = Pose()
-        target.position.x = coordinate[0]
-        target.position.y = coordinate[1]
+        target = PoseStamped()
+        target.pose.position.x = coordinate[0]
+        target.pose.position.y = coordinate[1]
         # Publish as a target coordinate directly
-        publisher = rospy.Publisher(Pose, Topics.TARGET.value)
+        publisher = rospy.Publisher(PoseStamped, Topics.TARGET.value)
         try:
             publisher.publish(target)
         except:
@@ -125,14 +128,28 @@ def runClient():
 
     while True:
         try:
+            # Connect with FleetIAS
             client, addr = server.accept()
             print("[COMMANDSERVER]: " + str(addr) + "connected to socket")
+            # Receive message
             request = client.recv(512)
             if request:
+                # Decode the message
                 data = request.decode("utf-8")
+                # Convert to dict
                 data = json.loads(data)
+                # Process the request
                 response = processMessage(data=data)
-                client.sendall(response, encoding="utf-8")
+                if not response.contains("Error") and data["command"] == "PushTarget":
+                    # Wait for response from ROS task which was started by FleetIAS
+                    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value)
+                else:
+                    # Send error response to FleetIAS
+                    rospy.logwarn(response)
+                # Send response to FleetIAS
+                client.sendall(bytes(response, encoding="utf-8"))
+                # Close connection because FleetIAS connects per request
+                client.close()
         except Exception as e:
             print(e)
             break

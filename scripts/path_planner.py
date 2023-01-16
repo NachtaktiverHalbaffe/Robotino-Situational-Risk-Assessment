@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import rospy
-from geometry_msgs.msg import Point, PoseWithCovarianceStamped, PoseStamped
+import sys
+import os
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 
+sys.path.append(os.getcwd())
 from PRM import apply_PRM_init, Node
 from msg import ObstacleList
 from constants import Topics, Nodes
@@ -18,7 +21,7 @@ global obstacles
 MAP_REF = "/path/to/map_ref"
 
 
-def runPRM(targetMessage: Point):
+def runPRM(targetMessage: PoseStamped):
     """
     Runs the PRM to get a trajectory
 
@@ -30,8 +33,8 @@ def runPRM(targetMessage: Point):
         Path is published to topic "/path_raw"
     """
     # Get target from geometry message
-    xTarget = targetMessage.x
-    yTarget = targetMessage.y
+    xTarget = targetMessage.pose.position.x
+    yTarget = targetMessage.pose.position.y
     # Current position of robotino
     global currentPoint_acml
     xCurrent = currentPoint_acml.pose.pose.position.x
@@ -40,7 +43,7 @@ def runPRM(targetMessage: Point):
     global obstacles
 
     # TODO choose right PRM func
-    traj, _, _, edges = apply_PRM_init(
+    traj, _, _, _ = apply_PRM_init(
         map_ref=MAP_REF,
         obstacles=obstacles,
         start_node=Node(xCurrent, yCurrent),
@@ -83,7 +86,7 @@ def planner():
     """
     rospy.init_node(Nodes.PATH_PLANNER.value)
     # Starts the PRM
-    rospy.Subscriber(Topics.TARGET.value, Point, runPRM)
+    rospy.Subscriber(Topics.TARGET.value, PoseStamped, runPRM)
     # Sets the currentPoint_acml global variable
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setCurrentPose)
     # Sets the obstacles global variable
