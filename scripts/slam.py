@@ -269,9 +269,11 @@ def slam():
 
         # ------ Take the right localization value -------
         if locMode.lower() == "camera":
-            msg = rospy.wait_for_message(Topics.IMG_LOCALIZATION.value)
+            msg = rospy.wait_for_message(
+                Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+            )
         elif locMode.lower() == "lidar":
-            msg = rospy.wait_for_message(Topics.ACML.value)
+            msg = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
         else:
             rospy.logwarn(
                 f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'

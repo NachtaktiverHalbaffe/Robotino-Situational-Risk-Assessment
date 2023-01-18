@@ -30,7 +30,7 @@ PATH_ERROR_DIST_DOOR_CLOSED = (
 
 def detect(log_detection_error=True):
     """
-    Detects objects by using the camera with a YOLOv7 neural network. Mainly ises\
+    Detects objects by using the camera with a YOLOv7 neural network. Mainly uses\
     the work from of Kai Binder and is only integrated here into the prototype.
     """
     global img_glob

@@ -198,6 +198,7 @@ def qrCodeScanner(rawImage: Image):
                     },
                 }
                 saveMarkersToJson()
+                rospy.loginfo(f"Identified workstation {myData} and saved marker")
         else:
             rospy.logdebug(f"Target {myData} is not within range")
 

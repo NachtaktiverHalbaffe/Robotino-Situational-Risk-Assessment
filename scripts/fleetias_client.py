@@ -11,8 +11,6 @@ sys.path.append(os.getcwd())
 from constants import Topics
 
 PORT = 13002
-global localization
-localization = PoseWithCovarianceStamped()
 
 
 def activateFeature(feature: str, enabled: bool):
@@ -43,8 +41,9 @@ def addOffset(offset: list, feature: str):
     """
     if feature == "Localization":
         # Create message
-        global localization
-        data = localization
+        data = rospy.wait_for_message(
+            Topics.LOCALIZATION.value, PoseWithCovarianceStamped
+        )
         data.pose.pose.position.x += offset[0]
         data.pose.pose.position.y += offset[1]
         # Publish message
@@ -100,16 +99,16 @@ def processMessage(data: dict):
         data (dict): The message from the socket. Must be already parsed to a dict
     """
     response = ""
-    if data["command"] == "PushTarget":
-        if data["type"] == "resource":
+    if data["command"].lower() == "pushtarget":
+        if data["type"].lower() == "resource":
             response = pushTarget(type="resource", id=data["workstationID"])
-        elif data["type"] == "coordinate":
+        elif data["type"].lower() == "coordinate":
             response = pushTarget(type="coordinate", coordinate=data["coordinate"])
         else:
             pass
-    elif data["command"] == "ActivateFeature":
+    elif data["command"].lower() == "activatefeature":
         response = activateFeature(feature=data["feature"], enabled=data["value"])
-    elif data["command"] == "AddOffset":
+    elif data["command"].lower() == "addoffset":
         response = addOffset(data["offset"], data["feature"])
     else:
         response = f'Error: Command "{data["command"]}" not implemented or not specified in message'
