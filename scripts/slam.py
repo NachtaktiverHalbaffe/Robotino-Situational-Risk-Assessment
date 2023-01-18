@@ -8,6 +8,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from std_msgs.msg import String
+from tf.transformations import quaternion_from_euler
 from copy import deepcopy
 from cv_bridge import CvBridge
 
@@ -180,9 +181,17 @@ def localiseCam():
 
         # Create message to publish
         locMsg = PoseWithCovarianceStamped()
+        # Position
         locMsg.pose.pose.position.x = loc_detec[0]
         locMsg.pose.pose.position.y = loc_detec[1]
-        locMsg.pose.pose.orientation.z = detected_rotation
+        locMsg.pose.pose.position.z = 0
+        # Orientation
+        quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+        locMsg.pose.pose.orientation.x = quaternion[0]
+        locMsg.pose.pose.orientation.y = quaternion[1]
+        locMsg.pose.pose.orientation.z = quaternion[2]
+        locMsg.pose.pose.orientation.w = quaternion[3]
+
         # Publish message
         try:
             publisher.publish(locMsg)
