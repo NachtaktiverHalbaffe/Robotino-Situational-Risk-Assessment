@@ -102,8 +102,8 @@ The prototype mainly communicates over ROS and it's Topics (implementation by Fe
 | /path_global         | Path                          | Global trajectory of the Robotino planned by PRM                                     |
 | /path_local          | Path                          | Trajectory between two nodes of /path_global (e.g. if dodging a obstacle is needed ) |
 | /obstacles           | ObstacleList (Custom message) | List of all detected obstacles                                                       |
-| /navigation_response | String                        | Response from Robotino when it ended a navigation task                               |
-
+| /navigation_response | Bool                          | Response from Robotino when it ended a navigation to a node in the path              |
+| /odom                | Odometry                      | Current odometry (linear/angular velocity and orientation) from Robotino             |
 
 ### Module overview (Most important ones)
 #### mainwindow.py

@@ -121,6 +121,7 @@ catkin_install_python(PROGRAMS
                   scripts/workstation_mapper.py 
                   scripts/slam.py 
                   scripts/object_detection.py
+                  scripts/control.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########
