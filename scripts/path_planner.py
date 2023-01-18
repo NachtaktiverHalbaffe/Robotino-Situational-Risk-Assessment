@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-import sys
-import os
+import sys, os
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 
@@ -21,7 +20,7 @@ global obstacles
 MAP_REF = "/path/to/map_ref"
 
 
-def runPRM(targetMessage: PoseStamped):
+def runPRM(targetMessage: PoseStamped, pubTopic=Topics.GLOBAL_PATH.value):
     """
     Runs the PRM to get a trajectory
 
@@ -62,7 +61,7 @@ def runPRM(targetMessage: PoseStamped):
         path.poses.append(pose)
 
     # Publish path
-    publisher = rospy.Publisher(Path, Topics.PATH.value)
+    publisher = rospy.Publisher(pubTopic, Path)
     try:
         publisher.publish(path)
     except:
@@ -85,8 +84,15 @@ def planner():
     node and holds some utils stuff for path planning
     """
     rospy.init_node(Nodes.PATH_PLANNER.value)
-    # Starts the PRM
+    # Starts the global PRM
     rospy.Subscriber(Topics.TARGET.value, PoseStamped, runPRM)
+    # Starts the local PRM
+    rospy.Subscriber(
+        Topics.TARGET.value,
+        PoseStamped,
+        runPRM,
+        callback_args=[Topics.LOCAL_TARGET.value],
+    )
     # Sets the currentPoint_acml global variable
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setCurrentPose)
     # Sets the obstacles global variable

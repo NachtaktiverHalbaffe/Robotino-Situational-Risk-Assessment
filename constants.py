@@ -5,6 +5,7 @@ class Topics(Enum):
     GLOBAL_PATH = "/path_global"
     LOCAL_PATH = "/path_local"
     TARGET = "/target"
+    LOCAL_TARGET = "/target_local"
     TARGET_ID = "/target_id"
     NAV_POINT = "/nav_point"
     ACML = "/acml_pose"
@@ -15,6 +16,7 @@ class Topics(Enum):
     IMAGE_RAW = "'/image_raw'"
     NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
+    IR_SENSORS = "/distance_sensors"
 
 
 class Nodes(Enum):
@@ -23,3 +25,4 @@ class Nodes(Enum):
     SLAM = "slam"
     OBJECT_DETECTION = "object_detection"
     CONTROL = "control"
+    STRATEGY_PLANNER = "strategy_planner"

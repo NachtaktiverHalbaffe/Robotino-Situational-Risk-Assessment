@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
 import rospy
 import numpy as np
-
+import sys, os
 from geometry_msgs.msg import Twist, Point, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
 from tf.transformations import euler_from_quaternion
 
+sys.path.append(os.getcwd())
 from constants import Topics, Nodes
 
 velocity_publisher_robot = rospy.Publisher("cmd_vel_real", Twist, queue_size=10)
@@ -52,7 +54,7 @@ def calc_command(target):
     return comm_angle, distance
 
 
-def move(target, dist):
+def move(target: Point, dist):
     """
     Moves a specified distance forward
 
@@ -60,6 +62,8 @@ def move(target, dist):
         dist: The distance the Robotino should move
     """
     speed = 0.10
+
+    target = (target.x, target.y)
 
     msg_test_forward = Twist()
     msg_test_forward.linear.x = speed
@@ -97,6 +101,8 @@ def move(target, dist):
             break
 
     velocity_publisher_robot.publish(msg_test_stop)
+
+    return True
 
 
 def rotate(angle):
@@ -144,9 +150,10 @@ def rotate(angle):
             break
 
     velocity_publisher_robot.publish(msg_test_stop)
+    return True
 
 
-def navigateToPoint(target):
+def navigateToPoint(target: Point):
     """
     Navigates the real Robotino to an specified target by first rotating\
     towards the target and then driving forward
@@ -157,11 +164,11 @@ def navigateToPoint(target):
     comm_angle, comm_dist = calc_command(target)
 
     rospy.logdebug(f"Started moving to target {target}")
-    rotate(comm_angle)
-    move(target, comm_dist)
-    rospy.logdebug(f"Arrived at target {target}")
-
-    rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool).publish(True)
+    if rotate(comm_angle) and move(target, comm_dist):
+        rospy.logdebug(f"Arrived at target {target}")
+        rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool).publish(True)
+    else:
+        rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool).publish(False)
 
 
 def control():

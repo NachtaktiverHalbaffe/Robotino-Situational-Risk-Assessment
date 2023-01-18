@@ -203,23 +203,6 @@ def qrCodeScanner(rawImage: Image):
             rospy.logdebug(f"Target {myData} is not within range")
 
 
-def targetLocation():
-    """
-    Creates a marker which represents the target coordinate to which the Robotino\
-    can safely navigate when a workstation as a target is given
-
-    Args:
-        Reads the identified workstation from the file  "maps/markers.json"
-    
-    Returns:
-        Saves the coordinates of the identified workstation to XXXX
-    """
-    file = JSON_PATH
-    jsonFile = None
-    with open(file) as jsonfile:
-        jsonFile = json.loads(jsonfile)
-
-
 def workstationMapper():
     """ 
     Runs the node itself and subscribes to all necessary topics. This is basically a adapter for the work\
