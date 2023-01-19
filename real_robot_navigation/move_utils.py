@@ -18,7 +18,6 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import torch
 from sensor_msgs.msg import Image
-from object_detection_modified import Obstacle
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from PRM import apply_PRM, apply_PRM_init, draw_traj, calc_adv_traj, Node, get_traj_edges, get_node_with_coordinates, calc_nearest_dist
 from object_detection import apply_object_detection
