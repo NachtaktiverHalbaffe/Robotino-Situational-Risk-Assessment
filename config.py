@@ -26,7 +26,8 @@ config_1 = {
     'eval_ep': 5,
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
     'prob_const': 200,
-    'model_location':'./action_space_5.zip'
+    'model_location':'./action_space_5.zip',
+    'n_reset_nodes':300
 }
 
 config_2 = {
