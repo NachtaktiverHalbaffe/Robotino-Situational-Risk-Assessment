@@ -13,6 +13,7 @@ Email: st141569@stud.uin-stuttgart.de
 - [Robotino Prototype for Situative Risk Assessment](#robotino-prototype-for-situative-risk-assessment)
   - [Table of Contents](#table-of-contents)
 - [Installation Guide](#installation-guide)
+  - [Prepare Python Nodes](#prepare-python-nodes)
 - [Basic Project Documentation](#basic-project-documentation)
   - [Manual](#manual)
   - [Technical Docs](#technical-docs)
@@ -85,6 +86,18 @@ The installing system should be an Ubuntu operating system. As gazebo best used 
    catkin_make --pkg robotino_msgs
    catkin_make
    ```
+
+## Prepare Python Nodes
+To initialize Python-Scripts as nodes, they have to be made executable. For this run:
+- Inside the ``/scripts`` folder to make all files executable
+```zsh
+chmod +x*
+```
+- To make one specific script executable
+```zsh
+chmod+x /path/to/script.py
+```
+
 # Basic Project Documentation
 ## Manual
 TODO add manual how to start and use prototype

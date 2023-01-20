@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(thesis)
+project(prototype)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -13,18 +13,14 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   nav_msgs
-  message_generation
   robotino_msgs
+  message_generation
 )
-
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
-
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -120,19 +116,17 @@ catkin_package(
     tf2_ros
     tf2_msgs
     cv_bridge
+    message_runtime
 )
 
 # TODO Include all scripts
 catkin_install_python(PROGRAMS 
-                  gui/ui_form.py 
-                  scripts/py_ros_launch.py
-                  scripts/Velocity.py
-                  scripts/path_planner.py 
-                  scripts/fleetias_client.py 
-                  scripts/workstation_mapper.py 
-                  scripts/slam.py 
-                  scripts/object_detection.py
-                  scripts/control.py
+                  scripts/path_planner_node.py 
+                  scripts/fleetias_client_node.py 
+                  scripts/workstation_mapper_node.py 
+                  scripts/slam_node.py 
+                  scripts/object_detection_node.py
+                  scripts/control_node.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########

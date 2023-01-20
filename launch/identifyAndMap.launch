@@ -1,23 +1,21 @@
 <launch>
    <include file="$(find robotino_node)/launch/robotino_node.launch">
-    <arg name="hostname" value="129.69.102.241"/>
+      <arg name="hostname" value="129.69.102.242"/>
     <!-- more default parameters can be changed here -->
   </include>
   
   <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
 
   <!-- publish map details -->
-  <!--arg name="map_file" default="/home/cpfactory/mymap.yaml"/-->
+  <!--arg name="map_file" default="/home/kaib/catkin_ws/src/test_1/scripts/acml_rviz/FinalScannerMap1.yaml"/-->
   
   
   <!-- publish map details -->
-  <!-- <arg name="map_file" default="/home/cpfactory/vaibhav_data/catkin_ws/src/IDT/real_nav_control/map/final_map_room.yaml"/> -->
-  
+  <arg name="map_file" default="/home/kaib/catkin_ws/src/test_1/scripts/acml_rviz/FinalGridMapv2.yaml"/>
   <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
 	
     
-  <node name="identifyAndMapWorkstations" pkg="real_nav_control" type="identifyAndMapWorkstations.py" output="screen"/>
-  
+
   	
   <node pkg="amcl" type="amcl" name="amcl" output="screen">
     <remap from="scan" to="/scan"/>
@@ -45,6 +43,6 @@
 
   <node name="my_odom" pkg="digital_twin" type="odom.py" output="screen"/>
 
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find real_nav_control)/param/rvizConfigNew.rviz" respawn="true"/>
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $/home/kaib/catkin_ws/src/test_1/scripts/acml_rviz/rvizConfigNew.rviz" respawn="true"/>
   
 </launch>

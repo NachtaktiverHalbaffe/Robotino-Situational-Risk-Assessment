@@ -1,0 +1,5 @@
+<launch>
+    <!-- A working robot without risk estimation -->
+   <include file="$(find prototype)/launch/robotControl.launch"/>
+   <!-- Risk estimation parts -->
+</launch>
