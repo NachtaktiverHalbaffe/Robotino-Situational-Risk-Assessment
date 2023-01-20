@@ -59,7 +59,7 @@ from AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
 # setting path
 sys.path.insert(1, "../thesis")
 from scripts.Velocity import move
-from scripts.py_ros_launch import ros_launch_without_core
+from utils.py_ros_launch import ros_launch_without_core
 import config as config
 from eval import mains as evaluation
 import subprocess

@@ -12,7 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
+  nav_msgs
   message_generation
+  robotino_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -74,6 +76,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  nav_msgs
 )
 
 ################################################
@@ -106,11 +109,19 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES thesis
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+  DEPENDS
+    roscpp
+    gazebo_ros
+    rospy
+    std_msgs
+    sensor_msgs
+    geometry_msgs
+    tf2
+    tf2_ros
+    tf2_msgs
+    cv_bridge
 )
+
 # TODO Include all scripts
 catkin_install_python(PROGRAMS 
                   gui/ui_form.py 

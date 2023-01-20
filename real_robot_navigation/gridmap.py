@@ -1,4 +1,7 @@
 import numpy as np
+import sys, os
+
+sys.path.append(os.getcwd())
 from object_detection_modified import Obstacle
 from move_utils import *
 from move_utils_cords import *

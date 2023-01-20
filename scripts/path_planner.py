@@ -6,7 +6,7 @@ from nav_msgs.msg import Path
 
 sys.path.append(os.getcwd())
 from PRM import apply_PRM_init, Node
-from msg import ObstacleList
+from thesis.msg import ObstacleList
 from constants import Topics, Nodes
 
 
@@ -97,7 +97,6 @@ def planner():
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setCurrentPose)
     # Sets the obstacles global variable
     rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacles)
-
     # Prevents python from exiting until this node is stopped
     rospy.spin()
 

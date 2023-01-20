@@ -17,6 +17,7 @@ class Topics(Enum):
     NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
     IR_SENSORS = "/distance_sensors"
+    EMERGENCY_BRAKE = "/emergency_break"
 
 
 class Nodes(Enum):

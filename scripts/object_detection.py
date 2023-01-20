@@ -9,7 +9,7 @@ from copy import deepcopy
 
 
 sys.path.append(os.getcwd())
-from msg import Obstacle, ObstacleList
+from thesis.msg import Obstacle, ObstacleList
 from constants import Nodes, Topics
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 from utils.cv_utils import (

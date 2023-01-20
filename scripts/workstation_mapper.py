@@ -216,21 +216,22 @@ def workstationMapper():
     # Load already identified workstations
     file = JSON_PATH
     jsonFile = None
-    with open(file) as jsonfile:
-        jsonFile = json.loads(jsonfile)
-    # Only start QR code scanner if not all workstations are identified
-    if len(jsonFile.keys()) != 4:
-        # Scans QR Code and identifies workstations
-        camera_sub = rospy.Subscriber(Topics.IMAGE_RAW.value, Image, qrCodeScanner)
+    if os.path.isfile(file):
+        with open(file) as jsonfile:
+            jsonFile = json.loads(jsonfile)
+        # Only start QR code scanner if not all workstations are identified
+        if len(jsonFile.keys()) != 4:
+            # Scans QR Code and identifies workstations
+            camera_sub = rospy.Subscriber(Topics.IMAGE_RAW.value, Image, qrCodeScanner)
 
-        rate = rospy.Rate(500)
-        while not rospy.is_shutdown():
-            # Stop QR scanning if all workstations are identified
-            if len(target_identified.keys()) == 4:
-                # unregister subscriber which is responsible for QR code scanning
-                camera_sub.unregister()
-                saveMarkersToJson()
-            rate.sleep()
+            rate = rospy.Rate(500)
+            while not rospy.is_shutdown():
+                # Stop QR scanning if all workstations are identified
+                if len(target_identified.keys()) == 4:
+                    # unregister subscriber which is responsible for QR code scanning
+                    camera_sub.unregister()
+                    saveMarkersToJson()
+                rate.sleep()
 
     # Prevents python from exiting until this node is stopped
     rospy.spin()
