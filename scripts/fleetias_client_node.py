@@ -155,6 +155,7 @@ def runClient():
 if __name__ == "__main__":
     rospy.init_node(Nodes.FLEETIAS_CLIENT.value)
     try:
+        rospy.loginfo(f"Starting node {Nodes.FLEETIAS_CLIENT.value}")
         runClient()
         rospy.spin()
     except:

@@ -1,5 +1,6 @@
 import roslaunch
 import rospy
+import os, sys
 from threading import *
 
 
@@ -31,10 +32,11 @@ def ros_launch_without_core(path: str):
 
 
 if __name__ == "__main__":
-    PATH_GMAPPING_LAUNCH = "launch/gmapping.launch"
-    PATH_GENERATE_MAP_LAUNCH = "launch/generate_map.launch"
+    # TODO Fix launch path
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+    print(path)
+    PATH_LAUNCH = f"{path}/launch/prototype.launch"
     try:
-        t1 = Thread(target=ros_launch_exec, daemon=True, args=[PATH_GMAPPING_LAUNCH])
-        t1.start()
+        ros_launch_exec(PATH_LAUNCH)
     except rospy.ROSInterruptException:
         pass

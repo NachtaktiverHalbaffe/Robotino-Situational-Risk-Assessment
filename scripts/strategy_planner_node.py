@@ -118,6 +118,7 @@ def strategyPlanner(runWithRiskEstimation=True):
                                                                             trajectory is planned (False). Defaults to True 
     """
     rospy.init_node(Nodes.STRATEGY_PLANNER.value)
+    rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
 
     if not runWithRiskEstimation:
         # Just drive the trajectory

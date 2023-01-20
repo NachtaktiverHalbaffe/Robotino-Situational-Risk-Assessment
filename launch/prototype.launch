@@ -1,5 +1,14 @@
 <launch>
+    <arg name="package_name" value="prototype" />
+    <arg name="hostname" default="129.69.102.242" />
+    <arg name="map_file" default="$(eval find(arg('package_name'))  + '/param/FinalGridMapv2.yaml')"/>
+    
     <!-- A working robot without risk estimation -->
-   <include file="$(find prototype)/launch/robotControl.launch"/>
+   <include file="$(find prototype)/launch/robotControl.launch">
+        <arg name="hostname" value="$(arg hostname)" />
+        <arg name="map_file" value="$(arg map_file)" />
+        <arg name="package_name" value="prototype" />
+   </include>
    <!-- Risk estimation parts -->
+   
 </launch>

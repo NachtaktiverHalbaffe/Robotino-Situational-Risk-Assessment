@@ -5,7 +5,7 @@ import cv2
 import os
 import numpy as np
 from std_msgs.msg import Int16
-from geometry_msgs.msg import Point, PoseStamped
+from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from pyzbar.pyzbar import decode
@@ -207,6 +207,7 @@ def workstationMapper():
     from Vaibav Tiwari which gets reused here.
     """
     rospy.init_node(Nodes.WORKSTATION_MAPPER.value)
+    rospy.loginfo(f"Starting node {Nodes.WORKSTATION_MAPPER.value}")
     # Converts the id of a workstation to a coordinate which the path planner can use
     rospy.Subscriber(Topics.TARGET_ID.value, Int16, fetchCoordinate)
 

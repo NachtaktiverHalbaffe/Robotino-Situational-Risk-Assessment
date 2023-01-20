@@ -60,15 +60,15 @@
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <!-- Own python modules -->
-  <exec_depend>yolov7</exec_depend>
+  <!-- <exec_depend>yolov7</exec_depend>
   <exec_depend>utils</exec_depend>
   <exec_depend>risk_estimation</exec_depend>
   <exec_depend>gui</exec_depend>
-  <exec_depend>real_robot_navigation</exec_depend>
+  <exec_depend>real_robot_navigation</exec_depend> -->
   <!-- External python modules -->
-  <exec_depend>torch</exec_depend>
-  <exec_depend>pandas</exec_depend>
-  <exec_depend>pyzbar</exec_depend>
+  <!-- <exec_depend>torch</exec_depend>
+  <exec_depend>pandas</exec_depend> -->
+  <!-- <exec_depend>pyzbar</exec_depend> -->
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

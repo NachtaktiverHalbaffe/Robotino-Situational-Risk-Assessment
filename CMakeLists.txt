@@ -124,7 +124,7 @@ catkin_install_python(PROGRAMS
                   scripts/path_planner_node.py 
                   scripts/fleetias_client_node.py 
                   scripts/workstation_mapper_node.py 
-                  scripts/slam_node.py 
+                  scripts/localization_node.py 
                   scripts/object_detection_node.py
                   scripts/control_node.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

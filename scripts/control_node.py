@@ -237,6 +237,7 @@ def control():
     Runs the node itself and subscribes to all necessary topics.
     """
     rospy.init_node(Nodes.CONTROL.value)
+    rospy.loginfo(f"Starting node {Nodes.CONTROL.value}")
     # Starts navigation to a point
     rospy.Subscriber(Topics.NAV_POINT.value, Point, navigateToPoint)
     # Performs a emergency break

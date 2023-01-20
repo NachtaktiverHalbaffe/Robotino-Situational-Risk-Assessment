@@ -199,6 +199,7 @@ def objectDetection():
     object detection implemented by Kai Binder
     """
     rospy.init_node(Nodes.OBJECT_DETECTION.value)
+    rospy.loginfo(f"Starting node {Nodes.OBJECT_DETECTION.value}")
     # Save the localization data to a global variable so the detection can use them
     rospy.Subscriber(
         Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setRealData, queue_size=10

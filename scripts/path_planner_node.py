@@ -82,6 +82,7 @@ def planner():
     node and holds some utils stuff for path planning
     """
     rospy.init_node(Nodes.PATH_PLANNER.value)
+    rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
     # Starts the global PRM
     rospy.Subscriber(Topics.TARGET.value, PoseStamped, runPRM)
     # Starts the local PRM

@@ -23,7 +23,7 @@ class Topics(Enum):
 class Nodes(Enum):
     PATH_PLANNER = "path_planner"
     WORKSTATION_MAPPER = "workstation_mapper"
-    SLAM = "slam"
+    LOCALIZATION = "localization"
     OBJECT_DETECTION = "object_detection"
     CONTROL = "control"
     STRATEGY_PLANNER = "strategy_planner"
