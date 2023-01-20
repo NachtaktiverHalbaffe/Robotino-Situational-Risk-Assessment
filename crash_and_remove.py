@@ -331,10 +331,10 @@ if __name__ == '__main__':
 
 
     runs = [
-        {'attempts': 5, 'expand_length': 2, 'amount_of_exploration': 300},
-        {'attempts': 10, 'expand_length': 2, 'amount_of_exploration': 300},
-        {'attempts': 5, 'expand_length': 3, 'amount_of_exploration': 300},
-        {'attempts': 3, 'expand_length': 2, 'amount_of_exploration': 300},
+        # {'attempts': 5, 'expand_length': 2, 'amount_of_exploration': 200},
+        # {'attempts': 10, 'expand_length': 3, 'amount_of_exploration': 200},
+        # {'attempts': 25, 'expand_length': 5, 'amount_of_exploration': 200},
+        {'attempts': 3, 'expand_length': 2, 'amount_of_exploration': 200},
     ]
 
     load_location = None
@@ -342,7 +342,7 @@ if __name__ == '__main__':
     ########################################################
     ## Uncomment "load_location" to replay from dataframe ##
     ########################################################
-    load_location = f"risk_data_frames/new_test_1000/df_rl_v_brut_{load_settings['attempts']}_{load_settings['expand_length']}.obj"
+    load_location = f"risk_data_frames/bug_removed_1000/df_rl_v_brut_{load_settings['attempts']}_{load_settings['expand_length']}.obj"
     
     
     replay_on = bool(load_location)
@@ -353,7 +353,7 @@ if __name__ == '__main__':
         attempts = run['attempts']
         expand_length = run['expand_length']
         amount_of_exploration = run['amount_of_exploration']
-        save_location = f'./risk_data_frames/new_test_1000/df_rl_v_brut_{attempts}_{expand_length}.obj'    
+        save_location = f'./risk_data_frames/bug_removed_{amount_of_exploration}/df_rl_v_brut_{attempts}_{expand_length}.obj'    
         
         run_crash_and_remove(configs=configs,
                              env_name=env_name,
