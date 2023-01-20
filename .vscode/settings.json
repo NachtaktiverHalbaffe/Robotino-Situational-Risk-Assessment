@@ -8,7 +8,8 @@
     "python.analysis.extraPaths": [
         "/home/abdul/tutorials_ws/devel/lib/python3/dist-packages",
         "/home/abdul/AbdulRehman_ws/devel/lib/python3/dist-packages",
-        "/opt/ros/noetic/lib/python3/dist-packages"
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "./maps"
     ],
     "python.formatting.provider": "black"
 }

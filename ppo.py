@@ -10,6 +10,7 @@ import torch.optim as optim
 from torch.distributions.categorical import Categorical
 
 
+
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     """
     Initializes the passed layer with an "orthogonal" initialization
@@ -741,5 +742,8 @@ class Agent:
                 T.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
+                
+        plot_density_new(np.array((all_advantages + all_vals).cpu()), np.array(all_vals.cpu()),
+                evaluated=['', "swapnil/training_plots/q_values_return_density", "/return_estimated_q_lower_agent_train_"], episode_number=999999)
 
         self.memory.clear_memory()

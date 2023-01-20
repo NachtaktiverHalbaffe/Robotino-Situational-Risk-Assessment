@@ -188,7 +188,7 @@ def draw_map_location_acml(x,y,rot,draw_frame,base_info,color_FoV=(255, 0, 255),
     draw_frame.pieslice((x-robo_r, y-robo_r, x+robo_r, y+robo_r), start=0, end=360, fill=color_FoV, outline=color_FoV)
     draw_frame.pieslice((x-robo_r, y-robo_r, x+robo_r, y+robo_r), start=60-rot, end=300-rot, fill=color_outer, outline=color_outer)
 
-def run_detec_and_localise_joystick(weights_detection, weights_localise, use_detection_cam = False,use_localise_cam = True,log_detection_error = True):
+def run_detec_and_localise_joystick(weights_detection, weights_localise, use_detection_cam = False,use_localise_cam = True,log_detection_error = False):
     global acml_x
     global acml_y
     global acml_rot

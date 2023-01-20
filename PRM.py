@@ -184,6 +184,7 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
         edges_prot (dict): Edges that has been changed by the protagonist (if prot=True)
     """
     # t0 = time.perf_counter()
+    obstacles_to_remove = []
     map_size = map_ref.size
     map_matrix = np.reshape(np.array(map_ref.getdata()), (map_size[0], map_size[1]))
     edges_prot = {}
@@ -204,6 +205,7 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
             grayscale_vals = map_matrix[rounded_edge_points_y, rounded_edge_points_x]
 
             for edge_point in edge.edge_points:
+                distances = []
                 grayscale_val = grayscale_vals[i]
                 pixel_cost = grayscale_to_cost(grayscale_val)
                 edge_cost += pixel_cost
@@ -221,6 +223,13 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
                             distances.append(obstacle.distance_to_point(edge_point))
                         if np.min(np.array(distances)) < RADIUS_ROBOT:
                             close_object = True
+                            obstacles_to_remove.append(
+                                (
+                                    obstacles[np.argmin(np.array(distances))],
+                                    np.argmin(np.array(distances)),
+                                )
+                            )
+
             if close_object:
                 # if the next object border is closer than the robot radius, driving on the current edge causes a collision -> adjust edge cost
                 edge_cost += COST_WHITE_PIXEL
@@ -232,7 +241,7 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
             edge.cost = edge_cost
     # print('prot edges time (fill dict):', t_prot_edges)
     # print('time calculate edge costs:', time.perf_counter()-t0)
-    return edges_prot
+    return edges_prot, obstacles_to_remove
 
 
 def interpolate_segment(segment):
@@ -914,9 +923,9 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
             if not (point == edge_points[-1]).all():
                 edge.edge_points.append((point[0], point[1]))
 
-    calculate_edge_costs(map_ref, edges, obstacles)
+    edges_prot, obstacles_to_remove = calculate_edge_costs(map_ref, edges, obstacles)
 
-    return nodes, edges
+    return nodes, edges, obstacles_to_remove
 
 
 # def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [62,74], goal=[109, 125]):

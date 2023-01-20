@@ -283,6 +283,10 @@ CATKIN_IGNORE
 
 # End of https://www.toptal.com/developers/gitignore/api/python,ros,qt
 real_robot_navigation/error_dist_csvs/
+real_robot_navigation/error_dist_csvs0117/
 adv_1_models/
 image/
 rl_output_folder/kai/
+risk_data_frames/
+sb3_callbacks.py
+sb3_dens.py
