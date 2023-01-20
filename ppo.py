@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.categorical import Categorical
 
-from sb3_callbacks import plot_density_new
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
