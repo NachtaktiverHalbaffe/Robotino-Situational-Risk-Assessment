@@ -12,7 +12,9 @@
     
     <!-- Navigation -->
     <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
-    <node pkg="$(arg package_name)" name="path_planner"  type="path_planner_node.py" output="screen"  required="true"/>
+    <node pkg="$(arg package_name)" name="path_planner"  type="path_planner_node.py" output="screen"  required="true">
+        <param name="map_ref" value="maps/FinalGridMapv2cleaned.png"/>
+    </node>
     <node pkg="$(arg package_name)" name="strategy_planner" type="strategy_planner_node.py" output="screen" required="true" />
     <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/>
     <node pkg="$(arg package_name)" name="fleetias_client" type="fleetias_client_node.py" output="screen" />
@@ -31,7 +33,9 @@
     <!-- Situational awarness -->
     <node pkg="$(arg package_name)" name="localization" type="localization_node.py" output="screen" required ="true"/>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" />
-    <node pkg="$(arg package_name)" name="workstation_mapper"  type="workstation_mapper_node.py" output="screen" />
+    <node pkg="$(arg package_name)" name="workstation_mapper"  type="workstation_mapper_node.py" output="screen" >
+        <param name="json_path" value="$(arg path)/maps/markers.json"/>
+    </node>
 
     <node pkg="amcl" type="amcl" name="amcl" output="screen">
         <remap from="scan" to="/scan"/>

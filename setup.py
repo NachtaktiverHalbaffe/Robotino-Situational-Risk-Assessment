@@ -8,7 +8,7 @@ d = generate_distutils_setup(
         "real_robot_navigation",
         "risk_estimation",
         "utils",
-        "situational_awarness",
+        "autonomous_operation",
     ],
     scripts=["/scripts"],
     package_dir={"": "src"},
