@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import json
+from threading import Thread
 import rospy
 import socket
 
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Bool
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 from utils.constants import Topics, Nodes
@@ -23,7 +24,38 @@ def activateFeature(feature: str, enabled: bool):
     Returns:
         str: Response message
     """
-    pass
+    publisher = rospy.Publisher()
+    if "lidar" in feature.lower():
+        Thread(
+            target=_publishFeature, args=[Topics.LIDAR_ENABLED.value, enabled]
+        ).start()
+    else:
+        rospy.logwarn(
+            f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature'
+        )
+        return f'Error: Feature "{feature}" unknown.'
+
+    return f'Success: Feature "{feature}" activate/deactivated'
+
+
+def _publishFeature(topic: str, enabled: bool):
+    publisher = rospy.Publisher(topic, Bool)
+    rate = rospy.Rate(500)
+    while not rospy.is_shutdown():
+        try:
+            publisher.publish(enabled)
+        except:
+            return
+        try:
+            # Look if other publisher publishes on same topic
+            sniffer = rospy.wait_for_message(topic, bool, timeout=rate)
+            if sniffer != enabled:
+                # Another publishes on same topic with other value => end thread
+                return
+        except:
+            pass
+
+        rate.sleep()
 
 
 def addOffset(offset: list, feature: str):
@@ -99,14 +131,26 @@ def processMessage(data: dict):
     response = ""
     if data["command"].lower() == "pushtarget":
         if data["type"].lower() == "resource":
+            rospy.logdebug(
+                f'[FleetIAS-Client]: Received command "PushTarget with workstation target {data["workstationID"]}"'
+            )
             response = pushTarget(type="resource", id=data["workstationID"])
         elif data["type"].lower() == "coordinate":
+            rospy.logdebug(
+                f'[FleetIAS-Client]: Received command "PushTarget with coordinate {data["coordinate"]}"'
+            )
             response = pushTarget(type="coordinate", coordinate=data["coordinate"])
         else:
             pass
     elif data["command"].lower() == "activatefeature":
+        rospy.logdebug(
+            f'[FleetIAS-Client] Received to activate/deactivate feature {data["feature"]}: Enabled {data["value"]}'
+        )
         response = activateFeature(feature=data["feature"], enabled=data["value"])
     elif data["command"].lower() == "addoffset":
+        rospy.logdebug(
+            f'[FleetIAS-Client] Received command "AddOffset" for feature {data["feature"]} with offset {data["value"]}'
+        )
         response = addOffset(data["offset"], data["feature"])
     else:
         response = f'Error: Command "{data["command"]}" not implemented or not specified in message'
@@ -127,7 +171,7 @@ def runClient():
         try:
             # Connect with FleetIAS
             client, addr = server.accept()
-            print("[COMMANDSERVER]: " + str(addr) + "connected to socket")
+            rospy.loginfo(f"[Fleetias-Client] {addr} connected to socket")
             # Receive message
             request = client.recv(512)
             if request:

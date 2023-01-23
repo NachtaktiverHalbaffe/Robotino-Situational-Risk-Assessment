@@ -1,7 +1,7 @@
-from ppo import *
 import numpy as np
 
-from probability_cal import real_to_pixel, action_prob_cal, risk_calculation, cumm_risk
+from .ppo import *
+from .probability_cal import real_to_pixel, action_prob_cal, risk_calculation, cumm_risk
 
 ACTION_SPACE_STEP_ADVERSARY = 6
 ACTION_SPACE_STEP_PROT = 4  # has to be even!

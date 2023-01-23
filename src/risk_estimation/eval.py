@@ -1,13 +1,13 @@
 import numpy as np
 import time
 
-import config
-from Environment import Environment
-from ppo import Agent
-from mcts import *
-from SaveData import save_data, traj_length
-from probability_cal import real_to_pixel, risk_calculation
-from AutoLabel import read_data
+from .config import configs
+from .Environment import Environment
+from .ppo import Agent
+from .mcts import *
+from .SaveData import save_data, traj_length
+from .probability_cal import real_to_pixel, risk_calculation
+from .AutoLabel import read_data
 from sklearn.svm import SVR
 
 ACTION_SPACE_STEP_ADVERSARY = 6

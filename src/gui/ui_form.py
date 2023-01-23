@@ -20,14 +20,14 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDial,
     QGraphicsView, QGridLayout, QGroupBox, QHBoxLayout,
     QLCDNumber, QLabel, QLayout, QLineEdit,
     QMainWindow, QMenu, QMenuBar, QPushButton,
-    QSizePolicy, QStatusBar, QTabWidget, QTextEdit,
-    QVBoxLayout, QWidget)
+    QSizePolicy, QSpacerItem, QSpinBox, QStatusBar,
+    QTabWidget, QTextEdit, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(916, 511)
+        MainWindow.resize(916, 515)
         MainWindow.setWindowOpacity(1.000000000000000)
         MainWindow.setAutoFillBackground(False)
         MainWindow.setStyleSheet(u"")
@@ -52,7 +52,7 @@ class Ui_MainWindow(object):
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.centralwidget.setStyleSheet(u"#centralwidget{\n"
-"background-image: url(Mapper/ml_rl_background.jpeg)\n"
+"background-image: url(src/gui/ml_rl_background.jpeg)\n"
 "}")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -85,7 +85,7 @@ class Ui_MainWindow(object):
         self.logo_ias.setObjectName(u"logo_ias")
         self.logo_ias.setAutoFillBackground(False)
         self.logo_ias.setStyleSheet(u"")
-        self.logo_ias.setPixmap(QPixmap(u"IAS_logo_small.png"))
+        self.logo_ias.setPixmap(QPixmap(u"../../../../../../.designer/backup/IAS_logo_small.png"))
         self.logo_ias.setAlignment(Qt.AlignCenter)
         self.logo_ias.setWordWrap(False)
 
@@ -273,32 +273,38 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_5.addWidget(self.map_display)
 
+        self.label_3 = QLabel(self.tab)
+        self.label_3.setObjectName(u"label_3")
+        self.label_3.setTextFormat(Qt.MarkdownText)
+
+        self.verticalLayout_5.addWidget(self.label_3)
+
         self.horizontalLayout_9 = QHBoxLayout()
         self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
-        self.custom_btn_1 = QPushButton(self.tab)
-        self.custom_btn_1.setObjectName(u"custom_btn_1")
+        self.btn_start_generateMap = QPushButton(self.tab)
+        self.btn_start_generateMap.setObjectName(u"btn_start_generateMap")
 
-        self.horizontalLayout_9.addWidget(self.custom_btn_1)
+        self.horizontalLayout_9.addWidget(self.btn_start_generateMap)
 
-        self.custom_btn_2 = QPushButton(self.tab)
-        self.custom_btn_2.setObjectName(u"custom_btn_2")
+        self.btn_start_identifyAndMap = QPushButton(self.tab)
+        self.btn_start_identifyAndMap.setObjectName(u"btn_start_identifyAndMap")
 
-        self.horizontalLayout_9.addWidget(self.custom_btn_2)
+        self.horizontalLayout_9.addWidget(self.btn_start_identifyAndMap)
 
-        self.custom_btn_3 = QPushButton(self.tab)
-        self.custom_btn_3.setObjectName(u"custom_btn_3")
+        self.btn_start_prototype = QPushButton(self.tab)
+        self.btn_start_prototype.setObjectName(u"btn_start_prototype")
 
-        self.horizontalLayout_9.addWidget(self.custom_btn_3)
+        self.horizontalLayout_9.addWidget(self.btn_start_prototype)
 
-        self.custom_btn_4 = QPushButton(self.tab)
-        self.custom_btn_4.setObjectName(u"custom_btn_4")
+        self.btn_start_autonomous = QPushButton(self.tab)
+        self.btn_start_autonomous.setObjectName(u"btn_start_autonomous")
 
-        self.horizontalLayout_9.addWidget(self.custom_btn_4)
+        self.horizontalLayout_9.addWidget(self.btn_start_autonomous)
 
-        self.custom_btn_5 = QPushButton(self.tab)
-        self.custom_btn_5.setObjectName(u"custom_btn_5")
+        self.btn_start_risk = QPushButton(self.tab)
+        self.btn_start_risk.setObjectName(u"btn_start_risk")
 
-        self.horizontalLayout_9.addWidget(self.custom_btn_5)
+        self.horizontalLayout_9.addWidget(self.btn_start_risk)
 
 
         self.verticalLayout_5.addLayout(self.horizontalLayout_9)
@@ -328,7 +334,6 @@ class Ui_MainWindow(object):
         self.gridLayout_3.setHorizontalSpacing(6)
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-
         self.combined_ida_and_brute = QCheckBox(self.groupBox)
         self.combined_ida_and_brute.setObjectName(u"combined_ida_and_brute")
 
@@ -341,7 +346,6 @@ class Ui_MainWindow(object):
 
         self.shape_selector = QComboBox(self.groupBox)
         self.shape_selector.setObjectName(u"shape_selector")
-
         self.shape_selector.setEnabled(True)
 
         self.verticalLayout_2.addWidget(self.shape_selector)
@@ -445,9 +449,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_8.addWidget(self.groupBox_2)
 
         self.tabWidget.addTab(self.tab_2, "")
-        self.tab_3 = QWidget()
-        self.tab_3.setObjectName(u"tab_3")
-        self.tabWidget.addTab(self.tab_3, "")
         self.tab_4 = QWidget()
         self.tab_4.setObjectName(u"tab_4")
         self.gridLayout_6 = QGridLayout(self.tab_4)
@@ -473,14 +474,102 @@ class Ui_MainWindow(object):
         self.gridLayout_6.addLayout(self.verticalLayout_13, 0, 0, 1, 1)
 
         self.tabWidget.addTab(self.tab_4, "")
-        self.tab_5 = QWidget()
-        self.tab_5.setObjectName(u"tab_5")
-        self.tabWidget.addTab(self.tab_5, "")
-        self.tab_6 = QWidget()
-        self.tab_6.setObjectName(u"tab_6")
-        self.tabWidget.addTab(self.tab_6, "")
         self.tab_7 = QWidget()
         self.tab_7.setObjectName(u"tab_7")
+        self.verticalLayout_10 = QVBoxLayout(self.tab_7)
+        self.verticalLayout_10.setObjectName(u"verticalLayout_10")
+        self.verticalLayout_9 = QVBoxLayout()
+        self.verticalLayout_9.setObjectName(u"verticalLayout_9")
+        self.label_4 = QLabel(self.tab_7)
+        self.label_4.setObjectName(u"label_4")
+        self.label_4.setTextFormat(Qt.MarkdownText)
+
+        self.verticalLayout_9.addWidget(self.label_4)
+
+        self.gridLayout_2 = QGridLayout()
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.spinBox_wsId = QSpinBox(self.tab_7)
+        self.spinBox_wsId.setObjectName(u"spinBox_wsId")
+
+        self.gridLayout_2.addWidget(self.spinBox_wsId, 1, 1, 1, 1)
+
+        self.pushButton_driveToWS = QPushButton(self.tab_7)
+        self.pushButton_driveToWS.setObjectName(u"pushButton_driveToWS")
+
+        self.gridLayout_2.addWidget(self.pushButton_driveToWS, 1, 2, 1, 1)
+
+        self.label_7 = QLabel(self.tab_7)
+        self.label_7.setObjectName(u"label_7")
+
+        self.gridLayout_2.addWidget(self.label_7, 1, 3, 1, 1)
+
+        self.pushButton_driveToCor = QPushButton(self.tab_7)
+        self.pushButton_driveToCor.setObjectName(u"pushButton_driveToCor")
+
+        self.gridLayout_2.addWidget(self.pushButton_driveToCor, 1, 5, 1, 1)
+
+        self.label_5 = QLabel(self.tab_7)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setTextFormat(Qt.MarkdownText)
+
+        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
+
+        self.label_6 = QLabel(self.tab_7)
+        self.label_6.setObjectName(u"label_6")
+
+        self.gridLayout_2.addWidget(self.label_6, 1, 0, 1, 1)
+
+        self.horizontalLayout_3 = QHBoxLayout()
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.label_8 = QLabel(self.tab_7)
+        self.label_8.setObjectName(u"label_8")
+
+        self.horizontalLayout_3.addWidget(self.label_8)
+
+        self.spinBox_xMan = QSpinBox(self.tab_7)
+        self.spinBox_xMan.setObjectName(u"spinBox_xMan")
+
+        self.horizontalLayout_3.addWidget(self.spinBox_xMan)
+
+        self.label_9 = QLabel(self.tab_7)
+        self.label_9.setObjectName(u"label_9")
+
+        self.horizontalLayout_3.addWidget(self.label_9)
+
+        self.spinBox_yMan = QSpinBox(self.tab_7)
+        self.spinBox_yMan.setObjectName(u"spinBox_yMan")
+
+        self.horizontalLayout_3.addWidget(self.spinBox_yMan)
+
+
+        self.gridLayout_2.addLayout(self.horizontalLayout_3, 1, 4, 1, 1)
+
+
+        self.verticalLayout_9.addLayout(self.gridLayout_2)
+
+        self.label_10 = QLabel(self.tab_7)
+        self.label_10.setObjectName(u"label_10")
+        self.label_10.setTextFormat(Qt.MarkdownText)
+
+        self.verticalLayout_9.addWidget(self.label_10)
+
+        self.horizontalLayout_6 = QHBoxLayout()
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+        self.checkBox_LIDAR = QCheckBox(self.tab_7)
+        self.checkBox_LIDAR.setObjectName(u"checkBox_LIDAR")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_LIDAR)
+
+
+        self.verticalLayout_9.addLayout(self.horizontalLayout_6)
+
+
+        self.verticalLayout_10.addLayout(self.verticalLayout_9)
+
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        self.verticalLayout_10.addItem(self.verticalSpacer)
+
         self.tabWidget.addTab(self.tab_7, "")
 
         self.verticalLayout.addWidget(self.tabWidget)
@@ -488,8 +577,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 916, 22))
-
+        self.menubar.setGeometry(QRect(0, 0, 916, 25))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menuEdit = QMenu(self.menubar)
@@ -562,15 +650,15 @@ class Ui_MainWindow(object):
         self.save_map_btn.setText(QCoreApplication.translate("MainWindow", u"Save Map", None))
         self.traj_btn.setText(QCoreApplication.translate("MainWindow", u"Trajectory", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"**Robotino Speed:**", None))
-        self.custom_btn_1.setText(QCoreApplication.translate("MainWindow", u"Custom 1", None))
-        self.custom_btn_2.setText(QCoreApplication.translate("MainWindow", u"Custom 2", None))
-        self.custom_btn_3.setText(QCoreApplication.translate("MainWindow", u"Custom 3", None))
-        self.custom_btn_4.setText(QCoreApplication.translate("MainWindow", u"Custom 4", None))
-        self.custom_btn_5.setText(QCoreApplication.translate("MainWindow", u"Custom 5", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Mapper", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"**Launch ROS with launch config:**", None))
+        self.btn_start_generateMap.setText(QCoreApplication.translate("MainWindow", u"Generate Map", None))
+        self.btn_start_identifyAndMap.setText(QCoreApplication.translate("MainWindow", u"IdentifyAndMap", None))
+        self.btn_start_prototype.setText(QCoreApplication.translate("MainWindow", u"Prototype", None))
+        self.btn_start_autonomous.setText(QCoreApplication.translate("MainWindow", u"Autonomous", None))
+        self.btn_start_risk.setText(QCoreApplication.translate("MainWindow", u"Risk Only", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"General Controls", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Reinforcment Learning", None))
         self.combined_ida_and_brute.setText(QCoreApplication.translate("MainWindow", u"Combined Evaluation", None))
-
         self.virtual_obj_btn.setText(QCoreApplication.translate("MainWindow", u"Virtual Objects", None))
         self.Test_btn.setText(QCoreApplication.translate("MainWindow", u"Test", None))
         self.stop_train_test.setText(QCoreApplication.translate("MainWindow", u"Stop RL", None))
@@ -581,13 +669,20 @@ class Ui_MainWindow(object):
         self.ML_test.setText(QCoreApplication.translate("MainWindow", u"Test", None))
         self.ML_autolabel.setText(QCoreApplication.translate("MainWindow", u"Auto Label", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Localization Adversary", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QCoreApplication.translate("MainWindow", u"Object Adversary", None))
         self.checkBox.setText(QCoreApplication.translate("MainWindow", u"Localization", None))
         self.checkBox_2.setText(QCoreApplication.translate("MainWindow", u"Object", None))
         self.custom_ml.setText(QCoreApplication.translate("MainWindow", u"Start", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QCoreApplication.translate("MainWindow", u"ML Control", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), QCoreApplication.translate("MainWindow", u"Monitored space localization", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_6), QCoreApplication.translate("MainWindow", u"Monitored space object", None))
+        self.label_4.setText(QCoreApplication.translate("MainWindow", u"## Manual Control", None))
+        self.pushButton_driveToWS.setText(QCoreApplication.translate("MainWindow", u"Send Command", None))
+        self.label_7.setText(QCoreApplication.translate("MainWindow", u"Coordinate", None))
+        self.pushButton_driveToCor.setText(QCoreApplication.translate("MainWindow", u"Send Command", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"### Drive to ", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"Workstation:", None))
+        self.label_8.setText(QCoreApplication.translate("MainWindow", u"x:", None))
+        self.label_9.setText(QCoreApplication.translate("MainWindow", u"y:", None))
+        self.label_10.setText(QCoreApplication.translate("MainWindow", u"### Enable features", None))
+        self.checkBox_LIDAR.setText(QCoreApplication.translate("MainWindow", u"LIDAR", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), QCoreApplication.translate("MainWindow", u"Evaluation", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"Edit", None))

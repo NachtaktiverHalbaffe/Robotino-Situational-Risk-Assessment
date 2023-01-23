@@ -9,8 +9,7 @@ import numpy as np
 #     from situational_awarness.object_detection_modified import Obstacle
 #     from real_robot_navigation.move_utils import *
 #     from real_robot_navigation.move_utils_cords import *
-
-from situational_awarness.object_detection_modified import Obstacle
+from autonomous_operation.object_detection_modified import Obstacle
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 

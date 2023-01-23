@@ -1,13 +1,65 @@
 #!/usr/bin/env python3
 import time
 import rospy
+import actionlib
 import numpy as np
 from geometry_msgs.msg import Point
 from sensor_msgs.msg import PointCloud
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
 from utils.constants import Topics, Nodes
+
+
+def moveBaseCallback(data):
+    global feedbackValue
+
+    # print(data)
+    feedbackValue = []
+    feedbackValue.append(data.base_position.pose.position.x)
+    feedbackValue.append(data.base_position.pose.position.y)
+    feedbackValue.append(data.base_position.pose.position.z)
+
+
+def moveBaseClient(path: Path):
+    """
+    Executes a global strategy. It's basically driving a trajectory and using a local planner if a hazard\
+    is detected which wasn't mitigated by the risk evaluation.
+
+    Args:
+        path (nav_msgs.Path): The path to drive
+    """
+    global feedbackValue
+
+    rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
+    for node in path:
+        client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        # TODO Create first message
+        # Creates a new goal with the MoveBaseGoal constructor
+        goal = MoveBaseGoal()
+        # feedback = MoveBaseFeedback()
+        goal.target_pose.header.frame_id = "map"
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x = node.pose.position.x
+        goal.target_pose.pose.position.y = node.pose.position.y
+        # Move 0.5 meters forward along the x axis of the "map" coordinate frame
+        # No rotation of the mobile base frame w.r.t. map frame
+        #  yaw
+
+        client.wait_for_server()
+        # Sends the goal to the action server.
+        client.send_goal(goal, feedback_cb=moveBaseCallback)
+
+        while not rospy.is_shutdown():
+            if feedbackValue:
+                if (
+                    abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1
+                ) and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1):
+                    client.cancel_goal()
+                    break
+
+        result = client.get_result()
 
 
 def execute(path: Path, isLocalPlanner=False):
@@ -81,7 +133,9 @@ def detectedHazard():
 
             if np.min(dist) < THRESHOLD_DISTANCE:
                 # Detected hazard ==> stop until problem is resolved
-                rospy.loginfo("IR sensors detected hazard. Emergency breaking now")
+                rospy.loginfo(
+                    "[Strategy Planner] IR sensors detected hazard. Emergency breaking now"
+                )
                 rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
 
                 # Wait if hazard resolves itself
@@ -119,16 +173,19 @@ def strategyPlanner(runWithRiskEstimation=True):
     """
     rospy.init_node(Nodes.STRATEGY_PLANNER.value)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
-
     if not runWithRiskEstimation:
         # Just drive the trajectory
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, execute)
-        rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])
+        # TODO Change to move_base
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient)
+        # rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, execute)
+        # rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])
     else:
         # Start driving when the risk values come in
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient)
         pass
 
-    detectedHazard()
+    # detectedHazard()
+    rospy.spin()
 
 
 def _fetchIRReadings(rawReadings: PointCloud):

@@ -13,11 +13,14 @@ class Topics(Enum):
     LOCALIZATION_MODE = "/localization_mode"
     LOCALIZATION = "/pose"
     OBSTACLES = "/obstacles"
-    IMAGE_RAW = "'/image_raw'"
+    IMAGE_RAW = "/image_raw"
     NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
     IR_SENSORS = "/distance_sensors"
     EMERGENCY_BRAKE = "/emergency_break"
+    MARKERS = "/target_markers"
+    MARKERS_NAV = "/target_nav_markers"
+    LIDAR_ENABLED = "/lidar_enabled"
 
 
 class Nodes(Enum):
@@ -28,3 +31,4 @@ class Nodes(Enum):
     CONTROL = "control"
     STRATEGY_PLANNER = "strategy_planner"
     FLEETIAS_CLIENT = "fleetias_client"
+    GUI = "gui"

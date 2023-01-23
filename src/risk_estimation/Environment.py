@@ -6,7 +6,7 @@ import time
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw
-from navigation.PRM import (
+from autonomous_operation.PRM import (
     apply_PRM,
     apply_PRM_init,
     draw_traj,
@@ -16,10 +16,11 @@ from navigation.PRM import (
     get_node_with_coordinates,
     calc_nearest_dist,
 )
-from object_detection import apply_object_detection
+from autonomous_operation.object_detection import apply_object_detection
 import copy
-import config
 from copy import deepcopy
+
+from .config import configs
 from real_robot_navigation.move_utils_cords import get_base_info
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 

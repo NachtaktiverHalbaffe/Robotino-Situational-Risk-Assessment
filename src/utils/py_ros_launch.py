@@ -32,7 +32,6 @@ def ros_launch_without_core(path: str):
 
 
 if __name__ == "__main__":
-    # TODO Fix launch path
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
     print(path)
     PATH_LAUNCH = f"{path}/launch/prototype.launch"

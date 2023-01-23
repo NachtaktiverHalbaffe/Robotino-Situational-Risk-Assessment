@@ -152,9 +152,12 @@ def detect(log_detection_error=True):
         msg.obstacles.append(obstacleItem)
     # Publish message
     try:
+        rospy.logdebug(f"[Object Detection] Publishing detected obstacles: {msg}")
         publisher.publish(msg)
     except:
-        rospy.logwarn(f"Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} ")
+        rospy.logwarn(
+            f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
+        )
 
 
 def setImage(rawImage: Image):

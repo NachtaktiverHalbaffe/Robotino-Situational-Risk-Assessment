@@ -191,6 +191,9 @@ def localiseCam():
 
         # Publish message
         try:
+            rospy.logdebug(
+                f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
+            )
             publisher.publish(locMsg)
         except:
             rospy.logerr(
@@ -256,30 +259,33 @@ def localization():
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
         # Iterate through all running system processes
-        for proc in psutil.process_iter():
-            # check whether the process name matches
-            if proc.name() == PROCESS_NAME_LIDAR:
-                locMode = "lidar"
-                break
-        else:
-            # Lidar-process wasn't found
-            locMode = "camera"
-
-        # ------ Take the right localization value -------
-        if locMode.lower() == "camera":
-            msg = rospy.wait_for_message(
-                Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
-            )
-        elif locMode.lower() == "lidar":
-            msg = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
-        else:
-            rospy.logwarn(
-                f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'
-            )
-            break
-
-        # ------ Publish the localization used by the Robotino ------
+        # for proc in psutil.process_iter():
+        #     # check whether the process name matches
+        #     if proc.name() == PROCESS_NAME_LIDAR:
+        #         locMode = "lidar"
+        #         break
+        # else:
+        #     # Lidar-process wasn't found
+        #     locMode = "camera"
         try:
+            # ------ Take the right localization value -------
+            if locMode.lower() == "camera":
+                rospy.logdebug(f"Using camera for localization")
+                msg = rospy.wait_for_message(
+                    Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+                )
+            elif locMode.lower() == "lidar":
+                rospy.logdebug(f"Using LIDAR for localization")
+                msg = rospy.wait_for_message(
+                    Topics.ACML.value, PoseWithCovarianceStamped
+                )
+            else:
+                rospy.logwarn(
+                    f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'
+                )
+                break
+
+            # ------ Publish the localization used by the Robotino ------
             publisher.publish(msg)
         except rospy.ROSInterruptException:
             return

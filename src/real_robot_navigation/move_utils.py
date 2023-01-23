@@ -8,15 +8,15 @@ from cv_bridge import CvBridge
 import cv2
 import rospy
 from geometry_msgs.msg import Twist
+from copy import deepcopy
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from situational_awarness.PRM import (
+from autonomous_operation.PRM import (
     apply_PRM,
     apply_PRM_init,
 )
-from situational_awarness.object_detection import apply_object_detection
-from copy import deepcopy
-from situational_awarness.object_detection import Obstacle
+from autonomous_operation.object_detection import apply_object_detection
+from autonomous_operation.object_detection import Obstacle
 
 # sys.path.insert(0, os.path.dirname(os.path.dirname(__file__))+'/yolov7')
 # from detect_online import get_conf_and_model, loaded_detect

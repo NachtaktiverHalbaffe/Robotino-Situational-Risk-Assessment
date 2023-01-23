@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>916</width>
-    <height>511</height>
+    <height>515</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,7 +25,7 @@
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
     <string notr="true">#centralwidget{
-background-image: url(Mapper/ml_rl_background.jpeg)
+background-image: url(src/gui/ml_rl_background.jpeg)
 }</string>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -47,7 +47,7 @@ background-image: url(Mapper/ml_rl_background.jpeg)
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
-        <string>Mapper</string>
+        <string>General Controls</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
         <item row="10" column="2">
@@ -81,7 +81,7 @@ background-image: url(Mapper/ml_rl_background.jpeg)
                <string/>
               </property>
               <property name="pixmap">
-               <pixmap>IAS_logo_small.png</pixmap>
+               <pixmap>../../../../../../.designer/backup/IAS_logo_small.png</pixmap>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -333,39 +333,49 @@ background-image: url(Mapper/ml_rl_background.jpeg)
            <widget class="QGraphicsView" name="map_display"/>
           </item>
           <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>**Launch ROS with launch config:**</string>
+            </property>
+            <property name="textFormat">
+             <enum>Qt::MarkdownText</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_9">
             <item>
-             <widget class="QPushButton" name="custom_btn_1">
+             <widget class="QPushButton" name="btn_start_generateMap">
               <property name="text">
-               <string>Custom 1</string>
+               <string>Generate Map</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="custom_btn_2">
+             <widget class="QPushButton" name="btn_start_identifyAndMap">
               <property name="text">
-               <string>Custom 2</string>
+               <string>IdentifyAndMap</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="custom_btn_3">
+             <widget class="QPushButton" name="btn_start_prototype">
               <property name="text">
-               <string>Custom 3</string>
+               <string>Prototype</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="custom_btn_4">
+             <widget class="QPushButton" name="btn_start_autonomous">
               <property name="text">
-               <string>Custom 4</string>
+               <string>Autonomous</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="custom_btn_5">
+             <widget class="QPushButton" name="btn_start_risk">
               <property name="text">
-               <string>Custom 5</string>
+               <string>Risk Only</string>
               </property>
              </widget>
             </item>
@@ -577,11 +587,6 @@ background-image: url(Mapper/ml_rl_background.jpeg)
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="tab_3">
-       <attribute name="title">
-        <string>Object Adversary</string>
-       </attribute>
-      </widget>
       <widget class="QWidget" name="tab_4">
        <attribute name="title">
         <string>ML Control</string>
@@ -614,20 +619,129 @@ background-image: url(Mapper/ml_rl_background.jpeg)
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="tab_5">
-       <attribute name="title">
-        <string>Monitored space localization</string>
-       </attribute>
-      </widget>
-      <widget class="QWidget" name="tab_6">
-       <attribute name="title">
-        <string>Monitored space object</string>
-       </attribute>
-      </widget>
       <widget class="QWidget" name="tab_7">
        <attribute name="title">
         <string>Evaluation</string>
        </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_10">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_9">
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>## Manual Control</string>
+            </property>
+            <property name="textFormat">
+             <enum>Qt::MarkdownText</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout_2">
+            <item row="1" column="1">
+             <widget class="QSpinBox" name="spinBox_wsId"/>
+            </item>
+            <item row="1" column="2">
+             <widget class="QPushButton" name="pushButton_driveToWS">
+              <property name="text">
+               <string>Send Command</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="3">
+             <widget class="QLabel" name="label_7">
+              <property name="text">
+               <string>Coordinate</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="5">
+             <widget class="QPushButton" name="pushButton_driveToCor">
+              <property name="text">
+               <string>Send Command</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>### Drive to </string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::MarkdownText</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>Workstation:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="4">
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <item>
+               <widget class="QLabel" name="label_8">
+                <property name="text">
+                 <string>x:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinBox_xMan"/>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_9">
+                <property name="text">
+                 <string>y:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinBox_yMan"/>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_10">
+            <property name="text">
+             <string>### Enable features</string>
+            </property>
+            <property name="textFormat">
+             <enum>Qt::MarkdownText</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QCheckBox" name="checkBox_LIDAR">
+              <property name="text">
+               <string>LIDAR</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -639,7 +753,7 @@ background-image: url(Mapper/ml_rl_background.jpeg)
      <x>0</x>
      <y>0</y>
      <width>916</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
