@@ -19,7 +19,7 @@ def emergencyBreak(isSet: Bool):
     Because the corresponding messages are sent to the Robotino at the beginning of the loops, it stops them
     even if the flag is set in the middle of an loop execution
     """
-    if bool(isSet):
+    if bool(isSet.data):
         stopFlag.set()
     else:
         stopFlag.clear()
@@ -217,17 +217,18 @@ def navigateToPoint(target: Point):
         Publishes a response (Bool) to the topic  "/navigation_response"
     """
     comm_angle, comm_dist = calc_command(target)
-
     rospy.logdebug(f"Started moving to target {target}")
+
+    publisher = rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool)
     if rotate(comm_angle) and move(target, comm_dist):
         rospy.logdebug(f"Arrived at target {target}")
         try:
-            rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool).publish(True)
+            publisher.publish(True)
         except:
             return
     else:
         try:
-            rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool).publish(False)
+            publisher.publish(False)
         except:
             return
 

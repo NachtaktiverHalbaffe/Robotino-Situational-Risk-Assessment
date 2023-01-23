@@ -137,6 +137,10 @@ class MainWindow(QMainWindow):
 
         rospy.init_node(Nodes.GUI.value)
         self.listener()
+        self.corPublisher = rospy.Publisher(
+            Topics.TARGET.value, PoseStamped, queue_size=10
+        )
+        self.wsPublisher = rospy.Publisher(Topics.TARGET_ID.value, Int16, queue_size=10)
 
     def start_robot(self):
         """
@@ -450,11 +454,10 @@ class MainWindow(QMainWindow):
         """
         Sends ROS command to drive the Robot to an resource ID
         """
-        publisher = rospy.Publisher(Topics.TARGET_ID.value, Int16, queue_size=10)
         id = Int16()
         id.data = self.ui.spinBox_wsId.value()
         try:
-            publisher.publish(id)
+            self.wsPublisher.publish(id)
             print(f"Sent command to drive to workstation {id}")
         except:
             print(f"Failed to send command to drive to workstation {id}")
@@ -463,13 +466,11 @@ class MainWindow(QMainWindow):
         """
         Sends ROS command to drive the Robot to an resource ID
         """
-        publisher = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
-
         msg = PoseStamped()
         msg.pose.position.x = self.ui.spinBox_xMan.value()
         msg.pose.position.y = self.ui.spinBox_yMan.value()
         try:
-            publisher.publish(msg)
+            self.corPublisher.publish(msg)
             print(
                 f"Sent command to drive to coordinate ({self.ui.spinBox_xMan.value()},{self.ui.spinBox_yMan.value()})"
             )

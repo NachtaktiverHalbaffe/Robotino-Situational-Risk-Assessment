@@ -18,10 +18,6 @@ from utils.constants import Topics, Nodes
 from utils.conversions import polar2Cartesion
 from utils.ros_logger import set_rospy_log_lvl
 
-# Global variable to read camera data
-Image_data = []
-# Global counter to save image
-image_counter = 0
 # Global datcollection
 target_identified = {}
 
@@ -121,9 +117,8 @@ def fetchCoordinate(wsID: Int16):
         ]["posedstamped"]["pose"]["orientation"]["w"]
     except:
         rospy.logerr(f"Error, cant publish target to topic {Topics.TARGET.value}")
-
+        return
     # Publish coordinate
-
     try:
         publisher_target.publish(targetCor)
         rospy.logdebug(
@@ -144,10 +139,7 @@ def qrCodeScanner(rawImage: Image):
     Returns:
         Saves identified workstations to global variable  "target_identified"
     """
-    global image_counter
     global target_identified
-    image_counter += 1
-
     br = CvBridge()
     img = br.imgmsg_to_cv2(rawImage, "rgb8")
 
@@ -178,80 +170,91 @@ def qrCodeScanner(rawImage: Image):
                 center_x = pts2[0] + (pts2[2] / 2)
                 center_x_value = center_x + center_x_value
 
-        # Calculate the angle of the target wrt to camera
-        camera_angle = 36 - (0.1125 * (center_x_value / 250))
+            # Calculate the angle of the target wrt to camera
+            camera_angle = 36 - (0.1125 * (center_x_value / 250))
 
-        # Calculate the distance of the angle wrt the given camera angle
-        objectDist, navObjectDist, navObjectAngle = getDistAngle(camera_angle)
+            # Calculate the distance of the angle wrt the given camera angle
+            objectDist, navObjectDist, navObjectAngle = getDistAngle(camera_angle)
 
-        if objectDist < 2.0 and objectDist != 0.0:
-            # Find the x and y axis of the target wrt to laser frame
-            object_x, object_y = polar2Cartesion(objectDist, camera_angle)
-            navObject_x, navObject_y = polar2Cartesion(navObjectDist, navObjectAngle)
+            if objectDist < 2.0 and objectDist != 0.0:
+                # Find the x and y axis of the target wrt to laser frame
+                object_x, object_y = polar2Cartesion(objectDist, camera_angle)
+                navObject_x, navObject_y = polar2Cartesion(
+                    navObjectDist, navObjectAngle
+                )
 
-            if myData in target_identified.keys():
-                rospy.logdebug(f"[Workstation Mapper] {myData} is already identified")
+                if myData in target_identified.keys():
+                    rospy.logdebug(
+                        f"[Workstation Mapper] {myData} is already identified"
+                    )
+                else:
+                    posedstamped = PoseStamped()
+                    navPosedstamped = PoseStamped()
+                    posedstamped = laser2mapConv(
+                        object_x, object_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0
+                    )
+                    navPosedstamped = laser2mapConv(
+                        navObject_x,
+                        navObject_y,
+                        0.0,
+                        roll=camera_angle,
+                        pitch=0.0,
+                        yaw=0.0,
+                    )
+
+                    target_identified[myData] = {
+                        "MarkerPosed": {
+                            "posedstamped": {
+                                "header": {
+                                    "seq": posedstamped.header.seq,
+                                    "stamp": str(posedstamped.header.stamp),
+                                    "frame_id": posedstamped.header.frame_id,
+                                },
+                                "pose": {
+                                    "position": {
+                                        "x": posedstamped.pose.position.x,
+                                        "y": posedstamped.pose.position.y,
+                                        "z": posedstamped.pose.position.z,
+                                    },
+                                    "orientation": {
+                                        "x": posedstamped.pose.orientation.x,
+                                        "y": posedstamped.pose.orientation.y,
+                                        "z": posedstamped.pose.orientation.z,
+                                        "w": posedstamped.pose.orientation.w,
+                                    },
+                                },
+                            }
+                        },
+                        "NavPosed": {
+                            "posedstamped": {
+                                "header": {
+                                    "seq": navPosedstamped.header.seq,
+                                    "stamp": str(navPosedstamped.header.stamp),
+                                    "frame_id": navPosedstamped.header.frame_id,
+                                },
+                                "pose": {
+                                    "position": {
+                                        "x": navPosedstamped.pose.position.x,
+                                        "y": navPosedstamped.pose.position.y,
+                                        "z": navPosedstamped.pose.position.z,
+                                    },
+                                    "orientation": {
+                                        "x": navPosedstamped.pose.orientation.x,
+                                        "y": navPosedstamped.pose.orientation.y,
+                                        "z": navPosedstamped.pose.orientation.z,
+                                        "w": navPosedstamped.pose.orientation.w,
+                                    },
+                                },
+                            }
+                        },
+                    }
+                    rospy.loginfo(
+                        f"[Workstation Mapper] Identified workstation {myData} and saved marker"
+                    )
             else:
-                posedstamped = PoseStamped()
-                navPosedstamped = PoseStamped()
-                posedstamped = laser2mapConv(
-                    object_x, object_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0
+                rospy.logdebug(
+                    f"[Workstation Mapper] Target {myData} is not within range"
                 )
-                navPosedstamped = laser2mapConv(
-                    navObject_x, navObject_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0
-                )
-
-                target_identified[myData] = {
-                    "MarkerPosed": {
-                        "posedstamped": {
-                            "header": {
-                                "seq": posedstamped.header.seq,
-                                "stamp": str(posedstamped.header.stamp),
-                                "frame_id": posedstamped.header.frame_id,
-                            },
-                            "pose": {
-                                "position": {
-                                    "x": posedstamped.pose.position.x,
-                                    "y": posedstamped.pose.position.y,
-                                    "z": posedstamped.pose.position.z,
-                                },
-                                "orientation": {
-                                    "x": posedstamped.pose.orientation.x,
-                                    "y": posedstamped.pose.orientation.y,
-                                    "z": posedstamped.pose.orientation.z,
-                                    "w": posedstamped.pose.orientation.w,
-                                },
-                            },
-                        }
-                    },
-                    "NavPosed": {
-                        "posedstamped": {
-                            "header": {
-                                "seq": navPosedstamped.header.seq,
-                                "stamp": str(navPosedstamped.header.stamp),
-                                "frame_id": navPosedstamped.header.frame_id,
-                            },
-                            "pose": {
-                                "position": {
-                                    "x": navPosedstamped.pose.position.x,
-                                    "y": navPosedstamped.pose.position.y,
-                                    "z": navPosedstamped.pose.position.z,
-                                },
-                                "orientation": {
-                                    "x": navPosedstamped.pose.orientation.x,
-                                    "y": navPosedstamped.pose.orientation.y,
-                                    "z": navPosedstamped.pose.orientation.z,
-                                    "w": navPosedstamped.pose.orientation.w,
-                                },
-                            },
-                        }
-                    },
-                }
-                rospy.loginfo(
-                    f"[Workstation Mapper] Identified workstation {myData} and saved marker"
-                )
-        else:
-            rospy.logdebug(f"[Workstation Mapper] Target {myData} is not within range")
 
 
 def workstationMapper():
@@ -283,9 +286,6 @@ def workstationMapper():
             # unregister subscriber which is responsible for QR code scanning
             camera_sub.unregister()
         rate.sleep()
-
-    # Prevents python from exiting until this node is stopped
-    # rospy.spin()
 
 
 def _saveMarkersToJson():

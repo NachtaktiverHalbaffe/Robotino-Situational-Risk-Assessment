@@ -8,6 +8,7 @@
         <arg name="hostname" value="$(arg hostname)" />
         <arg name="map_file" value="$(arg map_file)" />
         <arg name="package_name" value="prototype" />
+        <arg name="ip" value="192.168.178.108" />
    </include>
    <!-- Risk estimation parts -->
    

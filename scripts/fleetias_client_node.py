@@ -24,11 +24,12 @@ def activateFeature(feature: str, enabled: bool):
     Returns:
         str: Response message
     """
-    publisher = rospy.Publisher()
+    publisher = rospy.Publisher(feature, Bool)
     if "lidar" in feature.lower():
-        Thread(
-            target=_publishFeature, args=[Topics.LIDAR_ENABLED.value, enabled]
-        ).start()
+        try:
+            publisher.publish(enabled)
+        except:
+            return
     else:
         rospy.logwarn(
             f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature'
@@ -36,26 +37,6 @@ def activateFeature(feature: str, enabled: bool):
         return f'Error: Feature "{feature}" unknown.'
 
     return f'Success: Feature "{feature}" activate/deactivated'
-
-
-def _publishFeature(topic: str, enabled: bool):
-    publisher = rospy.Publisher(topic, Bool)
-    rate = rospy.Rate(500)
-    while not rospy.is_shutdown():
-        try:
-            publisher.publish(enabled)
-        except:
-            return
-        try:
-            # Look if other publisher publishes on same topic
-            sniffer = rospy.wait_for_message(topic, bool, timeout=rate)
-            if sniffer != enabled:
-                # Another publishes on same topic with other value => end thread
-                return
-        except:
-            pass
-
-        rate.sleep()
 
 
 def addOffset(offset: list, feature: str):
@@ -78,7 +59,7 @@ def addOffset(offset: list, feature: str):
         data.pose.pose.position.y += offset[1]
         # Publish message
         topic = Topics.ACML.value
-        publisher = rospy.Publisher(PoseWithCovarianceStamped, topic)
+        publisher = rospy.Publisher(PoseWithCovarianceStamped, topic, queue_size=10)
         try:
             publisher.publish(data)
             return f"Success: Added offset {offset} to feature {feature}"
@@ -100,7 +81,7 @@ def pushTarget(id=0, coordinate=(0, 0), type="workstation"):
     """
     if type == "resource":
         # Publish so id gets converted to coordinate
-        publisher = rospy.Publisher(Int16, Topics.TARGET_ID.value)
+        publisher = rospy.Publisher(Int16, Topics.TARGET_ID.value, queue_size=10)
         try:
             publisher.publish(Int16(id))
         except:
@@ -111,7 +92,7 @@ def pushTarget(id=0, coordinate=(0, 0), type="workstation"):
         target.pose.position.x = coordinate[0]
         target.pose.position.y = coordinate[1]
         # Publish as a target coordinate directly
-        publisher = rospy.Publisher(PoseStamped, Topics.TARGET.value)
+        publisher = rospy.Publisher(PoseStamped, Topics.TARGET.value, queue_size=10)
         try:
             publisher.publish(target)
         except:
@@ -158,8 +139,30 @@ def processMessage(data: dict):
     return response
 
 
+def communicate(client, server):
+    server.settimeout(None)
+    request = client.recv(512)
+    if request:
+        # Decode the message
+        data = request.decode("utf-8")
+        # Convert to dict
+        data = json.loads(data)
+        # Process the request
+        response = processMessage(data=data)
+        if not response.contains("Error") and data["command"] == "PushTarget":
+            # Wait for response from ROS task which was started by FleetIAS
+            response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value)
+        else:
+            # Send error response to FleetIAS
+            rospy.logwarn(response)
+        # Send response to FleetIAS
+        client.sendall(bytes(response, encoding="utf-8"))
+        # Close connection because FleetIAS connects per request
+        client.close()
+
+
 def runClient():
-    ipAddr = server.gethostbyname(server.gethostname())
+    ipAddr = rospy.get_param("~ip")
     # Setup socket
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -167,30 +170,14 @@ def runClient():
     #  Start server
     server.listen()
 
-    while True:
+    while not rospy.is_shutdown():
         try:
             # Connect with FleetIAS
+            server.settimeout(2)
             client, addr = server.accept()
             rospy.loginfo(f"[Fleetias-Client] {addr} connected to socket")
-            # Receive message
-            request = client.recv(512)
-            if request:
-                # Decode the message
-                data = request.decode("utf-8")
-                # Convert to dict
-                data = json.loads(data)
-                # Process the request
-                response = processMessage(data=data)
-                if not response.contains("Error") and data["command"] == "PushTarget":
-                    # Wait for response from ROS task which was started by FleetIAS
-                    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value)
-                else:
-                    # Send error response to FleetIAS
-                    rospy.logwarn(response)
-                # Send response to FleetIAS
-                client.sendall(bytes(response, encoding="utf-8"))
-                # Close connection because FleetIAS connects per request
-                client.close()
+            Thread(target=communicate, args=[client, server]).start()
+
         except Exception as e:
             print(e)
             break

@@ -5,7 +5,7 @@ import psutil
 import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from tf.transformations import quaternion_from_euler
 from copy import deepcopy
 from cv_bridge import CvBridge
@@ -21,11 +21,9 @@ from utils.cv_utils import (
     best_match_workstation_index,
 )
 
-WEIGHTS_LOCALIZE = "yolov7/weights/ws_tiny5.pt"
-PROCESS_NAME_LIDAR = "python.exe"
 
 # TODO Remove all non-relevant stuff for SLAM
-def localiseCam():
+def localiseCam(weights):
     """
     Uses the camera to localise the Robotino on the map. Uses the localization from Kai Binder\
     and is only integrated here.
@@ -39,7 +37,7 @@ def localiseCam():
         Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
     )
 
-    conf_localise = get_conf_and_model(WEIGHTS_LOCALIZE)
+    conf_localise = get_conf_and_model(weights)
     # gets the set of calibration data that needs to measured for each new png map
     base_info, map_config = get_base_info()
     # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
@@ -206,7 +204,6 @@ def setImage(rawImage: Image):
     global Image_data
     bridge = CvBridge()
     cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
-
     # Resize Image to 640 * 480 - YOLO was trained in this size
     width = int(rawImage.width * 0.80)
     height = int(rawImage.height * 0.80)
@@ -223,7 +220,7 @@ def setImage(rawImage: Image):
     ]
 
     # Run localisation
-    localiseCam()
+    localiseCam(rospy.get_param("~weights_path"))
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -237,11 +234,23 @@ def setRealData(acmlData: PoseWithCovarianceStamped):
     ]
 
 
+def setUseLidar(isUsed: Bool):
+    global useLidar
+    useLidar = isUsed.data
+
+    if useLidar:
+        rospy.logdebug(10, "[Localization] Use LIDAR")
+    else:
+        rospy.logdebug_throttle(10, "[Localization] Use camera")
+
+
 def localization():
     """
     Runs the node itself and subscribes to all necessary topics. This is basically a adapter for the work\
     from Kai Binder which gets reused/integrated here.
     """
+    global useLidar
+    useLidar = True
     rospy.init_node(Nodes.LOCALIZATION.value)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
     # Saves the image to a global variable so localization can use the image in its own thread
@@ -250,49 +259,52 @@ def localization():
     rospy.Subscriber(
         Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=10
     )
+    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
+
     # For determining localization mode
     locMode = "lidar"
-
     # Publish localization
+    rate = rospy.Rate(500)
     msg = PoseWithCovarianceStamped()
-    publisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
+    publisher = rospy.Publisher(
+        Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
+    )
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
-        # Iterate through all running system processes
-        # for proc in psutil.process_iter():
-        #     # check whether the process name matches
-        #     if proc.name() == PROCESS_NAME_LIDAR:
-        #         locMode = "lidar"
-        #         break
-        # else:
-        #     # Lidar-process wasn't found
-        #     locMode = "camera"
+        if useLidar:
+            locMode = "lidar"
+        else:
+            # Lidar-process wasn't found
+            locMode = "camera"
+
         try:
             # ------ Take the right localization value -------
             if locMode.lower() == "camera":
                 rospy.logdebug(f"Using camera for localization")
                 msg = rospy.wait_for_message(
-                    Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+                    Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )
             elif locMode.lower() == "lidar":
                 rospy.logdebug(f"Using LIDAR for localization")
                 msg = rospy.wait_for_message(
-                    Topics.ACML.value, PoseWithCovarianceStamped
+                    Topics.ACML.value, PoseWithCovarianceStamped, timeout=1
                 )
             else:
                 rospy.logwarn(
                     f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'
                 )
                 break
-
             # ------ Publish the localization used by the Robotino ------
             publisher.publish(msg)
+
         except rospy.ROSInterruptException:
             return
         except Exception as e:
-            rospy.logerr(
+            rospy.logdebug(
                 f"Could publish localization message to topic {Topics.LOCALIZATION.value}: Error occured.\nException: {e} "
             )
+
+        rate.sleep()
 
 
 if __name__ == "__main__":

@@ -18,13 +18,6 @@ from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
 
-WEIGHTS_DETECTION = "yolov7/weights/tiny10_hocker.pt"
-PATH_ERROR_DIST = "logs/error_dist_csvs/error_dist_detec_22_12.csv"
-PATH_ERROR_DIST_DOOR_CLOSED = (
-    "logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv"
-)
-
-
 def detect(log_detection_error=True):
     """
     Detects objects by using the camera with a YOLOv7 neural network. Mainly uses\
@@ -32,6 +25,9 @@ def detect(log_detection_error=True):
     """
     global img_glob
     global real_data
+    WEIGHTS_DETECTION = rospy.get_param("~weights_path")
+    PATH_ERROR_DIST = rospy.get_param("~path_error_dist")
+    PATH_ERROR_DIST_DOOR_CLOSED = rospy.get_param("~path_error_dist_doorclosed")
     publisher = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList)
 
     # Loads the models

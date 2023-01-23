@@ -1,27 +1,16 @@
 #!/usr/bin/env python3
 import rospy
-from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, Pose
 from nav_msgs.msg import Path
 
 from autonomous_operation.PRM import apply_PRM_init, Node
+from autonomous_operation.object_detection_modified import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
 
 
-# --------------------------- Global variables ---------------------------------
-# Holds the current pose. Type: geometry_msgs.PoseWithCovarianceStamped
-global currentPoint_acml
-# Holds a list of the current identified obstacles. Type: msgs.ObstacleList
-global obstacles
-
-# ------------------------------ Constants --------------------------------------
-MAP_REF = "./maps/FinalGridMapv2cleaned.png"
-
-
-def runPRM(
-    targetMessage: PoseStamped, pubTopic=Topics.GLOBAL_PATH.value, map_ref=MAP_REF
-):
+def runPRM(targetMessage: PoseStamped, map_ref, pubTopic=Topics.GLOBAL_PATH.value):
     """
     Runs the PRM to get a trajectory
 
@@ -37,9 +26,9 @@ def runPRM(
     xTarget = targetMessage.pose.position.x
     yTarget = targetMessage.pose.position.y
     # Current position of robotino
-    global currentPoint_acml
-    xCurrent = currentPoint_acml.pose.pose.position.x
-    yCurrent = currentPoint_acml.pose.pose.position.y
+    global currentPoint
+    xCurrent = currentPoint.pose.pose.position.x
+    yCurrent = currentPoint.pose.pose.position.y
     # Obstacles
     global obstacles
 
@@ -73,13 +62,22 @@ def runPRM(
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
-    global currentPoint_acml
-    currentPoint_acml = currentPose
+    global currentPoint
+    currentPoint = currentPose
 
 
 def setObstacles(obstaclesList: ObstacleList):
     global obstacles
-    obstacles = obstaclesList
+    tmpObstacle = []
+    for obstacle in obstaclesList:
+        # Create corners
+        tmpCorners = []
+        for corner in obstacle.corners:
+            tmpCorners.append((corner.position.x, corner.position.y))
+        # Create Obstacle
+        tmpObstacle.append(Obstacle(tmpCorners))
+    # TODO construct obstacles
+    obstacles = tmpObstacle
 
 
 def planner():
@@ -97,7 +95,7 @@ def planner():
         Topics.TARGET.value,
         PoseStamped,
         runPRM,
-        callback_args=[Topics.GLOBAL_PATH.value, map_ref],
+        callback_args=[map_ref, Topics.GLOBAL_PATH.value],
         queue_size=1,
     )
     # Starts the local PRM
@@ -105,11 +103,13 @@ def planner():
         Topics.LOCAL_TARGET.value,
         PoseStamped,
         runPRM,
-        callback_args=[Topics.LOCAL_PATH.value, map_ref],
+        callback_args=[map_ref, Topics.LOCAL_PATH.value],
         queue_size=1,
     )
     # Sets the currentPoint_acml global variable
-    rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setCurrentPose)
+    rospy.Subscriber(
+        Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setCurrentPose
+    )
     # Sets the obstacles global variable
     rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacles)
     # Prevents python from exiting until this node is stopped
