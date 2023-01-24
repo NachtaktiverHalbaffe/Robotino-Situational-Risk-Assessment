@@ -10,11 +10,11 @@
         <arg name="hostname" value="$(arg hostname)"/>
      </include>
     <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
+    <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
     
     <!-- Navigation -->
-    <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
     <node pkg="$(arg package_name)" name="path_planner"  type="path_planner_node.py" output="screen"  required="true">
-        <param name="map_ref" value="maps/FinalGridMapv2cleaned.png"/>
+        <param name="map_ref" value="$(arg path)/maps/FinalGridMapv2cleaned.png"/>
     </node>
     <node pkg="$(arg package_name)" name="strategy_planner" type="strategy_planner_node.py" output="screen" required="true" />
     <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/>
@@ -39,11 +39,11 @@
     </node>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" >
         <param name="weights_path" value ="$(arg path)/src/yolov7/weights/tiny10_hocker.pt"/>
+        <param name="path_error_dist" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12.csv"/>
+        <param name="path_error_dist_doorclosed" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv" />
     </node>
     <node pkg="$(arg package_name)" name="workstation_mapper"  type="workstation_mapper_node.py" output="screen" >
         <param name="json_path" value="$(arg path)/maps/markers.json"/>
-        <param name="path_error_dist" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12.csv"/>
-        <param name="path_error_dist_doorclosed" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv" />
     </node>
 
     <node pkg="amcl" type="amcl" name="amcl" output="screen">
@@ -54,7 +54,6 @@
         <param name="update_min_d" value="0.01"/>    <!--1cm  change-->
         <param name="update_min_a" value="0.05"/>  <!--2.865 degree change-->
     </node>
-
+    
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/param/rvizConfigNew.rviz" respawn="true"/>
-
 </launch>

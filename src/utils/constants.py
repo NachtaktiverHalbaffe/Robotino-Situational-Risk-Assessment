@@ -8,7 +8,7 @@ class Topics(Enum):
     LOCAL_TARGET = "/target_local"
     TARGET_ID = "/target_id"
     NAV_POINT = "/nav_point"
-    ACML = "/acml_pose"
+    ACML = "/amcl_pose"
     IMG_LOCALIZATION = "/camera_pose"
     LOCALIZATION_MODE = "/localization_mode"
     LOCALIZATION = "/pose"

@@ -10,6 +10,7 @@ from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
 from utils.constants import Topics, Nodes
+from utils.ros_logger import set_rospy_log_lvl
 
 
 def moveBaseCallback(data):
@@ -172,11 +173,12 @@ def strategyPlanner(runWithRiskEstimation=True):
                                                                             trajectory is planned (False). Defaults to True 
     """
     rospy.init_node(Nodes.STRATEGY_PLANNER.value)
+    set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
     if not runWithRiskEstimation:
         # Just drive the trajectory
         # TODO Change to move_base
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient)
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient, queue_size=1)
         # rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, execute)
         # rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])
     else:

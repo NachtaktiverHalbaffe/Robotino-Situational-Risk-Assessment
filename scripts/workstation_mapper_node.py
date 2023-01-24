@@ -7,8 +7,7 @@ import numpy as np
 from std_msgs.msg import Int16, Bool
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
-from visualization_msgs.msg import Marker
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
 from cv_bridge import CvBridge
 from pyzbar.pyzbar import decode
 
@@ -122,16 +121,20 @@ def fetchCoordinate(wsID: Int16):
             "NavPosed"
         ]["posedstamped"]["pose"]["orientation"]["w"]
     except:
-        rospy.logerr(f"Error, cant publish target to topic {Topics.TARGET.value}")
+        rospy.logerr(
+            f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}"
+        )
         return
     # Publish coordinate
     try:
         publisher_target.publish(targetCor)
         rospy.logdebug(
-            f"Published target ({targetCor.pose.position.x},{targetCor.pose.position.y}) to topic {Topics.TARGET.value}"
+            f"[Workstation Mapper] Published target ({targetCor.pose.position.x},{targetCor.pose.position.y}) to topic {Topics.TARGET.value}"
         )
     except:
-        rospy.logerr(f"Error, cant publish target to topic {Topics.TARGET.value}")
+        rospy.logerr(
+            f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}"
+        )
 
 
 def qrCodeScanner(rawImage: Image):
@@ -284,7 +287,7 @@ def workstationMapper():
         Topics.IMAGE_RAW.value, Image, qrCodeScanner, queue_size=2
     )
 
-    rate = rospy.Rate(50)
+    rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         createMarkers(Topics.MARKERS_NAV.value)
         createMarkers(Topics.MARKERS.value, markerType="MarkerPosed")

@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   robotino_msgs
+  visualization_msgs
   message_generation
 )
 
