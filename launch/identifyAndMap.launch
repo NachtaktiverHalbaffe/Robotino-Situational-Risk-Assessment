@@ -3,7 +3,8 @@
       <arg name="hostname" value="129.69.102.242"/>
     <!-- more default parameters can be changed here -->
   </include>
-  
+  <arg name="package_name" default="prototype" />
+  <arg name="path" value="$(eval find(arg('package_name')))" />
   <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
 
   <!-- publish map details -->
@@ -11,7 +12,7 @@
   
   
   <!-- publish map details -->
-  <arg name="map_file" default="/home/kaib/catkin_ws/src/test_1/scripts/acml_rviz/FinalGridMapv2.yaml"/>
+  <arg name="map_file" default="$(find test_1)/scripts/acml_rviz/FinalGridMapv2.yaml"/>
   <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
 	
     
@@ -43,6 +44,6 @@
 
   <node name="my_odom" pkg="digital_twin" type="odom.py" output="screen"/>
 
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $/home/kaib/catkin_ws/src/test_1/scripts/acml_rviz/rvizConfigNew.rviz" respawn="true"/>
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find test_1)/scripts/acml_rviz/rvizConfigNew.rviz" respawn="true"/>
   
 </launch>

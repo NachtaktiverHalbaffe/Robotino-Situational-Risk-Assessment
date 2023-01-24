@@ -40,10 +40,16 @@ def createMarkers(topic: str, markerType: str = "NavPosed"):
         marker.scale.x = 0.1
         marker.scale.y = 0.1
         marker.scale.z = 0.1
-        marker.color.a = 1.0
-        marker.color.r = 1.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
+        if "navposed" in markerType.lower():
+            marker.color.a = 1.0
+            marker.color.r = 0.0
+            marker.color.g = 1.0
+            marker.color.b = 1.0
+        else:
+            marker.color.a = 1.0
+            marker.color.r = 1.0
+            marker.color.g = 1.0
+            marker.color.b = 0.0
         marker.pose.position.x = target_identified[key][markerType]["posedstamped"][
             "pose"
         ]["position"]["x"]
@@ -278,7 +284,7 @@ def workstationMapper():
         Topics.IMAGE_RAW.value, Image, qrCodeScanner, queue_size=2
     )
 
-    rate = rospy.Rate(500)
+    rate = rospy.Rate(50)
     while not rospy.is_shutdown():
         createMarkers(Topics.MARKERS_NAV.value)
         createMarkers(Topics.MARKERS.value, markerType="MarkerPosed")
@@ -286,6 +292,8 @@ def workstationMapper():
             # unregister subscriber which is responsible for QR code scanning
             camera_sub.unregister()
         rate.sleep()
+
+    _saveMarkersToJson()
 
 
 def _saveMarkersToJson():
