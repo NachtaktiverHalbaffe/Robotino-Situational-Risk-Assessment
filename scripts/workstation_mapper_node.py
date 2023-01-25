@@ -4,15 +4,14 @@ import rospy
 import cv2
 import os
 import numpy as np
-from std_msgs.msg import Int16, Bool
+from std_msgs.msg import Int16
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker, MarkerArray
 from cv_bridge import CvBridge
 from pyzbar.pyzbar import decode
 
-from utils.tf_laserlink2map import laser2mapConv
-from utils.getDistAngleLidar import getDistAngle
+from utils.qr_scanner_utils import laser2mapConv, getDistAngle
 from utils.constants import Topics, Nodes
 from utils.conversions import polar2Cartesion
 from utils.ros_logger import set_rospy_log_lvl
@@ -55,9 +54,8 @@ def createMarkers(topic: str, markerType: str = "NavPosed"):
         marker.pose.position.y = target_identified[key][markerType]["posedstamped"][
             "pose"
         ]["position"]["y"]
-        marker.pose.position.z = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["position"]["z"]
+        # Set z to 0 so markers are placed directly onto image and aren't hovering in the air
+        marker.pose.position.z = 0
         marker.pose.orientation.x = target_identified[key][markerType]["posedstamped"][
             "pose"
         ]["orientation"]["x"]
@@ -273,10 +271,9 @@ def workstationMapper():
     """
     global target_identified
     rospy.init_node(Nodes.WORKSTATION_MAPPER.value)
-
-    set_rospy_log_lvl(rospy.DEBUG)
-
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.WORKSTATION_MAPPER.value}")
+
     # Load already identified workstations
     _loadMarkersFromJson()
     # Converts the id of a workstation to a coordinate which the path planner can use
