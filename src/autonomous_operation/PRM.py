@@ -5,9 +5,11 @@ from PIL import Image, ImageDraw
 import random
 import copy
 import time
-import sys
+import sys, os
 
 import pickle
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 sys.setrecursionlimit(2000)
 
@@ -163,7 +165,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
 
     im_with_nodes = Image.fromarray(pixels.astype("uint8"), mode="L")
     # TODO better logging
-    print(len(nodes))
+    print(f"Number of Nodes: {len(nodes)}")
     return im_with_nodes, nodes
 
 
@@ -239,8 +241,6 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
                     edges_prot[edge] = edge.cost
 
             edge.cost = edge_cost
-    # print('prot edges time (fill dict):', t_prot_edges)
-    # print('time calculate edge costs:', time.perf_counter()-t0)
     return edges_prot, obstacles_to_remove
 
 
@@ -261,7 +261,6 @@ def interpolate_segment(segment):
     length = np.linalg.norm(np.array(p2) - np.array(p1))
 
     n_interpol_steps = int(length / interpol_stepsize)
-    # print('n_interpol_steps', n_interpol_steps)
     segment_interpolated = []
 
     if n_interpol_steps != 0:
@@ -472,10 +471,6 @@ def add_neighbours(map_ref, nodes, N):
                     (np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y))
                 )
 
-    # print('deepcopy_total_time:', deepcopy_total_time)
-    # print('calc_cost_total_time:', calc_cost_total_time)
-    # print('draw_line_total_time:', draw_line_total_time)
-    # print('calculate_all_distances_total_time:', calc_all_distances_total_time)
     return map_ref_copy_1, nodes, edges_all
 
 
@@ -503,7 +498,6 @@ def deijkstra(nodes, start, goal):
     start.tentative_dist = 0
     done = False
     trajectory = []
-
     # loop
     while not done:
         for neighbour in current_node.neighbours:
@@ -537,6 +531,7 @@ def deijkstra(nodes, start, goal):
                     smallest_tent = unv_node.tentative_dist
                     smallest_tent_node = unv_node
             current_node = smallest_tent_node
+
     for node in nodes_copy:
         node.tentative_dist = math.inf
         node.visited = False
@@ -701,12 +696,8 @@ def get_traj_edges(traj):
                 edges.append(common_edge)
                 total_costs += common_edge.cost
                 if common_edge.cost >= COST_WHITE_PIXEL:
-                    # print('-------------------------')
-                    # print('>>> Robot crashed !!! <<<')
-                    # print('-------------------------')
                     pass
 
-    # print('total trajectory cost: ', total_costs)
     return edges
 
 
@@ -852,12 +843,8 @@ def get_node_with_coordinates(nodes, xycoords):
     ret_node = None
 
     for node in nodes:
-        # print(node.coordinates.shape, xycoords.shape)
-        # print(type(node.coordinates), type(xycoords))
         if (node.coordinates == xycoords).all():
             ret_node = node
-            print("nodes found")
-            print(node, xycoords)
     return ret_node
 
 
@@ -956,7 +943,7 @@ def apply_PRM_init(
     load_nodes = False
     if load_nodes:
         # pickle load ~~~
-        open_file = open("nodes_presentation", "rb")
+        open_file = open(f"{PATH}/nodes_presentation", "rb")
         nodes = pickle.load(open_file)
         open_file.close()
         for i in range(0, len(nodes)):
@@ -970,31 +957,26 @@ def apply_PRM_init(
             map_visu, nodes = add_nodes(
                 map_ref_copy, N_NODES, obstacles, start, goal
             )  # , starts, ends
-        map_visu.save("./image/map_nodes.png")
+        map_visu.save(f"{PATH}/maps/map_nodes.png")
 
     t0 = time.perf_counter()
     # add neighbours / build up graph with edges and costs
     map_visu, nodes, edges_all = add_neighbours(map_ref_copy, nodes, N_NEIGHBOURS)
-
     # TODO: XXX this might cause trouble in for the adv!!! -> visualization will not exactly represent the truth (pixel perfect)
     calculate_edge_costs(map_ref_copy, edges_all, obstacles)
 
     nodes_copy = copy.copy(nodes)
-    map_visu.save("./image/map_graph.png")
+    map_visu.save(f"{PATH}/maps/map_graph.png")
     print("time add_neighbours:", time.perf_counter() - t0)
 
     """" Uncomment this code to give your own path"""
     # start_node = get_node_with_coordinates(nodes, np.array(starts))
     # goal_node = get_node_with_coordinates(nodes, np.array(ends))
 
-    # print(start_node.coordinates)
-    # print(type(nodes[0].coordinates), len(nodes[0].coordinates), nodes[0].coordinates.shape)
     if not (start_node and goal_node):
         start_node = nodes[0]
         goal_node = nodes[1]
-        print(start_node, goal_node)
         while (start_node.coordinates == goal_node.coordinates).all():
-            print("loop")
             goal_node = nodes[np.random.randint(0, len(nodes))]
     t2 = time.perf_counter()
 
@@ -1006,13 +988,12 @@ def apply_PRM_init(
     map_visu = copy.deepcopy(map_ref)
     draw_traj(map_visu, traj, False)
 
-    map_visu.save("./image/map_traj.png")
+    map_visu.save(f"{PATH}/image/map_traj.png")
 
     map_visu, traj_opt = optimize_trajectory(map_ref_copy, traj)
     # print('trajectory optimized:', get_traj_edges(traj_opt))
 
-    map_visu.save("./image/map_opt_traj.png")
-    print("--initialized map--")
+    map_visu.save(f"{PATH}/image/map_opt_traj.png")
 
     return traj, traj_opt, nodes_copy, edges_all
 
@@ -1062,8 +1043,6 @@ def apply_PRM(
         start_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         while (start_node.coordinates == goal_node.coordinates).all():
-            print(nodes)
-            print("loop2")
             goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
     # calculate and draw trajectory with deijkstra's algorithm
 
@@ -1075,7 +1054,7 @@ def apply_PRM(
     if visualize:
         map_visu = copy.deepcopy(map_ref)  # debug
         draw_traj(map_visu, traj, False)  # debug
-        map_visu.save("./image/map_traj.png")  # debug
+        map_visu.save(f"{PATH}/image/map_traj.png")  # debug
 
     # t2 = time.perf_counter()
     # map_visu, traj_opt = optimize_trajectory(map_ref_copy, traj)

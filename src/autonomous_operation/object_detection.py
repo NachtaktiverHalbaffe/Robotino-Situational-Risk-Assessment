@@ -1,6 +1,6 @@
 # reference:    https://docs.opencv.org/4.5.2/d4/dc6/tutorial_py_template_matching.html
 import math
-
+import os
 import cv2 as cv
 import numpy as np
 from numpy import random
@@ -8,6 +8,8 @@ from scipy import ndimage
 import copy
 import time
 from PIL import Image, ImageDraw, ImageOps
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 
 class Obstacle:
@@ -89,7 +91,6 @@ class Obstacle:
             # this is some unfixed error that results from create_random_map (probably the rotation and extraction of corner points).
             # It will occure very rarely and cause the system to only learn from collisions (not from distance to object) until the next call
             # of create_random_map() -> currently every 150 episodes
-            print('empty "distances"')
             min_dist = 5
 
         return min_dist
@@ -106,7 +107,6 @@ class Obstacle:
         outer_connections = []
         for corner_a in self.corners:
             corner_a_connections = []
-            # print('corners left:', corners)
             for corner_b in corners:
                 if corner_a is corner_b:
                     continue
@@ -137,7 +137,6 @@ class Obstacle:
                 # vector is border if all cross products are between -1e-12 and 1e-12
                 if (1 in crossproducts) and (-1 in crossproducts):
                     pass
-                    # print('connection between', corner_a, 'and', corner_b, 'is not an outer_border!!!')
                 else:
                     corner_a_connections.append([corner_a, corner_b])
 
@@ -286,7 +285,6 @@ def generate_map_ref(map_ref):
 
     for y in range(0, len(pixels)):
         for x in range(0, len(pixels[0])):
-            #            print('x:', x, ' y:', y)
             if pixels[y][x] == 0:
                 obs[y][x] = 255
             elif pixels[y][x] == 254 or pixels[y][x] == 255:
@@ -345,16 +343,13 @@ def replace_object(
         # cv.imshow('res', res)
         # cv.waitKey(0)
         _minVal, _maxVal, minLoc, maxLoc = cv.minMaxLoc(res, None)
-        # print(maxLoc)
         val = _maxVal
         if val == math.inf:
             val = 0
         loc = maxLoc
-        # print('val:', val)
         confidence.append(np.abs(val - threshold))
         if val >= threshold:
             replaced = True
-            # print('found match!')
             for x in range(0, w):
                 for y in range(0, h):
                     if template[y, x] != 255 and representation[y, x] != 255:
@@ -404,9 +399,7 @@ def apply_object_detection(map_path):
     """
     map_grey = Image.open(map_path)
     map_grey = map_grey.convert("L")
-    # map_grey = crop_to_ref_map(map_grey) # better not use this, except when using the 160x160 handcrafted map
-    print("image size after crop:", map_grey.size)
-    map_grey.save("maps/map_cropped.png")
+    map_grey.save(f"{PATH}/maps/map_cropped.png")
     # map_grey = Image.open(map_path)
     map_grey = (
         np.array(map_grey.getdata())
@@ -432,20 +425,22 @@ def apply_object_detection(map_path):
     # scanner map:
     # these files only work with maps built in gmapping with delta=0.05
     templates = [
-        cv.imread("./templates/scanner/template_H_table.png", 0),
-        cv.imread("./templates/scanner/template_trapezoid_table4.png", 0),
+        cv.imread(f"{PATH}/templates/scanner/template_H_table.png", 0),
+        cv.imread(f"{PATH}/templates/scanner/template_trapezoid_table4.png", 0),
     ]
     representations = [
-        cv.imread("./representations/scanner/representation_H_table.png", 0),
-        cv.imread("./representations/scanner/representation_trapezoid_table4.png", 0),
+        cv.imread(f"{PATH}/representations/scanner/representation_H_table.png", 0),
+        cv.imread(
+            f"{PATH}/representations/scanner/representation_trapezoid_table4.png", 0
+        ),
     ]
     masks = [
-        cv.imread("./masks/mask_H_table.png", 0),
-        cv.imread("./masks/mask_trapezoid_table4.png", 0),
+        cv.imread(f"{PATH}/masks/mask_H_table.png", 0),
+        cv.imread(f"{PATH}/masks/mask_trapezoid_table4.png", 0),
     ]
     corner_points = [
-        cv.imread("./representations/scanner/corner_points_H.png", 0),
-        cv.imread("./representations/scanner/corner_points_trapezoid.png", 0),
+        cv.imread(f"{PATH}/representations/scanner/corner_points_H.png", 0),
+        cv.imread(f"{PATH}/representations/scanner/corner_points_trapezoid.png", 0),
     ]
     thresholds = [0.70, 0.49]  # 0.54
 
@@ -461,8 +456,6 @@ def apply_object_detection(map_path):
         highest_conf = 0
         highest_conf_angle = 0
         angles_over_threshold = {}
-        # print(i)
-        # print(highest_confidence_angle)
         for angle in range(0, int(360 / a)):  # 4    #360
             angle = a * angle
             template = ndimage.rotate(templates[i], angle=angle, cval=255, order=5)
@@ -482,7 +475,6 @@ def apply_object_detection(map_path):
         angles_sorted = sorted(
             angles_over_threshold, key=angles_over_threshold.get, reverse=True
         )
-        # print(angles_sorted)
         for angle in angles_sorted:
             template = ndimage.rotate(templates[i], angle=angle, cval=255, order=0)
             representation = ndimage.rotate(
@@ -510,7 +502,6 @@ def apply_object_detection(map_path):
 
             if replaced:
                 pass
-                # print('cc', corner_coordinates)
 
     # these are only for the handcrafted map to represent the walls at the top and bottom
     # obstacles.append(Obstacle([(0, 16), (159, 16)]))
@@ -529,9 +520,9 @@ def apply_object_detection(map_path):
     print("min. confidence:", min_conf)
     print("avg. confidence:", avg_confidence)
 
-    cv.imwrite("./obj_det_output/res.png", map_grey)
+    cv.imwrite(f"{PATH}/obj_det_output/res.png", map_grey)
     map_ref = generate_map_ref(map_grey)
-    map_ref.save("./obj_det_output/map_ref_test_obj.png")  # map_ref.save('map_ref.png')
+    map_ref.save(f"{PATH}/obj_det_output/map_ref_test_obj.png")
     return map_ref, obstacles
 
 
@@ -566,9 +557,6 @@ def create_random_map():
         .reshape((map_size[1], map_size[0]))
         .astype("uint8")
     )
-
-    print("map_size", map_size)
-
     n_objects = np.random.randint(8, 12)
 
     positions = []
@@ -587,19 +575,19 @@ def create_random_map():
         rotations.append(rotation)
 
     temps = [
-        cv.imread("./templates/test/test_fat/mask_longtable.png", 0),
-        cv.imread("./templates/test/test_fat/mask_trapez.png", 0),
-        cv.imread("./templates/test/test_fat/mask_table.png", 0),
+        cv.imread(f"{PATH}/templates/test/test_fat/mask_longtable.png", 0),
+        cv.imread(f"{PATH}/templates/test/test_fat/mask_trapez.png", 0),
+        cv.imread(f"{PATH}/templates/test/test_fat/mask_table.png", 0),
     ]
     reps = [
-        cv.imread("./representations/fat/representation_longtable.png", 0),
-        cv.imread("./representations/fat/representation_trapez.png", 0),
-        cv.imread("./representations/fat/representation_table.png", 0),
+        cv.imread(f"{PATH}/representations/fat/representation_longtable.png", 0),
+        cv.imread(f"{PATH}/representations/fat/representation_trapez.png", 0),
+        cv.imread(f"{PATH}/representations/fat/representation_table.png", 0),
     ]
     corners = [
-        cv.imread("./representations/fat/cornerpoints_longtable.png", 0),
-        cv.imread("./representations/fat/cornerpoints_trapez.png", 0),
-        cv.imread("./representations/fat/cornerpoints_table.png", 0),
+        cv.imread(f"{PATH}/representations/fat/cornerpoints_longtable.png", 0),
+        cv.imread(f"{PATH}/representations/fat/cornerpoints_trapez.png", 0),
+        cv.imread(f"{PATH}/representations/fat/cornerpoints_table.png", 0),
     ]
 
     representations = []
@@ -662,7 +650,6 @@ def test_detection():
         length = np.linalg.norm(np.array(p2) - np.array(p1))
 
         n_interpol_steps = int(length / interpol_stepsize)
-        # print('n_interpol_steps', n_interpol_steps)
 
         step_x = (p2[0] - p1[0]) / n_interpol_steps
         step_y = (p2[1] - p1[1]) / n_interpol_steps
@@ -687,35 +674,9 @@ def test_detection():
             try:
                 map_ref_draw.line([border[0], border[1]], fill=100)
             except:
-                print("except")
+                pass
 
-    # some_edge = [(147, 53), (142, 81)]
-    # map_ref_draw.line([some_edge[0], some_edge[1]], fill=100)
-
-    # some_edge_interpolated = interpolate_segment(some_edge)
-    # for interp_point in some_edge_interpolated:
-    #     map_ref_draw.point(interp_point, fill=200)
-
-    # t0 = time.perf_counter()
-    # obst_closest = None
-    # closest_dist = math.inf
-    # closest_point = None
-    # for obstacle in obstacles:
-    #     for interp_point in some_edge_interpolated:
-    #         dist = obstacle.distance_to_point(interp_point)
-    #         if dist < closest_dist:
-    #             closest_point = interp_point
-    #             closest_dist = dist
-    #             obst_closest = obstacle
-    # print('time to calc closest dist:', time.perf_counter()-t0)
-    # print('---------------')
-    # print('closest dist:', closest_dist)
-    # print('closest obst:', obst_closest)
-    # print('closest point:', closest_point)
-
-    # map_ref_draw.point(closest_point, fill=70)
-
-    map_ref.save("./obj_det_output/map_ref_test_obj2.png")
+    map_ref.save(f"{PATH}/obj_det_output/map_ref_test_obj2.png")
 
 
 # test_detection()

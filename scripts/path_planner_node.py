@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
+from copy import deepcopy
 import time
+import numpy as np
+from autonomous_operation.object_detection_modified import generate_map_ref
+from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
+from real_robot_navigation.move_utils import initialize_map, modify_map
+from real_robot_navigation.move_utils_cords import (
+    get_base_info,
+    get_pixel_location_from_acml,
+)
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 from PIL import Image
 
 from autonomous_operation.PRM import apply_PRM_init, Node
-from autonomous_operation.object_detection_modified import (
+from autonomous_operation.object_detection import (
     Obstacle,
     apply_object_detection,
 )
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
+from utils.create_map_ref import createMapRef
 from utils.ros_logger import set_rospy_log_lvl
 
 publisherGlobal = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
@@ -57,19 +67,26 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     # Current position of robotino
     xCurrent = currentPoint.pose.pose.position.x
     yCurrent = currentPoint.pose.pose.position.y
-    print(rospy.get_param("~map_ref"))
     rospy.logdebug(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
-    map_ref = apply_object_detection(rospy.get_param("~map_ref"))
+    base_info, _ = get_base_info()
+    # Convert target and goal to node coordinates
+    start = get_pixel_location_from_acml(*(xCurrent, yCurrent), *base_info)
+    start = [int(start[0]), int(start[1])]
+    goal = get_pixel_location_from_acml(*(xTarget, yTarget), *base_info)
+    goal = [int(goal[0]), int(goal[1])]
+    # Create map reference
+    map_ref, all_obst = createMapRef(rospy.get_param("~map_ref"))
+
     # TODO choose right PRM func
     traj, _, _, _ = apply_PRM_init(
         map_ref=map_ref,
         # obstacles=obstacles,
-        obstacles=[],
-        start_node=Node(xCurrent, yCurrent),
-        goal_node=Node(xTarget, yTarget),
+        obstacles=all_obst,
+        start=start,
+        goal=goal,
     )
-
+    rospy.logdebug(f"[Path Planner] PRM finished running")
     # Construct path message
     path = Path()
     for node in traj:
@@ -84,7 +101,7 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     # Publish path
     publisher = rospy.Publisher(pubTopic, Path, queue_size=10)
     try:
-        rospy.logdebug(f"[Path Planner] Publishing path to {pubTopic}: {path}")
+        rospy.logdebug(f"[Path Planner] Publishing path to {pubTopic}")
         publisher.publish(path)
     except:
         print(f"[Path Planner] Error, cant publish path to topic {pubTopic}")
