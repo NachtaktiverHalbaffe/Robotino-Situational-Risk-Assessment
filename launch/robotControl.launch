@@ -10,6 +10,7 @@
         <arg name="hostname" value="$(arg hostname)"/>
      </include>
     <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
+    <param name="map_path" value="$(arg path)/maps/FinalGridMapv2cleaned.png"/>
     <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1" />
     
     <!-- Navigation -->

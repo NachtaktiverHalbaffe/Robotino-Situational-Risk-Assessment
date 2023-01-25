@@ -14,6 +14,7 @@ class Topics(Enum):
     LOCALIZATION = "/pose"
     OBSTACLES = "/obstacles"
     IMAGE_RAW = "/image_raw"
+    IMAGE_BB = "/image_bb"
     NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
     IR_SENSORS = "/distance_sensors"

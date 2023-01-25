@@ -11,16 +11,27 @@ TARGET_OFFSET_VALUE = 1.0
 
 
 def laser2mapConv(x, y, z, roll, pitch, yaw):
+    """
+    Transforms a position scanned from the LIDAR of the Robotino into a ROS PosedStamped position on the map
 
+    Args:
+        x (int): x-coordinate determined by LIDAR
+        y (int): y-coordinate determined by LIDAR
+        z (int): z-coordinate determined by LIDAR. Because Robotino navigates in 2D, this isn't as important as the other args
+        roll (float): Rotation on the x-Axis. Practically 0 most of the times in case of Robotino
+        pitch (float): Rotation on the y-Axis. Practically 0 most of the times in case of Robotino
+        yaw (float): Rotation on the z-Axis. Basically the angle in 2D navigation
+
+    Returns:
+        poseStamped (geometry_msgs.PoseStamped): A position in the map frame
+    """
     transform_listener = tf.TransformListener()
     transform_listener.waitForTransform(
         "/laser_link", "/map", rospy.Time(), rospy.Duration(4.0)
     )
 
     i = 0
-
     while i < 1:
-
         posedstamped = PoseStamped()
         posedstamped.header.frame_id = "laser_link"
         posedstamped.header.stamp = rospy.Time(0)
@@ -28,6 +39,7 @@ def laser2mapConv(x, y, z, roll, pitch, yaw):
         posedstamped.pose.position.y = y
         posedstamped.pose.position.z = z
 
+        # Convert euler-angles to quaternions
         quanternion = euler2Quaternions(roll, pitch, yaw)
 
         posedstamped.pose.orientation.x = quanternion[0]
@@ -50,6 +62,17 @@ def laser2mapConv(x, y, z, roll, pitch, yaw):
 
 
 def getDistAngle(theta):
+    """
+    Calculates the distance an angle in the map frame from the angle scanned by the LIDAR from the Robotino
+
+    Args:
+        theta (float): The angle determined by the LIDAR. Relative to Robotinos LIDAR position
+
+    Returns:
+        objectDist (float): Distance to the workstation
+        navDist (float): Distance to the workstation with offset added so robotino can safely navigate to it
+        alpha_deg (float): Angle to the workstation
+    """
     navDist = 0.0
     alpha_deg = 0.0
     laserMsg = rospy.wait_for_message("/scan", LaserScan, 2)

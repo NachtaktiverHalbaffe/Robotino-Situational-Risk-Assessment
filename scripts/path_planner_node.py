@@ -1,31 +1,22 @@
 #!/usr/bin/env python3
-from copy import deepcopy
-import time
-import numpy as np
-from autonomous_operation.object_detection_modified import generate_map_ref
-from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
-from real_robot_navigation.move_utils import initialize_map, modify_map
-from real_robot_navigation.move_utils_cords import (
-    get_base_info,
-    get_pixel_location_from_acml,
-)
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
-from PIL import Image
 
-from autonomous_operation.PRM import apply_PRM_init, Node
-from autonomous_operation.object_detection import (
-    Obstacle,
-    apply_object_detection,
-)
+from autonomous_operation.PRM import apply_PRM_init
+from autonomous_operation.object_detection import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
 from utils.create_map_ref import createMapRef
 from utils.ros_logger import set_rospy_log_lvl
+from real_robot_navigation.move_utils_cords import (
+    get_amcl_from_pixel_location,
+    get_base_info,
+    get_pixel_location_from_acml,
+)
 
 publisherGlobal = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
-publisherGlobal = rospy.Publisher(Topics.LOCAL_PATH.value, Path, queue_size=10)
+publisherLocal = rospy.Publisher(Topics.LOCAL_PATH.value, Path, queue_size=10)
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
@@ -78,10 +69,11 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     # Create map reference
     map_ref, all_obst = createMapRef(rospy.get_param("~map_ref"))
 
+    if obstacles != None:
+        all_obst += obstacles
     # TODO choose right PRM func
     traj, _, _, _ = apply_PRM_init(
         map_ref=map_ref,
-        # obstacles=obstacles,
         obstacles=all_obst,
         start=start,
         goal=goal,
@@ -90,7 +82,9 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     # Construct path message
     path = Path()
     for node in traj:
-        # Create a pose
+        # Convert node back into amcl form
+        node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
+        # Create a pose => Poses are the Nodes-equivalent in ROS's path
         pose = PoseStamped()
         pose.pose.position.x = node.x
         pose.pose.position.y = node.y
