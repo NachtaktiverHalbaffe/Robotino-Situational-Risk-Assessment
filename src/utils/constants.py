@@ -33,3 +33,4 @@ class Nodes(Enum):
     STRATEGY_PLANNER = "strategy_planner"
     FLEETIAS_CLIENT = "fleetias_client"
     GUI = "gui"
+    RISK_ESTIMATOR = "risk_estimator"

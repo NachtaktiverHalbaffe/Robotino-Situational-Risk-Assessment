@@ -1,11 +1,38 @@
 local_costmap:
-   global_frame: odom
-   robot_base_frame: base_link
-   update_frequency: 10
-   publish_frequency: 10
-   static_map: false
-   rolling_window: true
-   width: 4.0
-   height: 4.0
-   resolution: 0.015
-   transform_tolerance: 0.5
+  global_frame: odom
+  robot_base_frame: base_link
+  update_frequency: 10
+  publish_frequency: 10
+
+  #   static_map: false
+  rolling_window: true
+  width: 4.0
+  height: 4.0
+  resolution: 0.015
+  transform_tolerance: 0.5
+
+  plugins:
+    - { name: static_layer, type: "costmap_2d::StaticLayer" }
+    - { name: inflation_layer, type: "costmap_2d::InflationLayer" }
+    - { name: obstacle_layer, type: "costmap_2d::ObstacleLayer" }
+
+  static_layer:
+    enabled: false
+    map_topic: "/map"
+
+  inflation_layer:
+    enabled: true
+    cost_scaling_factor: 5
+    inflation_radius: 0.3
+
+  obstacle_layer:
+    observaton_sources: laser_scan_sensor
+    footprint_clearing_enabled: true
+    laser_scan_sensor:
+      {
+        data_type: LaserScan,
+        sensor_frame: base_link,
+        clearing: true,
+        marking: true,
+        topic: scan,
+      }

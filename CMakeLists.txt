@@ -128,6 +128,7 @@ catkin_install_python(PROGRAMS
                   scripts/localization_node.py 
                   scripts/object_detection_node.py
                   scripts/control_node.py
+                  scripts/risk_estimator.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########

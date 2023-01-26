@@ -2,6 +2,7 @@
 import time
 import rospy
 import actionlib
+import message_filters
 import numpy as np
 from geometry_msgs.msg import Point
 from sensor_msgs.msg import PointCloud
@@ -11,6 +12,9 @@ from nav_msgs.msg import Path
 
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
+
+global feedbackValue
+feedbackValue = []
 
 
 def moveBaseCallback(data):
@@ -34,7 +38,7 @@ def moveBaseClient(path: Path):
     global feedbackValue
 
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
-    for node in path:
+    for node in path.poses[1:]:
         client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         # TODO Create first message
         # Creates a new goal with the MoveBaseGoal constructor
@@ -44,6 +48,8 @@ def moveBaseClient(path: Path):
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose.position.x = node.pose.position.x
         goal.target_pose.pose.position.y = node.pose.position.y
+        goal.target_pose.pose.position.z = 0
+        goal.target_pose.pose.orientation.w = 1.0
         # Move 0.5 meters forward along the x axis of the "map" coordinate frame
         # No rotation of the mobile base frame w.r.t. map frame
         #  yaw
@@ -54,9 +60,9 @@ def moveBaseClient(path: Path):
 
         while not rospy.is_shutdown():
             if feedbackValue:
-                if (
-                    abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1
-                ) and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1):
+                if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
+                    abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
+                ):
                     client.cancel_goal()
                     break
 
@@ -91,15 +97,11 @@ def execute(path: Path, isLocalPlanner=False):
             elif isInLocalMode and not isLocalPlanner:
                 # Current navigation was aborted to drive around a obstacle
                 # => wait until target is reached to seek global path again
-                response = rospy.wait_for_message(
-                    Topics.NAVIGATION_RESPONSE.value, Bool
-                )
+                response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
                 if response:
                     # Local navigation finished => Continue global navigation
                     publisher.publish(targetPoint)
-                    response = rospy.wait_for_message(
-                        Topics.NAVIGATION_RESPONSE.value, Bool
-                    )
+                    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
                     if response:
                         # Navigated successfully to node, continue with next node
                         continue
@@ -134,16 +136,12 @@ def detectedHazard():
 
             if np.min(dist) < THRESHOLD_DISTANCE:
                 # Detected hazard ==> stop until problem is resolved
-                rospy.loginfo(
-                    "[Strategy Planner] IR sensors detected hazard. Emergency breaking now"
-                )
+                rospy.loginfo("[Strategy Planner] IR sensors detected hazard. Emergency breaking now")
                 rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
 
                 # Wait if hazard resolves itself
                 time.sleep(WAIT_TIME)
-                rawReadings = rospy.wait_for_message(
-                    Topics.IR_SENSORS.value, PointCloud
-                )
+                rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
                 dist = _fetchIRReadings(rawReadings)
 
                 if np.min(dist) > THRESHOLD_DISTANCE:
@@ -157,11 +155,13 @@ def detectedHazard():
                     # ===> Drive around (start PRM with next target Node as target)
                     # TODO Add Obstacle to map
                     isInLocalMode = True
-                    rospy.Publisher(Topics.LOCAL_TARGET.value, Point).publish(
-                        currentTarget
-                    )
+                    rospy.Publisher(Topics.LOCAL_TARGET.value, Point).publish(currentTarget)
         except:
             return
+
+
+def chooseStrategy(path: Path):
+    """ """
 
 
 def strategyPlanner(runWithRiskEstimation=True):
@@ -173,7 +173,7 @@ def strategyPlanner(runWithRiskEstimation=True):
                                                                             trajectory is planned (False). Defaults to True 
     """
     rospy.init_node(Nodes.STRATEGY_PLANNER.value)
-    set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
     if not runWithRiskEstimation:
         # Just drive the trajectory
@@ -183,8 +183,10 @@ def strategyPlanner(runWithRiskEstimation=True):
         # rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])
     else:
         # Start driving when the risk values come in
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient)
-        pass
+        pathSub = message_filters.Subscriber(Topics.GLOBAL_PATH.value, Path)
+
+        t1 = message_filters.ApproximateTimeSynchronizer([pathSub], queue_size=10, slop=0.5)
+        t1.registerCallback(chooseStrategy)
 
     # detectedHazard()
     rospy.spin()

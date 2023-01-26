@@ -3,7 +3,7 @@ import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 
-from autonomous_operation.PRM import apply_PRM_init
+from autonomous_operation.PRM import Edge, Node, apply_PRM, apply_PRM_init, get_traj_edges
 from autonomous_operation.object_detection import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
@@ -15,8 +15,17 @@ from real_robot_navigation.move_utils_cords import (
     get_pixel_location_from_acml,
 )
 
+THRESHOLD_EDGE = 6
+
 publisherGlobal = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
 publisherLocal = rospy.Publisher(Topics.LOCAL_PATH.value, Path, queue_size=10)
+
+global obstacles
+obstacles = None
+global PRMNodes
+PRMNodes = []
+global newObstacles
+newObstacles = False
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
@@ -26,6 +35,7 @@ def setCurrentPose(currentPose: PoseWithCovarianceStamped):
 
 def setObstacles(obstaclesList: ObstacleList):
     global obstacles
+    global newObstacles
     tmpObstacle = []
     for obstacle in obstaclesList:
         # Create corners
@@ -36,6 +46,8 @@ def setObstacles(obstaclesList: ObstacleList):
         tmpObstacle.append(Obstacle(tmpCorners))
     # TODO construct obstacles
     obstacles = tmpObstacle
+
+    newObstacles = True
 
 
 def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value):
@@ -52,6 +64,9 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     """
     global currentPoint
     global obstacles
+    global PRMNodes
+    global newObstacles
+    global pathPlannerConfig
     # Get target from geometry message
     xTarget = targetMessage.pose.position.x
     yTarget = targetMessage.pose.position.y
@@ -61,36 +76,67 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     rospy.logdebug(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
     base_info, _ = get_base_info()
+    all_obst = pathPlannerConfig[1]
     # Convert target and goal to node coordinates
     start = get_pixel_location_from_acml(*(xCurrent, yCurrent), *base_info)
     start = [int(start[0]), int(start[1])]
     goal = get_pixel_location_from_acml(*(xTarget, yTarget), *base_info)
     goal = [int(goal[0]), int(goal[1])]
-    # Create map reference
-    map_ref, all_obst = createMapRef(rospy.get_param("~map_ref"))
 
     if obstacles != None:
         all_obst += obstacles
-    # TODO choose right PRM func
-    traj, _, _, _ = apply_PRM_init(
-        map_ref=map_ref,
-        obstacles=all_obst,
-        start=start,
-        goal=goal,
-    )
+    # TODO modify PRM so it find the nearest node as start and goal
+    # if len(PRMNodes) != 0 and not newObstacles:
+    if False:
+        traj, _, PRMNodes, _ = apply_PRM(
+            map_ref=pathPlannerConfig[0],
+            obstacles=all_obst,
+            nodes=PRMNodes,
+            start=start,
+            goal=goal,
+        )
+    else:
+        traj, _, PRMNodes, _ = apply_PRM_init(
+            map_ref=pathPlannerConfig[0],
+            obstacles=all_obst,
+            start=start,
+            goal=goal,
+        )
+        newObstacles = False
+    edges = get_traj_edges(traj)
+
     rospy.logdebug(f"[Path Planner] PRM finished running")
     # Construct path message
     path = Path()
+    path.header.frame_id = "map"
+    i = -1
     for node in traj:
-        # Convert node back into amcl form
-        node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
-        # Create a pose => Poses are the Nodes-equivalent in ROS's path
-        pose = PoseStamped()
-        pose.pose.position.x = node.x
-        pose.pose.position.y = node.y
-        pose.pose.position.z = 0
-        # Append pose to path
-        path.poses.append(pose)
+        if i == -1:
+            # Convert node back into amcl form
+            node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
+            # Create a pose => Poses are the Nodes-equivalent in ROS's path
+            pose = PoseStamped()
+            pose.header.frame_id = "map"
+            pose.pose.position.x = node[0]
+            pose.pose.position.y = node[1]
+            pose.pose.position.z = 0
+            # Append pose to path
+            path.poses.append(pose)
+        elif float(edges[i].length) > THRESHOLD_EDGE:
+            # Convert node back into amcl form
+            node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
+            # Create a pose => Poses are the Nodes-equivalent in ROS's path
+            pose = PoseStamped()
+            pose.header.frame_id = "map"
+            pose.pose.position.x = node[0]
+            pose.pose.position.y = node[1]
+            pose.pose.position.z = 0
+            # Append pose to path
+            path.poses.append(pose)
+        else:
+            rospy.logdebug(f"[Path Planner] Skipped edge with length {edges[i]}")
+
+        i += 1
 
     # Publish path
     publisher = rospy.Publisher(pubTopic, Path, queue_size=10)
@@ -106,9 +152,11 @@ def planner():
     Runs the node itself and subscribes to all necessary topics. This is basically a adapter for the PRM\
     node and holds some utils stuff for path planning
     """
+    global pathPlannerConfig
     rospy.init_node(Nodes.PATH_PLANNER.value)
-    set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
+    pathPlannerConfig = createMapRef(rospy.get_param("~map_ref"))
     # Starts the global PRM
     globalSub = rospy.Subscriber(
         Topics.TARGET.value,

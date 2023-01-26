@@ -7,7 +7,7 @@ from sensor_msgs.msg import LaserScan
 
 from .conversions import euler2Quaternions
 
-TARGET_OFFSET_VALUE = 1.0
+TARGET_OFFSET_VALUE = 0.6
 
 
 def laser2mapConv(x, y, z, roll, pitch, yaw):
@@ -26,9 +26,7 @@ def laser2mapConv(x, y, z, roll, pitch, yaw):
         poseStamped (geometry_msgs.PoseStamped): A position in the map frame
     """
     transform_listener = tf.TransformListener()
-    transform_listener.waitForTransform(
-        "/laser_link", "/map", rospy.Time(), rospy.Duration(4.0)
-    )
+    transform_listener.waitForTransform("/laser_link", "/map", rospy.Time(), rospy.Duration(4.0))
 
     i = 0
     while i < 1:
