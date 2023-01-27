@@ -10,5 +10,7 @@
         <arg name="package_name" value="prototype" />
         <arg name="ip" value="129.69.102.217" />
    </include>
+
    <!-- Risk estimation parts -->
+   <!-- <node pkg="$(arg package_name)" name="risk_estimator" type="risk_estimator_node.py" output="screen"/> -->
 </launch>

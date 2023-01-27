@@ -9,18 +9,19 @@ import cv2
 import rospy
 from geometry_msgs.msg import Twist
 from copy import deepcopy
+import matplotlib.pylab as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 from autonomous_operation.PRM import (
     apply_PRM,
     apply_PRM_init,
 )
 from autonomous_operation.object_detection import apply_object_detection
 from autonomous_operation.object_detection import Obstacle
-
 # sys.path.insert(0, os.path.dirname(os.path.dirname(__file__))+'/yolov7')
 # from detect_online import get_conf_and_model, loaded_detect
-import matplotlib.pylab as plt
+
 
 velocity_publisher_robot = rospy.Publisher("cmd_vel_real", Twist, queue_size=10)
 

@@ -2,11 +2,16 @@ import numpy as np
 import rospy
 import matplotlib.pylab as plt
 
-from .map_config_pixel_to_acml import (
-    config_FinalGridMapv2,
-    config_FinalScannerMap1,
-)
-
+try:
+    from .map_config_pixel_to_acml import (
+        config_FinalGridMapv2,
+        config_FinalScannerMap1,
+    )
+except:
+    from map_config_pixel_to_acml import (
+        config_FinalGridMapv2,
+        config_FinalScannerMap1,
+    )
 real_data = []
 image_counter = 0
 Pose_real_data = [0, 0, 0, 0]

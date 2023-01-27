@@ -100,7 +100,15 @@ chmod+x /path/to/script.py
 
 # Basic Project Documentation
 ## Manual
-TODO add manual how to start and use prototype
+- Start roscore:
+  - Navigate to **workspace**
+  - Run ``source devel/setup.sh`` in terminal
+- Start a launch configuration:
+  - Run ``roslaunch prototype <launchfile>`` 
+    - Each launchFile has own purpose
+    - prototype.launch: Launches whole prototype stack
+    - robotControl.launch: Launches the autonomous part of the Robotino
+    - identifyAndMap.launch:
 
 ## Technical Docs
 ### ROS Topics
@@ -110,6 +118,7 @@ The prototype mainly communicates over ROS and it's Topics (implementation by Fe
 | /acml_pose           | PoseWithCovarianceStamped     | Current position of Robotino                                                         |
 | /camera_pose         | PoseWithCovarianceStamped     | Current position of Robotino based on camera only                                    |
 | /image_raw           | Image                         | Image from camera sensor                                                             |
+| /image_bb            | Image                         | Image with the bounding boxes from the object detection on it                        |
 | /target              | Point                         | Coordinate to which the Robotino should navigate                                     |
 | /target_id           | Int16                         | ID of a workstation to which the Robotino should navigate                            |
 | /path_global         | Path                          | Global trajectory of the Robotino planned by PRM                                     |
@@ -117,7 +126,10 @@ The prototype mainly communicates over ROS and it's Topics (implementation by Fe
 | /obstacles           | ObstacleList (Custom message) | List of all detected obstacles                                                       |
 | /navigation_response | Bool                          | Response from Robotino when it ended a navigation to a node in the path              |
 | /odom                | Odometry                      | Current odometry (linear/angular velocity and orientation) from Robotino             |
-
+| /my_cmd_vel          | Twist                         | Sends move commands to Robotino so it executes it                                    |
+| /lidar_enabled       | Bool                          | If LIDAR should be used. Used to simulate a failing LIDAR sensor                     |
+| /target_markers      | MarkerArray                   | Marks the workstations in rviz                                                       |
+| /target_nav_markers  | MarkerArray                   | Marks the navigation points of the workstations in rviz                              |
 ### Module overview (Most important ones)
 #### mainwindow.py
 GUI of the prototype. It's the main file (if run with gui, see manual)

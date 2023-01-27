@@ -9,11 +9,15 @@ import numpy as np
 #     from situational_awarness.object_detection_modified import Obstacle
 #     from real_robot_navigation.move_utils import *
 #     from real_robot_navigation.move_utils_cords import *
-from autonomous_operation.object_detection_modified import Obstacle
-from real_robot_navigation.move_utils import *
-from real_robot_navigation.move_utils_cords import *
-
-
+try:
+    from autonomous_operation.object_detection import Obstacle
+    from real_robot_navigation.move_utils import *
+    from real_robot_navigation.move_utils_cords import *
+except:
+    from autonomous_operation.object_detection import Obstacle
+    from move_utils import *
+    from move_utils_cords import *
+    
 def get_box_and_klapp():
     """
     This is a list of the true postions of the movable objects on the map\
@@ -31,17 +35,13 @@ def get_box_and_klapp():
     klapp = {
         "name": "klapp",
         "size": np.array([0.465, 0.48, 0.35]),
-        "location": np.array(
-            [-1.20 + 0.35 / 2 + x_shift_klapp, 0.0, 1.20 - 0.48 / 2 + y_shift_klapp]
-        ),
+        "location": np.array([-1.20 + 0.35 / 2 + x_shift_klapp, 0.0, 1.20 - 0.48 / 2 + y_shift_klapp]),
         "angle": 0,
     }
     box = {
         "name": "box",
         "size": np.array([0.482, 0.353, 0.238]),
-        "location": np.array(
-            [-1.20 + 0.238 / 2 + x_shift_box, 0.0, 2.40 - 0.353 / 2 + y_shift_box]
-        ),
+        "location": np.array([-1.20 + 0.238 / 2 + x_shift_box, 0.0, 2.40 - 0.353 / 2 + y_shift_box]),
         "angle": 0,
     }
     hocker = {
@@ -182,9 +182,7 @@ def object_grid_to_pixel(pixel_map_info, object):
     pixel_corners = []
     for corner in corners:
         pixel_corners.append(
-            get_pixel_location_from_acml(
-                *convert_grid_to_robo(corner[2], corner[0]), *pixel_map_info
-            )
+            get_pixel_location_from_acml(*convert_grid_to_robo(corner[2], corner[0]), *pixel_map_info)
         )
 
     return pixel_corners

@@ -120,7 +120,6 @@ catkin_package(
     message_runtime
 )
 
-# TODO Include all scripts
 catkin_install_python(PROGRAMS 
                   scripts/path_planner_node.py 
                   scripts/fleetias_client_node.py 
@@ -128,7 +127,7 @@ catkin_install_python(PROGRAMS
                   scripts/localization_node.py 
                   scripts/object_detection_node.py
                   scripts/control_node.py
-                  scripts/risk_estimator.py
+                  scripts/risk_estimator_node.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########
