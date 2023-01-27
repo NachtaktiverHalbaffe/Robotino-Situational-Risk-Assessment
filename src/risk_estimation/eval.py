@@ -136,15 +136,11 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         n_reset_nodes = 300
         if (episode % n_reset_nodes == 0) or episode == 1:
             # Has run n_reset_nodes => sample new graph for PRM and new trajectory
-            observation, traj_vanilla = env.reset(
-                "adv1", new_nodes=True, start=config["start"], goal=config["goal"]
-            )
+            observation, traj_vanilla = env.reset("adv1", new_nodes=True, start=config["start"], goal=config["goal"])
             obeservation_orig = observation
         else:
             # Hasn't run n_reset_nodes => just sample new trajectory
-            observation, traj_vanilla = env.reset(
-                "adv1", start=config["start"], goal=config["goal"]
-            )
+            observation, traj_vanilla = env.reset("adv1", start=config["start"], goal=config["goal"])
         # Get stop time of resetting process
         reset_total_time += time.perf_counter() - t2
 
@@ -174,11 +170,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
 
         pc_ida_max = 0
         # Run bruteforce or ida-bruteforc-combination if specified and if we don't train
-        if (
-            test_mode == True
-            and mcts_eval == "BRUTE_FORCE"
-            or ida_brute_combine == True
-        ):
+        if test_mode == True and mcts_eval == "BRUTE_FORCE" or ida_brute_combine == True:
             t4 = time.perf_counter()
             (
                 observation_,
@@ -209,9 +201,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                 ##############################
                 # Choose and perform one action in simulation environment
                 # Necessary? It is also done after this again
-                action_index, prob, val, raw_probs = adv1.choose_action(
-                    observation, test_mode=r
-                )
+                action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=r)
 
             if test_mode:
                 # Don't run step for bruteforce because it's already done before the loop
@@ -221,9 +211,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                 # Run steps for IDA or IDA-bruteforce-combination
                 if mcts_eval == "IDA" or ida_brute_combine == True:
                     # Choose and perform one action in simulation environment
-                    action_index, prob, val, raw_probs = adv1.choose_action(
-                        observation, test_mode=r
-                    )
+                    action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=r)
                     # choosing the position offset
                     pos_offset = choose_action(action_index)
                     action_prob_value = action_prob(action_index)
@@ -281,20 +269,14 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                     collision_ida.append(1)
                     print(
                         "\U0000274c",
-                        bcolors.BOLD
-                        + bcolors.FAIL
-                        + "Collision occured and not reached"
-                        + bcolors.ENDC,
+                        bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC,
                     )
 
                 else:
                     collision_ida.append(0)
                     print(
                         "\U00002705",
-                        bcolors.BOLD
-                        + bcolors.OKGREEN
-                        + "Reached at the destination"
-                        + bcolors.ENDC,
+                        bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC,
                     )
 
                 if test_mode:
@@ -331,10 +313,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                             """ Previous"""
                             action_angle_offset = np.deg2rad(
                                 ACTION_SPACE_STEP_ADVERSARY * new_action_index
-                                - (
-                                    int(config["N_actions"] / 2)
-                                    * ACTION_SPACE_STEP_ADVERSARY
-                                )
+                                - (int(config["N_actions"] / 2) * ACTION_SPACE_STEP_ADVERSARY)
                             )
                             (
                                 observation_,
@@ -361,10 +340,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                                     collision_ida.append(0)
                                     print(
                                         "\U00002705",
-                                        bcolors.BOLD
-                                        + bcolors.OKBLUE
-                                        + "Reached at the destination"
-                                        + bcolors.ENDC,
+                                        bcolors.BOLD + bcolors.OKBLUE + "Reached at the destination" + bcolors.ENDC,
                                     )
                                 while not done:
                                     (
@@ -382,10 +358,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                                     """ Previous"""
                                     action_angle_offset = np.deg2rad(
                                         ACTION_SPACE_STEP_ADVERSARY * action_index
-                                        - (
-                                            int(config["N_actions"] / 2)
-                                            * ACTION_SPACE_STEP_ADVERSARY
-                                        )
+                                        - (int(config["N_actions"] / 2) * ACTION_SPACE_STEP_ADVERSARY)
                                     )
                                     (
                                         observation_,
@@ -394,23 +367,14 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
                                         collision_status,
                                         _,
                                         position_old,
-                                    ) = env.step_adv1(
-                                        action_angle_offset, action_prob_value
-                                    )
+                                    ) = env.step_adv1(action_angle_offset, action_prob_value)
 
-                                    probs_all = np.round(
-                                        raw_probs.cpu().detach().numpy().squeeze(0), 4
-                                    )
+                                    probs_all = np.round(raw_probs.cpu().detach().numpy().squeeze(0), 4)
                                     probs.append(probs_all)
                                     positions.append(position_old)
 
                                     if done:
-                                        (
-                                            new_action_index,
-                                            prob_prev,
-                                            node_num,
-                                            pos_prev,
-                                        ) = mcts.find_best_child(
+                                        (new_action_index, prob_prev, node_num, pos_prev,) = mcts.find_best_child(
                                             probs,
                                             positions,
                                             node_num,
@@ -458,10 +422,7 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
             total_success = sum(x == 0 for x in collision_ida)
             total_collisions = sum(x == 1 for x in collision_ida)
             residual = (
-                (
-                    (total_collisions - total_success + constant)
-                    / (total_success + total_collisions + constant)
-                )
+                ((total_collisions - total_success + constant) / (total_success + total_collisions + constant))
                 * (1 / (len(traj_vanilla) - step_counter + constant))
                 * learning_rate
             )

@@ -4,31 +4,28 @@ necessary utils function needed for the localization. For this purposed, all glo
 are moved to function arguments
 """
 import os, sys
+from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)) + "/yolov7")
+from yolov7.detect_online import get_conf_and_model
 
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
-PATH_ERRORDIST_LOC_X1 = "logs/error_dist_csvs/loc/error_dist_loc_x1.csv"
-PATH_ERRORDIST_LOC_Y1 = "logs/error_dist_csvs/loc/error_dist_loc_y1.csv"
-PATH_ERRORDIST_LOC_ROT = "logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv"
-PATH_ERRORDIST_LOC_DIST = "logs/error_dist_csvs/loc/error_dist_loc_dist1.csv"
-PATH_ERRORDIST_LOC = "logs/error_dist_csvs/loc/error_dist_loc1.csv"
-PATH_ERRORDIST_LOC_FILTERED = (
-    "logs/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv"
-)
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
-PATH_ERRORDIST_PRM_LOC_X1 = "logs/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_Y1 = "logs/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_ROT = (
-    "logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv"
-)
-PATH_ERRORDIST_PRM_LOC_DIST = "logs/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC = "logs/error_dist_csvs/loc/error_dist_loc_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_FILTERED = (
-    "logs/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv"
-)
+PATH_ERRORDIST_LOC_X1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_x1.csv"
+PATH_ERRORDIST_LOC_Y1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_y1.csv"
+PATH_ERRORDIST_LOC_ROT = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv"
+PATH_ERRORDIST_LOC_DIST = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist1.csv"
+PATH_ERRORDIST_LOC = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc1.csv"
+PATH_ERRORDIST_LOC_FILTERED = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv"
+
+PATH_ERRORDIST_PRM_LOC_X1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_Y1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_ROT = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_DIST = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_FILTERED = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv"
 
 
 def get_dists_workstation(corners_map_all, obstacle):
@@ -92,10 +89,7 @@ def best_match_workstation_index(
         old_rot_assumption = local_acml_location[3]
     # calculating rotation from detected and cord transforms
     # detected_rotations = -(np.array(rots_ws)-rotation_detected.numpy()+np.pi-1.204)
-    detected_rotations = (
-        -(np.array(rots_ws) - rotation_detected.numpy() + np.pi - map_config["rot"])
-        + 2 * np.pi
-    )
+    detected_rotations = -(np.array(rots_ws) - rotation_detected.numpy() + np.pi - map_config["rot"]) + 2 * np.pi
     dists_rot = deepcopy(detected_rotations)
     for rot, i in zip(detected_rotations, range(len(detected_rotations))):
         rot_shift = float(
@@ -138,9 +132,7 @@ def best_match_workstation_index(
     return arg_smallest_dist
 
 
-def get_obstacles_from_detection(
-    detected_workstation_dist, local_acml_location, base_info
-):
+def get_obstacles_from_detection(detected_workstation_dist, local_acml_location, base_info):
     """
     Rurns the info provided by the object detection into an obstacle
 
@@ -286,3 +278,46 @@ def draw_map_location_acml(
     )
 
     return acml_x, acml_y, acml_rot
+
+
+def initCV(pathWeights, map_path):
+    """
+    Initializes the networks and maps used by the camera based localization and object detection
+
+    Args:
+        pathWeights (str): Path to the weights of the YOLOv7 network
+
+    Returns:
+        A dictionary with following entries:
+            - conf_network: the loaded weights from the network
+            - base_info:
+            - map_config: map configuration
+            - obstacles_ws: detected workstations as obstacles
+            - obstacles_movable: detected obstacles
+            - names_movables: names/classes of the detected obstacles
+            - map_ref: map reference
+    """
+    # Loads the models
+    conf_network = get_conf_and_model(pathWeights)
+    # gets the set of calibration data that needs to measured for each new png map
+    base_info, map_config = get_base_info()
+    # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
+    obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
+    # # the movable obstacles that need to be placed in the robots way
+    obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, "movable")
+    # # loading the png of the map and running the old detection system on it also configures the map to the right type
+    map_ref, obstacles = initialize_map(map_path)
+    # # removing the obstacles from the map, adding the workstations, removing old should not be needed if we have a new map, TODO new map add new obstacles such as klappbox, chair and box
+    map_ref = modify_map(map_ref, obstacles, obstacles_ws, color=(255, 0, 255), convert_back_to_grey=True)
+    # # adding the movable objects
+    map_ref = modify_map(map_ref, [], obstacles_movable, color=(255, 0, 0), convert_back_to_grey=True)
+
+    return {
+        "conf_network": conf_network,
+        "base_info": base_info,
+        "map_config": map_config,
+        "obstacles_ws": obstacles_ws,
+        "obstacles_movable": obstacles_movable,
+        "names_movables": names_movables,
+        "map_ref": map_ref,
+    }
