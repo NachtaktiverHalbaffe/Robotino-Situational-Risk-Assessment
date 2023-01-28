@@ -45,7 +45,32 @@ def load_model_and_conf(opt, calc_3d = True, plot_3d = True):
     device = select_device(opt.device)
 
     # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
+    #model = attempt_load(weights, map_location=device)  # load FP32 model
+    #######################################################################################
+    #### if it works change it so that the locations are passed and match what you need####
+    #######################################################################################
+    import yaml
+    from models.yolo import Model
+    # load state dict
+    loaded_state_dict = torch.load('./yolov7/weights/statedict_ws_tiny5.pt')
+    # get hyperparamters, these are the same for both models
+    hyp_loc = './yolov7/data/hyp.scratch.custom.yaml'
+    with open(hyp_loc) as f:
+        hyp = yaml.load(f, Loader=yaml.SafeLoader)  # load hyps
+    # load cfg, this is different for each
+    ### this is for workstations###
+    cfg = './yolov7/cfg/training/yolov7-tiny_robo_ws.yaml'
+    nc = 2# amount of classes, the same as in the cfg file
+    ### this is for movable ###
+    # cfg = './yolov7/cfg/training/yolov7-tiny_robo_movable.yaml'
+    # nc = 10
+    model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to('cpu')
+    model.load_state_dict(loaded_state_dict)
+
+
+
+
+
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
