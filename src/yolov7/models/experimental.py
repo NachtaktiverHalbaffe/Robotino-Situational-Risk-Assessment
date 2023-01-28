@@ -6,9 +6,11 @@ import sys, os
 import torch.nn as nn
 
 try:
+    # If run with ros launchfile
     from common import Conv, DWConv
     from ..utils.google_utils import attempt_download
 except:
+    # If run from a regular python file
     from .common import Conv, DWConv
 
     # from .utils.google_utils import attempt_download

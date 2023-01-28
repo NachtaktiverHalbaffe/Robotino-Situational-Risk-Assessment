@@ -39,7 +39,7 @@
 
     <!-- Situational awarness -->
     <node pkg="$(arg package_name)" name="localization" type="localization_node.py" output="screen" required ="true">
-        <param name="weights_path" value="$(arg path)/src/yolov7/weights/ws_tiny5.pt"/>
+        <param name="weights_path" value="$(arg path)/src/yolov7/weights/statedict_ws_tiny5.pt"/>
     </node>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" >
         <param name="weights_path" value ="$(arg path)/src/yolov7/weights/tiny10_hocker.pt"/>

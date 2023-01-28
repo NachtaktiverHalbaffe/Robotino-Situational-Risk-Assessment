@@ -13,6 +13,7 @@ from PIL import Image
 from torch.cuda import amp
 
 try:
+    # If run with ros launchfile
     from ..utils.datasets import letterbox
     from ..utils.general import (
         non_max_suppression,
@@ -24,6 +25,7 @@ try:
     from ..utils.plots import color_list, plot_one_box
     from ..utils.torch_utils import time_synchronized
 except:
+    # If run from a regular python file
     from utils.datasets import letterbox
     from utils.general import (
         non_max_suppression,

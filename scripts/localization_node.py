@@ -222,8 +222,7 @@ def localization():
     rospy.init_node(Nodes.LOCALIZATION.value)
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
-    # conf_network = get_conf_and_model(rospy.get_param("~weights_path"))
-    # config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
+    config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
     # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=1)
     # Saves the acml data to a global variable so the localization can use them

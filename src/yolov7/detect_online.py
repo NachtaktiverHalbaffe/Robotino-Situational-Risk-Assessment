@@ -1,42 +1,51 @@
 import argparse
 import time
 from pathlib import Path
-import sys
-import rospy
+import sys, os
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
 import numpy as np
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
 
-sys.path.insert(0, "./yolov7")
-
-from .models.experimental import attempt_load
-from .utils.datasets import LoadStreams, LoadImages, LoadImagesDelivered
-from .utils.general import (
-    check_img_size,
-    check_requirements,
-    check_imshow,
-    non_max_suppression,
-    apply_classifier,
-    scale_coords,
-    xyxy2xywh,
-    strip_optimizer,
-    set_logging,
-    increment_path,
-)
-
-# from utils.constants import Topics
-from .utils.plots import plot_one_box, plot_3d_box
-from .utils.torch_utils import (
-    select_device,
-    load_classifier,
-    time_synchronized,
-    TracedModel,
-)
-from .utils.convert2d_to_3d import convert_2d_3d
+sys.path.append("./yolov7")
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+try:
+    from .models.experimental import attempt_load
+    from .utils.datasets import LoadStreams, LoadImages, LoadImagesDelivered
+    from .utils.general import (
+        check_img_size,
+        check_requirements,
+        check_imshow,
+        non_max_suppression,
+        apply_classifier,
+        scale_coords,
+        xyxy2xywh,
+        strip_optimizer,
+        set_logging,
+        increment_path,
+    )
+    from .utils.plots import plot_one_box, plot_3d_box
+    from .utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+    from .utils.convert2d_to_3d import convert_2d_3d
+except:
+    from models.experimental import attempt_load
+    from utils.datasets import LoadStreams, LoadImages, LoadImagesDelivered
+    from utils.general import (
+        check_img_size,
+        check_requirements,
+        check_imshow,
+        non_max_suppression,
+        apply_classifier,
+        scale_coords,
+        xyxy2xywh,
+        strip_optimizer,
+        set_logging,
+        increment_path,
+    )
+    from utils.plots import plot_one_box, plot_3d_box
+    from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+    from utils.convert2d_to_3d import convert_2d_3d
 
 
 def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
@@ -67,19 +76,45 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
         ]
     )
 
-    weights, view_img, imgsz, trace = (
-        opt.weights,
-        opt.view_img,
-        opt.img_size,
-        not opt.no_trace,
-    )
+    weights, view_img, imgsz, trace = opt.weights, opt.view_img, opt.img_size, not opt.no_trace
 
     # Initialize
     set_logging()
     device = select_device(opt.device)
-
     # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
+
+    try:
+        # If run with ros launchfile
+        import yaml
+        from .models.yolo import Model
+    except:
+        # If run from a regular python file
+        sys.path.append("./yolov7")
+        import yaml
+        from .models.yolo import Model
+    # load state dict
+    loaded_state_dict = torch.load(
+        weights[0],
+        map_location=device,
+    )
+    # get hyperparamters, these are the same for both models
+    hyp_loc = f"{PATH}/src/yolov7/data/hyp.scratch.custom.yaml"
+    with open(hyp_loc) as f:
+        hyp = yaml.load(f, Loader=yaml.SafeLoader)  # load hyps
+    # load cfg, this is different for each
+
+    if "ws" in weights[0].lower():
+        ### this is for workstations###
+        cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_ws.yaml"
+        nc = 2  # amount of classes, the same as in the cfg file
+    else:
+        ### this is for movable ###
+        cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_movable.yaml"
+        nc = 10
+
+    model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to("cpu")
+    model.load_state_dict(loaded_state_dict)
+
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
@@ -90,56 +125,27 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
     names = model.module.names if hasattr(model, "module") else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
-    return (
-        imgsz,
-        stride,
-        device,
-        model,
-        opt,
-        names,
-        view_img,
-        colors,
-        calc_3d,
-        p_matrix,
-        plot_3d,
-    )
+    return (imgsz, stride, device, model, opt, names, view_img, colors, calc_3d, p_matrix, plot_3d)
 
 
 def loaded_detect(
-    limg,
-    imgsz,
-    stride,
-    device,
-    model,
-    opt,
-    names,
-    view_img,
-    colors,
-    calc_3d,
-    p_matrix,
-    plot_3d,
-    show=True,
+    limg, imgsz, stride, device, model, opt, names, view_img, colors, calc_3d, p_matrix, plot_3d, show=True
 ):
-    """
-    Run the detection for a passed image, also passes the bb to the 2d->3d converter
-
-    Args:
-        limg: the img to run detection on
-        imgz: size of the img
-        stride: stride for letterboxing
-        device: if gpu should be used
-        model: the nn model
-        opt: set of arguments used in detection
-        names: name of the object types that can be detected
-        view_img: if the detection should be displayed
-        colors: colors used for different types when showing the bounding boxes
-        calc_3d: if the 3d boxes should calculated
-        p_matrix: the projection matrix of the image to display the 3d boxes
-        plot_3d: if the 3d boxes should be plot
-
-    Returns:
-        h_options[(0,2),4:8]: the birdseye view corners for the highest confidence box that is fully in view,non if no detection
-        h_shifts[-1]: the detected rotation, None if no detection
+    """run the detection for a passed image, also passes the bb to the 2d->3d converter
+    @param limg: the img to run detection on
+    @param imgz: size of the img
+    @param stride: stride for letterboxing
+    @param device: if gpu should be used
+    @param model: the nn model
+    @param opt: set of arguments used in detection
+    @param names: name of the object types that can be detected
+    @param view_img: if the detection should be displayed
+    @param colors: colors used for different types when showing the bounding boxes
+    @param calc_3d: if the 3d boxes should calculated
+    @param p_matrix: the projection matrix of the image to display the 3d boxes
+    @param plot_3d: if the 3d boxes should be plot
+    @return h_options[(0,2),4:8]: the birdseye view corners for the highest confidence box that is fully in view,non if no detection
+    @return h_shifts[-1]: the detected rotation, None if no detection
     """
     t0 = time.time()
     dataset = LoadImagesDelivered(img_size=imgsz, stride=stride, limg=limg)
@@ -158,13 +164,7 @@ def loaded_detect(
         t2 = time_synchronized()
 
         # Apply NMS
-        pred = non_max_suppression(
-            pred,
-            opt.conf_thres,
-            opt.iou_thres,
-            classes=opt.classes,
-            agnostic=opt.agnostic_nms,
-        )
+        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
 
         # Process detections
@@ -182,13 +182,7 @@ def loaded_detect(
                         if calc_3d:
                             corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
                         if view_img:  # Add bbox to image
-                            plot_one_box(
-                                xyxy,
-                                im0,
-                                label=label,
-                                color=colors[int(cls)],
-                                line_thickness=1,
-                            )
+                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
                         if calc_3d and not boundry:
                             for options in corners_3d:
                                 # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
@@ -198,20 +192,12 @@ def loaded_detect(
                                         im0,
                                         p_matrix,
                                         label=label,
-                                        color=[
-                                            random.randint(0, 255),
-                                            random.randint(0, 255),
-                                            random.randint(0, 255),
-                                        ],
+                                        color=[random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)],
                                         line_thickness=1,
                                     )
                                     if show:
                                         cv2.imshow("Detections", im0)
                                         cv2.waitKey(1)  # 1 millisecond
-                                        bridge = CvBridge()
-                                        imgMsg = bridge.cv2_to_imgmsg(im0, encoding="passthrough")
-                                        rospy.Publisher(Topics.IMAGE_BB.value, Image).publish(imgMsg)
-
                                 h_shifts = shifts
                                 h_options = options
                                 detec_dict = {
@@ -300,28 +286,20 @@ def detect_args_parse(args):
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
     parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
     parser.add_argument("--nosave", action="store_true", help="do not save images/videos")
-    parser.add_argument(
-        "--classes",
-        nargs="+",
-        type=int,
-        help="filter by class: --class 0, or --class 0 2 3",
-    )
+    parser.add_argument("--classes", nargs="+", type=int, help="filter by class: --class 0, or --class 0 2 3")
     parser.add_argument("--agnostic-nms", action="store_true", help="class-agnostic NMS")
     parser.add_argument("--augment", action="store_true", help="augmented inference")
     parser.add_argument("--update", action="store_true", help="update all models")
     parser.add_argument("--project", default="runs/detect", help="save results to project/name")
     parser.add_argument("--name", default="exp", help="save results to project/name")
-    parser.add_argument(
-        "--exist-ok",
-        action="store_true",
-        help="existing project/name ok, do not increment",
-    )
+    parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
     parser.add_argument("--no-trace", action="store_true", help="don`t trace model")
-    opt, unknown = parser.parse_known_args()
+    opt, _ = parser.parse_known_args()
     opt = parser.parse_args(args)
     opt.nosave = True
     opt.view_img = True
     opt.save_txt = False
+    print(opt)
     # check_requirements(exclude=('pycocotools', 'thop'))
 
     with torch.no_grad():
@@ -345,8 +323,8 @@ def get_conf_and_model(weights="yolov7/weights/ws_tiny5.pt"):
     args.extend(["--weights", weights])
     args.extend(["--conf", "0.50", "--view-img", "--no-trace"])
     args.extend(["--img-size", "640"])
+
     conf = detect_args_parse(args)
-    print(f"Yolo conf: {conf}")
     return conf
 
 
