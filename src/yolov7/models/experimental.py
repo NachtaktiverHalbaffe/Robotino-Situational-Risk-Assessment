@@ -1,11 +1,17 @@
+from pathlib import Path
 import numpy as np
 import random
 import torch
+import sys, os
 import torch.nn as nn
 
-from .common import Conv, DWConv
+try:
+    from common import Conv, DWConv
+    from ..utils.google_utils import attempt_download
+except:
+    from .common import Conv, DWConv
 
-from ..utils.google_utils import attempt_download
+    # from .utils.google_utils import attempt_download
 
 
 class CrossConv(nn.Module):
@@ -213,6 +219,7 @@ class ONNX_ORT(nn.Module):
         selected_boxes = boxes[X, Y, :]
         selected_categories = category_id[X, Y, :].float()
         selected_scores = max_score[X, Y, :]
+
         X = X.unsqueeze(1).float()
         return torch.cat([X, selected_boxes, selected_categories, selected_scores], 1)
 
@@ -247,7 +254,7 @@ class ONNX_TRT(nn.Module):
         scores = x[:, :, 5:]
         if self.n_classes == 1:
             scores = conf  # for models with one class, cls_loss is 0 and cls_conf is always 0.5,
-            # so there is no need to multiplicate.
+            # so there is no need to multiplicate.    # conf_network = get_conf_and_model(pathWeights)
         else:
             scores *= conf  # conf = obj_conf * cls_conf
         num_det, det_boxes, det_scores, det_classes = TRT_NMS.apply(
@@ -286,18 +293,15 @@ class End2End(nn.Module):
         self.end2end = self.patch_model(max_obj, iou_thres, score_thres, max_wh, device, n_classes)
         self.end2end.eval()
 
-    def forward(self, x):
-        x = self.model(x)
-        x = self.end2end(x)
-        return x
-
 
 def attempt_load(weights, map_location=None):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        attempt_download(w)
-        ckpt = torch.load(w, map_location=map_location)  # load
+        # attempt_download(w)
+        ckpt = torch.load(w, map_location="cpu")  # load
+        # model.load_state_dict(torch.load(w))
+        print("Torch loaded")
         model.append(ckpt["ema" if ckpt.get("ema") else "model"].float().fuse().eval())  # FP32 model
 
     # Compatibility updates

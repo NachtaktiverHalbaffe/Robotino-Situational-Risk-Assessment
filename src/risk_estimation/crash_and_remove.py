@@ -108,6 +108,7 @@ def run_crash_and_remove(
     attempts=10,
     expand_length=3,
     amount_of_exploration=10,
+    initialTraj=None,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -115,15 +116,21 @@ def run_crash_and_remove(
     crashes. The potential crashes are then evaluated with a small brute force expansion to obtain the
     risk of the trajectory.
     It uses a combination of a PPO agent and a Brute force agent to calculate the risk.
-    @param configs: a dictionary containing configurations for the environment and the agents
-    @param env_name: a string representing the name of the environment to be used, gym uses this to load the env
-    @param use_brute_force_baseline: a boolean indicating whether to use brute force as a baseline
-    @param save_location: a string representing the filepath to save the results
-    @param replay_on: a boolean indicating whether to replay a previous simulation
-    @param load_location: a string representing the filepath to load previous results
-    @param attempts: an integer representing the number of trajectories to simulation and evaluate
-    @param expand_length: an integer representing the length of the brute for search around a collision
-    @param amount_of_exploration: an integer representing the number of attemts the agent gets to find a
+
+    Args:
+        configs (dict): a dictionary containing configurations for the environment and the agents
+        env_name (str): a string representing the name of the environment to be used, gym uses this to load the env
+        use_brute_force_baseline (bool, optional): a boolean indicating whether to use brute force as a baseline. Defauls to False
+        save_location (str, optional): filepath to save the results
+        replay_on (bool, optional): Indicating whether to replay a previous simulation. Defaults to False
+        load_location (str, optional): Filepath to load previous results. Defaults to None
+        attempts (int, optional): Number of trajectories to simulation and evaluate. Defaults to 10
+        expand_length (int, optional): Length of the brute for search around a collision. Defaults to 3
+        amount_of_exploration (int, optional): Number of attemts the agent gets to find a collision. Defaults to 10
+        intialTraj( list of coordinates): Initial trajectory for which the risk estimation should be run. Defaults to None
+
+    Returns:
+        into a dict:
     """
 
     "loading the agent and the environment"
@@ -158,6 +165,8 @@ def run_crash_and_remove(
 
     # for i in range(len)
     all_obst = deepcopy(env.env_real.obstacles)
+
+    # Replay
     if load_location is not None:
         file = open(load_location, "rb")
         df = pkl.load(file)
@@ -188,9 +197,9 @@ def run_crash_and_remove(
             observation, traj_vanilla = env.env_real.reset(
                 "adv1", start=[93, 122], goal=configs["goal"], new_traj=True, forced_traj=loaded_run_info["traj"]
             )
-        else:
+        elif initialTraj != None:
             observation, traj_vanilla = env.env_real.reset(
-                "adv1", start=[93, 122], goal=configs["goal"], new_traj=True
+                "adv1", start=[93, 122], goal=configs["goal"], new_traj=True, forced_traj=initialTraj
             )
         traj_vanilla_org = deepcopy(traj_vanilla)
 
@@ -330,25 +339,27 @@ def run_crash_and_remove(
                 pkl.dump(df_save, filehandler)
                 filehandler.close()
 
+    data = {
+        "rl_prob": rl_list,
+        "brute_prob": brute_force_list,
+        "traj": traj_list,
+        "len_traj": traj_list,
+        "len_traj_list_in_m": len_traj_list_in_m,
+        "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
+        "wall_discards": wall_discards,
+    }
+
     "save the final results"
     if not replay_on:
-        df_save = pd.DataFrame(
-            {
-                "rl_prob": rl_list,
-                "brute_prob": brute_force_list,
-                "traj": traj_list,
-                "len_traj": traj_list,
-                "len_traj_list_in_m": len_traj_list_in_m,
-                "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
-                "wall_discards": wall_discards,
-            }
-        )
+        df_save = pd.DataFrame(data)
 
         filehandler = open(save_location, "wb")
         pkl.dump(df_save, filehandler)
         filehandler.close()
 
         print("wall_discards", wall_discards)
+
+    return data
 
 
 if __name__ == "__main__":

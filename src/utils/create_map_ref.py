@@ -1,7 +1,10 @@
+import os
 from copy import deepcopy
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 from real_robot_navigation.move_utils import initialize_map, modify_map
 from real_robot_navigation.move_utils_cords import get_base_info
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 
 def createMapRef(mapPath: str):
@@ -17,10 +20,9 @@ def createMapRef(mapPath: str):
     """
     base_info, _ = get_base_info()
     obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
-    obstacles_movable, _ = get_obstacles_in_pixel_map(base_info, "movable")
     map_ref, obstacles = initialize_map(mapPath)
     map_ref = modify_map(map_ref, obstacles, obstacles_ws, color=(255, 255, 255))
-    map_ref = modify_map(map_ref, [], obstacles_movable, color=(255, 255, 255))
-    all_obst = deepcopy(obstacles_ws) + deepcopy(obstacles_movable)
+    all_obst = deepcopy(obstacles_ws) + deepcopy(obstacles)  # + deepcopy(obstacles_movable)
+    map_ref.save(f"{PATH}/maps/map_ref.png")
 
     return map_ref, all_obst

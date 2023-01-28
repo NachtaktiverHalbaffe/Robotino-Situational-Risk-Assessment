@@ -11,6 +11,8 @@ import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
+sys.path.insert(0, "./yolov7")
+
 from .models.experimental import attempt_load
 from .utils.datasets import LoadStreams, LoadImages, LoadImagesDelivered
 from .utils.general import (
@@ -25,7 +27,8 @@ from .utils.general import (
     set_logging,
     increment_path,
 )
-from utils.constants import Topics
+
+# from utils.constants import Topics
 from .utils.plots import plot_one_box, plot_3d_box
 from .utils.torch_utils import (
     select_device,

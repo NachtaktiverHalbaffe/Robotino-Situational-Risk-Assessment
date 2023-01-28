@@ -44,7 +44,6 @@ def setObstacles(obstaclesList: ObstacleList):
             tmpCorners.append((corner.position.x, corner.position.y))
         # Create Obstacle
         tmpObstacle.append(Obstacle(tmpCorners))
-    # TODO construct obstacles
     obstacles = tmpObstacle
 
     newObstacles = True

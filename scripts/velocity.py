@@ -91,7 +91,6 @@ def move(path=[], direction=[], orientation=[], vel=0.15):
 
     rate = rospy.Rate(0.5)
     rate.sleep()
-    print("Initializations")
     t0 = rospy.Time.now().to_sec()
 
     for t, d, o in zip(path, direction, orientation):

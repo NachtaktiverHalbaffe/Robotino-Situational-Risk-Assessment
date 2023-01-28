@@ -62,7 +62,7 @@ def localiseCam():
     # amcl_rot_radians = 2 * np.arcsin(local_acml_location[3])
     # acml_x, acml_y, acml_rot = draw_map_location_acml(
     #     local_acml_location[1],
-    #     local_acml_location[2],
+    #     local_acml_location[2],rospy.get_param("~weights_path"
     #     amcl_rot_radians,
     #     map_ref_loc_draw,
     #     base_info,
@@ -107,7 +107,7 @@ def localiseCam():
         #     [config["obstacles_ws"][index_smallest_dist_ws]],
         #     color=(255, 0, 0),
         #     convert_back_to_grey=False,
-        # )
+        # )rospy.get_param("~weights_path"
         # map_ref_loc = modify_map(
         #     map_ref_loc,
         #     [],
@@ -138,11 +138,7 @@ def localiseCam():
         #     *loc_detec,
         #     detected_rotation,
         #     map_ref_loc_draw,
-        #     config["base_info"],
-        #     acml_x,
-        #     acml_y,
-        #     acml_rot,
-        #     color_FoV=(0, 0, 255),
+        #     config["base_info"],)rospy.get_param("~weights_path"
         #     color_outer=(0, 255, 0),
         # )
 
@@ -222,12 +218,12 @@ def localization():
     global useLidar
     global config
     useLidar = True
+
     rospy.init_node(Nodes.LOCALIZATION.value)
-    # set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
-
-    config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
-
+    # conf_network = get_conf_and_model(rospy.get_param("~weights_path"))
+    # config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
     # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=1)
     # Saves the acml data to a global variable so the localization can use them
@@ -269,7 +265,7 @@ def localization():
                 f"Could publish localization message to topic {Topics.LOCALIZATION.value}: Error occured.\nException: {e} "
             )
 
-        rate.sleep()
+    rate.sleep()
 
 
 if __name__ == "__main__":

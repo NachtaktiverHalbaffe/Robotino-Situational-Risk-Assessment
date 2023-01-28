@@ -40,7 +40,6 @@ def moveBaseClient(path: Path):
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
     for node in path.poses[1:]:
         client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        # TODO Create first message
         # Creates a new goal with the MoveBaseGoal constructor
         goal = MoveBaseGoal()
         # feedback = MoveBaseFeedback()
@@ -177,7 +176,6 @@ def strategyPlanner(runWithRiskEstimation=True):
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
     if not runWithRiskEstimation:
         # Just drive the trajectory
-        # TODO Change to move_base
         rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient, queue_size=1)
         # rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, execute)
         # rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])

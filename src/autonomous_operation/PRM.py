@@ -2,7 +2,7 @@ import math
 import time
 import numpy as np
 from PIL import Image, ImageDraw
-import random
+import rospy
 import copy
 import time
 import sys, os
@@ -154,8 +154,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
             nodes.append(Node(random_x, random_y))
 
     im_with_nodes = Image.fromarray(pixels.astype("uint8"), mode="L")
-    # TODO better logging
-    # print(f"Number of Nodes: {len(nodes)}")
+    rospy.logdebug(f"[PRM] Number of Nodes: {len(nodes)}")
     return im_with_nodes, nodes
 
 
@@ -569,7 +568,6 @@ def calc_cost(ref_map, colored_map, coordinates):
     return 0
 
 
-# TODO: hier weiter machen
 def grayscale_to_cost(grayscale):
     """
     Maps all relevant grayscale values to a specific cost value. For now only binary costs is used (white or black)
@@ -602,7 +600,7 @@ def grayscale_to_cost(grayscale):
     elif grayscale == 154:
         cost = 5000
     else:
-        print("graph leads over a pixel color that should not exist in the reference-map !!!!!!")
+        rospy.logwarn("[PRM] Graph leads over a pixel color that should not exist in the reference-map !!!!!!")
 
     return cost
 
@@ -909,7 +907,7 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
 
     nodes_copy = copy.copy(nodes)
     map_visu.save(f"{PATH}/maps/map_graph.png")
-    # print("time add_neighbours:", time.perf_counter() - t0)
+    rospy.logdebug("[PRM] Time add_neighbours:", time.perf_counter() - t0)
 
     """" Uncomment this code to give your own path"""
     # start_node = get_node_with_coordinates(nodes, np.array(starts))
@@ -924,8 +922,8 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
 
     # calculate and draw trajectory with deijkstra's algorithm
     traj = deijkstra(nodes, start_node, goal_node)
-    # print("time deijkstra:", time.perf_counter() - t2)
-    # print("trajectory:", get_traj_edges(traj))
+    rospy.logdebug("[PRM] Time deijkstra:", time.perf_counter() - t2)
+    rospy.logdebug("[PRM] Trajectory:", get_traj_edges(traj))
     # visualize_traj(map_visu, traj)     # use for a visualization of the traj. with the whole graph also
     map_visu = copy.deepcopy(map_ref)
     draw_traj(map_visu, traj, False)
@@ -933,7 +931,6 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
     map_visu.save(f"{PATH}/image/map_traj.png")
 
     map_visu, traj_opt = optimize_trajectory(map_ref_copy, traj)
-    # print('trajectory optimized:', get_traj_edges(traj_opt))
 
     map_visu.save(f"{PATH}/image/map_opt_traj.png")
 
@@ -997,13 +994,9 @@ def apply_PRM(
 
     # visualize_traj(map_visu, traj)     # use for a visualization of the traj. with the whole graph also
     if visualize:
-        map_visu = copy.deepcopy(map_ref)  # debug
-        draw_traj(map_visu, traj, False)  # debug
-        map_visu.save(f"{PATH}/image/map_traj.png")  # debug
-
-    # t2 = time.perf_counter()
-    # map_visu, traj_opt = optimize_trajectory(map_ref_copy, traj)
-    # opt_traj_time = time.perf_counter()-t2
+        map_visu = copy.deepcopy(map_ref)
+        draw_traj(map_visu, traj, False)
+        map_visu.save(f"{PATH}/image/map_traj.png")
     traj_opt = None
 
     return traj, traj_opt, nodes, edges_change_back
