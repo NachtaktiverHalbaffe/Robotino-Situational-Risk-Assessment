@@ -19,7 +19,8 @@ Pose_real_data = [0, 0, 0, 0]
 
 def convert_robo_to_grid(x_r, y_r):
     "applies the roation of -69° to the robo cords to get the crods in the grind we measure on"
-    global rot_glob
+    config_Map = config_FinalGridMapv2
+    rot_glob = config_Map["rot"]
     x_g = x_r * np.cos(-rot_glob) - y_r * np.sin(-rot_glob)
     y_g = x_r * np.sin(-rot_glob) + y_r * np.cos(-rot_glob)
     return x_g, y_g
@@ -27,7 +28,8 @@ def convert_robo_to_grid(x_r, y_r):
 
 def convert_grid_to_robo(x_r, y_r):
     "applies the roation of -69° to the robo cords to get the crods in the grind we measure on"
-    global rot_glob
+    config_Map = config_FinalGridMapv2
+    rot_glob = config_Map["rot"]
     x_g = x_r * np.cos(rot_glob) - y_r * np.sin(rot_glob)
     y_g = x_r * np.sin(rot_glob) + y_r * np.cos(rot_glob)
     return x_g, y_g
@@ -43,9 +45,7 @@ changed = {}
 changed2 = +100
 
 
-def get_pixel_location_from_acml(
-    x_a, y_a, x3, y3, x5_3, x5_3_p, y5_3, y5_3_p, x3_p, y3_p, rot_unused, rot=None
-):
+def get_pixel_location_from_acml(x_a, y_a, x3, y3, x5_3, x5_3_p, y5_3, y5_3_p, x3_p, y3_p, rot_unused, rot=None):
     "get pixel location from acml pos"
     global normal
     global normal2
@@ -85,35 +85,21 @@ def get_pixel_location_from_acml(
     #     # print(x_a,y_a,'changed_xy')
     #     # print(np.cos(rot)*0.235,np.sin(rot)*0.235,rot,'change')
     x_convert = 21  # pixel per meter in width, pixels have offset x axis
-    y_convert = (
-        -21
-    )  # pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
+    y_convert = -21  # pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
 
-    offset_x = (
-        -x3 * x_convert + x3_p
-    )  # calculating x offset based on the pixel location of x3
-    offset_y = (
-        y3 * x_convert + y3_p
-    )  # calculating y offset based on the pixel location of y3
+    offset_x = -x3 * x_convert + x3_p  # calculating x offset based on the pixel location of x3
+    offset_y = y3 * x_convert + y3_p  # calculating y offset based on the pixel location of y3
     x_p = x_a * x_convert + offset_x  # calulating pixel value of x
     y_p = y_a * y_convert + offset_y  # calulating pixel value of y
     return x_p, y_p
 
 
-def get_amcl_from_pixel_location(
-    x_p, y_p, x3, y3, x5_3, x5_3_p, y5_3, y5_3_p, x3_p, y3_p, rot_unused, rot=None
-):
+def get_amcl_from_pixel_location(x_p, y_p, x3, y3, x5_3, x5_3_p, y5_3, y5_3_p, x3_p, y3_p, rot_unused, rot=None):
     "get pixel location from acml pos"
     x_convert = 21  # pixel per meter in width, pixels have offset x axis
-    y_convert = (
-        -21
-    )  # pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
-    offset_x = (
-        -x3 * x_convert + x3_p
-    )  # calculating x offset based on the pixel location of x3
-    offset_y = (
-        y3 * x_convert + y3_p
-    )  # calculating y offset based on the pixel location of y3
+    y_convert = -21  # pixel per meter in hight, pixels have flipped y axis (is also offset, applied below)
+    offset_x = -x3 * x_convert + x3_p  # calculating x offset based on the pixel location of x3
+    offset_y = y3 * x_convert + y3_p  # calculating y offset based on the pixel location of y3
     x_a = (x_p - offset_x) / x_convert
     y_a = (y_p - offset_y) / y_convert
     # if not rot == None:
@@ -187,17 +173,11 @@ def offset_to_robo(lidar_position_acml_pose):
     rot = 2 * np.arcsin(lidar_position_acml_pose[3])
     if rot > np.pi:
         rot = rot - np.pi * 2
-    lidar_position_acml_pose[1] = (
-        lidar_position_acml_pose[1] - np.cos(lidar_position_acml_pose[3]) * 0.095
-    )
-    lidar_position_acml_pose[2] = (
-        lidar_position_acml_pose[2] - np.sin(lidar_position_acml_pose[3]) * 0.095
-    )
+    lidar_position_acml_pose[1] = lidar_position_acml_pose[1] - np.cos(lidar_position_acml_pose[3]) * 0.095
+    lidar_position_acml_pose[2] = lidar_position_acml_pose[2] - np.sin(lidar_position_acml_pose[3]) * 0.095
     return lidar_position_acml_pose
 
 
 if __name__ == "__main__":
-    print(
-        "This is a utils collections on the topic of changing coords between camera,acml and pixel locations."
-    )
+    print("This is a utils collections on the topic of changing coords between camera,acml and pixel locations.")
     print("The base info part needs to be redone if you want to use it with a new map")

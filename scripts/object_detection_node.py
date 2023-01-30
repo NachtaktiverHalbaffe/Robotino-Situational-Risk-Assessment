@@ -2,15 +2,15 @@
 import csv
 import rospy
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Point
 from sensor_msgs.msg import Image
 from copy import deepcopy
 
-from prototype.msg import Obstacle, ObstacleList
+from prototype.msg import ObstacleMsg, ObstacleList
 from utils.constants import Nodes, Topics
-from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
-from utils.cv_utils import draw_map_location_acml, get_obstacles_from_detection, initCV
-from yolov7.detect_online import get_conf_and_model, loaded_detect
+from utils.cv_utils import get_obstacles_from_detection, initCV
+from utils.ros_logger import set_rospy_log_lvl
+from yolov7.detect_online import loaded_detect
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
@@ -23,6 +23,8 @@ def detect(log_detection_error=True):
     global img_glob
     global real_data
     global config
+    if len(real_data) == 0:
+        return
 
     PATH_ERROR_DIST = rospy.get_param("~path_error_dist")
     PATH_ERROR_DIST_DOOR_CLOSED = rospy.get_param("~path_error_dist_doorclosed")
@@ -36,7 +38,7 @@ def detect(log_detection_error=True):
 
     # ------------------------- Detection itself -----------------------------
     img_local = deepcopy(img_glob)
-    detec_movables = loaded_detect(img_local, *config["conf_network"], True)
+    detec_movables = loaded_detect(img_local, *config["conf_network"], False, node="object_detection")
     detec_movables_obstacles = []
     rotations_detected = []
     index_names = []
@@ -58,8 +60,6 @@ def detect(log_detection_error=True):
             color=(0, 255, 255),
             convert_back_to_grey=False,
         )
-        # map_ref_loc = modify_map(map_ref_loc,objects_to_move,detec_movables_obstacles,color=(0,255,255),convert_back_to_grey=False)
-        map_ref_loc_draw = ImageDraw.Draw(map_ref)
 
     # ----------- Determine error distribution and write it to a CSV ------------
     if log_detection_error and detec_movables_obstacles:
@@ -97,15 +97,21 @@ def detect(log_detection_error=True):
                     abs(rot_shift - np.pi / 2),
                     abs(rot_shift - np.pi),
                 )
-                print(error)
+                # print(error)
                 write.writerow([error])
 
     # Create message
     msg = ObstacleList()
     for obstacle in detec_movables_obstacles:
-        obstacleItem = Obstacle()
-        obstacleItem.corners = obstacle.corners
-        msg.obstacles.append(obstacleItem)
+        corners = []
+        # Convert corners to ROS points
+        for corner in obstacle.corners:
+            cornerItem = Point()
+            cornerItem.x = corner[0]
+            cornerItem.y = corner[1]
+            corners.append(cornerItem)
+        #  Append Obstacle to message
+        msg.obstacles.append(ObstacleMsg(corners))
     # Publish message
     try:
         # rospy.logdebug(f"[Object Detection] Publishing detected obstacles: {msg}")
@@ -157,14 +163,14 @@ def objectDetection():
     """
     global config
     rospy.init_node(Nodes.OBJECT_DETECTION.value)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.OBJECT_DETECTION.value}")
 
-    # config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
-
+    config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
     # Save the localization data to a global variable so the detection can use them
     rospy.Subscriber(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setRealData, queue_size=10)
     # Triggers to run the object detection
-    # rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=1)
+    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=10)
 
     # Prevents python from exiting until this node is stopped
     rospy.spin()
@@ -173,5 +179,5 @@ def objectDetection():
 if __name__ == "__main__":
     try:
         objectDetection()
-    except:
+    except Exception as e:
         rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")

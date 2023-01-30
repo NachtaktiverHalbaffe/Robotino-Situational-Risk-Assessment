@@ -8,8 +8,8 @@ import torch
 
 try:
     # If run with ros launchfile
-    from .models.common import *
-    from .models.experimental import *
+    from .common import *
+    from .experimental import *
     from ..utils.autoanchor import check_anchor_order
     from ..utils.general import make_divisible, check_file, set_logging
     from ..utils.torch_utils import (
@@ -27,9 +27,9 @@ except:
     sys.path.append("./")
     from .common import *
     from .experimental import *
-    from ..utils.autoanchor import check_anchor_order
-    from ..utils.general import make_divisible, check_file, set_logging
-    from ..utils.torch_utils import (
+    from utils.autoanchor import check_anchor_order
+    from utils.general import make_divisible, check_file, set_logging
+    from utils.torch_utils import (
         time_synchronized,
         fuse_conv_and_bn,
         model_info,
@@ -38,7 +38,7 @@ except:
         select_device,
         copy_attr,
     )
-    from ..utils.loss import SigmoidBin
+    from utils.loss import SigmoidBin
 
 try:
     import thop  # for FLOPS computation

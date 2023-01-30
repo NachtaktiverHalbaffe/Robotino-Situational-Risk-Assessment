@@ -1,6 +1,8 @@
 import os, sys
 from time import sleep
 from gridmap import get_obstacles_in_pixel_map
+from geometry_msgs.msg import PoseWithCovarianceStamped
+from sensor_msgs.msg import Image
 
 sys.path.insert(0, "./yolov7")
 from yolov7.detect_online import get_conf_and_model, loaded_detect
@@ -8,6 +10,8 @@ import matplotlib
 
 from move_utils import *
 from move_utils_cords import *
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 
 def realCallback(data):
@@ -27,27 +31,27 @@ def Image_Callback_v7(img_data):
     """This is used to define how to save the image arriving from ROS
     use this in a Subscriber"""
     # now = rospy.Time.now()
-    if example.staticVariable:
-        global Image_data
-        global img_glob
-        bridge = CvBridge()
-        cv_image = bridge.imgmsg_to_cv2(img_data, "rgb8")
 
-        # Resize Image to 640 * 480 - YOLO was trained in this size
-        width = int(img_data.width * 0.80)
-        height = int(img_data.height * 0.80)
-        dim = (width, height)
-        img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
+    global Image_data
+    global img_glob
+    bridge = CvBridge()
+    cv_image = bridge.imgmsg_to_cv2(img_data, "rgb8")
 
-        # The unmodified image
-        img_glob = deepcopy(cv_image)
+    # Resize Image to 640 * 480 - YOLO was trained in this size
+    width = int(img_data.width * 0.80)
+    height = int(img_data.height * 0.80)
+    dim = (width, height)
+    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
 
-        Image_data = [
-            "Image_Data",
-            dim,  # dimensions of resized image
-            img_resized,  # image data
-            img_data.header.stamp,
-        ]
+    # The unmodified image
+    img_glob = deepcopy(cv_image)
+
+    Image_data = [
+        "Image_Data",
+        dim,  # dimensions of resized image
+        img_resized,  # image data
+        img_data.header.stamp,
+    ]
 
 
 def get_dists_workstation(corners_map_all, obstacle):
@@ -284,6 +288,7 @@ def run_detec_and_localise_joystick(
 
         if use_detection_cam:
             detec_movables = loaded_detect(img_local, *conf_detection, True)
+            print(f"Detect: {detec_movables}")
             detec_movables_obstacles = []
             rotations_detected = []
             index_names = []
@@ -345,6 +350,7 @@ def run_detec_and_localise_joystick(
         if use_localise_cam:
             # getting the detection based on the newest image
             localise_dict = loaded_detect(img_local, *conf_localise)
+            print(f"Loc: {localise_dict}")
             # if there was a detection
             if localise_dict:
                 detected_workstation_dist, rotation_detected = localise_dict["birds_eye"], localise_dict["rotation"]
@@ -401,7 +407,7 @@ def run_detec_and_localise_joystick(
                     map_ref_loc_draw,
                     base_info,
                     color_FoV=(0, 0, 255),
-                    color_outer=(0, 255, 0)
+                    color_outer=(0, 255, 0),
                 )
 
                 print(detected_rotation, np.arcsin(local_acml_location[3]) * 2)
@@ -415,8 +421,10 @@ def run_detec_and_localise_joystick(
 if __name__ == "__main__":
     use_detection_cam = True
     use_localise_cam = True
-    weights_detection = "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/tiny10_hocker.pt"
-    weights_localise = "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/ws_tiny5.pt"
+    weights_detection = (
+        "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/statedict_tiny10_hocker.pt"
+    )
+    weights_localise = "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/statedict_ws_tiny5.pt"
 
     run_detec_and_localise_joystick(
         weights_detection, weights_localise, use_detection_cam=use_detection_cam, use_localise_cam=use_localise_cam

@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-import time
 import rospy
-
 import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped
-from std_msgs.msg import String, Bool
+from std_msgs.msg import Bool
 from tf.transformations import quaternion_from_euler
 from copy import deepcopy
 from cv_bridge import CvBridge
 
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
-from yolov7.detect_online import get_conf_and_model, loaded_detect
-from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
+from yolov7.detect_online import loaded_detect
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 from utils.cv_utils import (
-    draw_map_location_acml,
     get_obstacles_from_detection,
     best_match_workstation_index,
     initCV,
@@ -25,7 +21,7 @@ from utils.cv_utils import (
 
 locPublisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
 
-# TODO Remove all non-relevant stuff for SLAM
+
 def localiseCam():
     """
     Uses the camera to localise the Robotino on the map. Uses the localization from Kai Binder\
@@ -34,18 +30,11 @@ def localiseCam():
     global img_glob
     global real_data
     global config
-    acml_x = 0
-    acml_y = 0
-    acml_rot = 0
     publisher = rospy.Publisher(Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
     # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
-
-    # TODO This is for offline work, remove when finished with the calibration
-    # real_data = ['fake',0.6,2.2,0.999] # 2.5 instead of 2 gets close
-    # real_data = ['fake',-3.6,2.2,-0.0999] # 2.5 instead of 2 gets close
-    # img_glob = cv2.imread('./yolov7/data/bb/img1.png')
-    # while True:
+    if len(real_data) == 0:
+        return
 
     # copy newest image, the current postion, the workstations and the map TODO not sure if deepopy ws_map is needed
     img_local = deepcopy(img_glob)
@@ -55,27 +44,12 @@ def localiseCam():
 
     # copy map and create a drawing frame
     map_ref_loc = deepcopy(config["map_ref"]).convert("RGB")
-    map_ref_loc_draw = ImageDraw.Draw(map_ref_loc)
-
-    # TODO see if needed
-    # convert the amcl pose rotation to radians
-    # amcl_rot_radians = 2 * np.arcsin(local_acml_location[3])
-    # acml_x, acml_y, acml_rot = draw_map_location_acml(
-    #     local_acml_location[1],
-    #     local_acml_location[2],rospy.get_param("~weights_path"
-    #     amcl_rot_radians,
-    #     map_ref_loc_draw,
-    #     base_info,
-    #     acml_x,
-    #     acml_y,
-    #     acml_rot,
-    # )
 
     # corners of the workstations on the map
     corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
 
     # getting the detection based on the newest image
-    localise_dict = loaded_detect(img_local, *config["conf_network"])
+    localise_dict = loaded_detect(img_local, *config["conf_network"], node="localization")
     # if there was a detection
     if localise_dict:
         detected_workstation_dist, rotation_detected = (
@@ -83,7 +57,6 @@ def localiseCam():
             localise_dict["rotation"],
         )
 
-        # print(detected_workstation_dist)
         # turning the detected corners into an obstacle
         detected_obst = get_obstacles_from_detection(
             detected_workstation_dist, local_acml_location, config["base_info"]
@@ -98,24 +71,8 @@ def localiseCam():
             local_acml_location,
             rotation_detected,
             config["base_info"],
+            config["map_config"],
         )
-
-        # now we want to show the matched ws in blue, the acml location in green => Visualization
-        # map_ref_loc = modify_map(
-        #     map_ref_loc,
-        #     [],
-        #     [config["obstacles_ws"][index_smallest_dist_ws]],
-        #     color=(255, 0, 0),
-        #     convert_back_to_grey=False,
-        # )rospy.get_param("~weights_path"
-        # map_ref_loc = modify_map(
-        #     map_ref_loc,
-        #     [],
-        #     [detected_obst],
-        #     color=(0, 255, 0),
-        #     convert_back_to_grey=False,
-        # )
-        # map_ref_loc_draw = ImageDraw.Draw(map_ref_loc)
 
         # calculating rotation from detected and cord transforms
         # detected_rotation = -(rots_ws[index_smallest_dist_ws]-rotation_detected+np.pi-1.204)
@@ -134,27 +91,20 @@ def localiseCam():
             # subtracting the detected distance from the workstation on the map
             loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
 
-        # acml_x, acml_y, acml_rot = draw_map_location_acml(
-        #     *loc_detec,
-        #     detected_rotation,
-        #     map_ref_loc_draw,
-        #     config["base_info"],)rospy.get_param("~weights_path"
-        #     color_outer=(0, 255, 0),
-        # )
-
         # Create message to publish
         locMsg = PoseWithCovarianceStamped()
+        locMsg.header.frame_id = "map"
         # Position
         locMsg.pose.pose.position.x = loc_detec[0]
         locMsg.pose.pose.position.y = loc_detec[1]
         locMsg.pose.pose.position.z = 0
         # Orientation
-        quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+        # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+        quaternion = quaternion_from_euler(0, 0, detected_rotation)
         locMsg.pose.pose.orientation.x = quaternion[0]
         locMsg.pose.pose.orientation.y = quaternion[1]
         locMsg.pose.pose.orientation.z = quaternion[2]
         locMsg.pose.pose.orientation.w = quaternion[3]
-
         # Publish message
         try:
             rospy.logdebug(
@@ -220,14 +170,14 @@ def localization():
     useLidar = True
 
     rospy.init_node(Nodes.LOCALIZATION.value)
-    set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
     config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
-    # Saves the image to a global variable so localization can use the image in its own thread
-    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=1)
     # Saves the acml data to a global variable so the localization can use them
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=10)
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
+    # Saves the image to a global variable so localization can use the image in its own thread
+    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=10)
 
     # For determining localization mode
     locMode = "lidar"

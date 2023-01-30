@@ -42,7 +42,7 @@
         <param name="weights_path" value="$(arg path)/src/yolov7/weights/statedict_ws_tiny5.pt"/>
     </node>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" >
-        <param name="weights_path" value ="$(arg path)/src/yolov7/weights/tiny10_hocker.pt"/>
+        <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny10_hocker.pt"/>
         <param name="path_error_dist" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12.csv"/>
         <param name="path_error_dist_doorclosed" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv" />
     </node>

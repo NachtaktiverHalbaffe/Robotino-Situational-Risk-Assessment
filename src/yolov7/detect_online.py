@@ -1,12 +1,17 @@
 import argparse
 import time
-from pathlib import Path
+import rospy
 import sys, os
 import cv2
 import torch
+import numpy as np
 import torch.backends.cudnn as cudnn
 from numpy import random
-import numpy as np
+from cv_bridge import CvBridge
+from pathlib import Path
+from sensor_msgs.msg import Image
+
+from utils.constants import Topics
 
 sys.path.append("./yolov7")
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
@@ -101,35 +106,60 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
     hyp_loc = f"{PATH}/src/yolov7/data/hyp.scratch.custom.yaml"
     with open(hyp_loc) as f:
         hyp = yaml.load(f, Loader=yaml.SafeLoader)  # load hyps
-    # load cfg, this is different for each
 
-    if "ws" in weights[0].lower():
+    # load cfg, this is different for each
+    if not "hocker" in weights[0].lower():
         ### this is for workstations###
         cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_ws.yaml"
         nc = 2  # amount of classes, the same as in the cfg file
+        names = ["workstation_c", "workstation_a"]
     else:
         ### this is for movable ###
         cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_movable.yaml"
         nc = 10
+        names = [
+            "sklappbox_c",
+            "sklappbox_a",
+            "box_c",
+            "box_a",
+            "hocker_c",
+            "klappbox_c",
+            "klappbox_a",
+            "sbox_c",
+            "sbox_a",
+            "hocker_a",
+        ]
 
     model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to("cpu")
     model.load_state_dict(loaded_state_dict)
-
+    model.eval()
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     if trace:
         model = TracedModel(model, device, opt.img_size)
-
     # Get names and colors
-    names = model.module.names if hasattr(model, "module") else model.names
+    # names = model.module.names if hasattr(model, "module") else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
     return (imgsz, stride, device, model, opt, names, view_img, colors, calc_3d, p_matrix, plot_3d)
 
 
 def loaded_detect(
-    limg, imgsz, stride, device, model, opt, names, view_img, colors, calc_3d, p_matrix, plot_3d, show=True
+    limg,
+    imgsz,
+    stride,
+    device,
+    model,
+    opt,
+    names,
+    view_img,
+    colors,
+    calc_3d,
+    p_matrix,
+    plot_3d,
+    show=False,
+    node="localization",
 ):
     """run the detection for a passed image, also passes the bb to the 2d->3d converter
     @param limg: the img to run detection on
@@ -162,17 +192,14 @@ def loaded_detect(
         with torch.no_grad():  # Calculating gradients would cause a GPU memory leak
             pred = model(img, augment=opt.augment)[0]
         t2 = time_synchronized()
-
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
-
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
-
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
 
@@ -198,6 +225,7 @@ def loaded_detect(
                                     if show:
                                         cv2.imshow("Detections", im0)
                                         cv2.waitKey(1)  # 1 millisecond
+
                                 h_shifts = shifts
                                 h_options = options
                                 detec_dict = {
@@ -208,6 +236,15 @@ def loaded_detect(
                                     "boundry": boundry,
                                 }
                                 detected_3d_boxes.append(detec_dict)
+
+                                if "localization" in node:
+                                    rospy.Publisher(Topics.IMAGE_BB_WS.value, Image, queue_size=10).publish(
+                                        CvBridge().cv2_to_imgmsg(im0, "passthrough")
+                                    )
+                                else:
+                                    rospy.Publisher(Topics.IMAGE_BB_MOVEABLE.value, Image, queue_size=10).publish(
+                                        CvBridge().cv2_to_imgmsg(im0, "passthrough")
+                                    )
     # if we did not detect any boxes
     if not detected_3d_boxes:
         return {}
@@ -299,7 +336,7 @@ def detect_args_parse(args):
     opt.nosave = True
     opt.view_img = True
     opt.save_txt = False
-    print(opt)
+    # print(opt)
     # check_requirements(exclude=('pycocotools', 'thop'))
 
     with torch.no_grad():

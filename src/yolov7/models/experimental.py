@@ -303,7 +303,6 @@ def attempt_load(weights, map_location=None):
         # attempt_download(w)
         ckpt = torch.load(w, map_location="cpu")  # load
         # model.load_state_dict(torch.load(w))
-        print("Torch loaded")
         model.append(ckpt["ema" if ckpt.get("ema") else "model"].float().fuse().eval())  # FP32 model
 
     # Compatibility updates

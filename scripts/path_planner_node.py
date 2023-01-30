@@ -36,12 +36,13 @@ def setCurrentPose(currentPose: PoseWithCovarianceStamped):
 def setObstacles(obstaclesList: ObstacleList):
     global obstacles
     global newObstacles
+
     tmpObstacle = []
-    for obstacle in obstaclesList:
+    for obstacle in obstaclesList.obstacles:
         # Create corners
         tmpCorners = []
         for corner in obstacle.corners:
-            tmpCorners.append((corner.position.x, corner.position.y))
+            tmpCorners.append((corner.x, corner.y))
         # Create Obstacle
         tmpObstacle.append(Obstacle(tmpCorners))
     obstacles = tmpObstacle
