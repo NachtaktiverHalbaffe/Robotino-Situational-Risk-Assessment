@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+import time
 import rospy
 import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
-from tf.transformations import quaternion_from_euler
+from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
 from copy import deepcopy
 from cv_bridge import CvBridge
 
@@ -21,6 +23,13 @@ from utils.cv_utils import (
 
 locPublisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
 
+global last_known_loc
+last_known_loc = [0, 0]
+global last_known_rot
+last_known_rot = 0
+global last_update
+last_update = time.time()
+
 
 def localiseCam():
     """
@@ -30,20 +39,24 @@ def localiseCam():
     global img_glob
     global real_data
     global config
+    global last_known_loc
+    global last_known_rot
+    global last_update
+    global odom
+
     publisher = rospy.Publisher(Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
+    loc_detec = [0, 0]
+    detected_rotation = 0
+
     # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
     if len(real_data) == 0:
         return
-
-    # copy newest image, the current postion, the workstations and the map TODO not sure if deepopy ws_map is needed
+    # last_known_locs and the map TODO not sure if deepopy ws_map is needed
     img_local = deepcopy(img_glob)
     dc_obstacles_ws = deepcopy(config["obstacles_ws"])
     local_acml_location = deepcopy(real_data)
     local_acml_location = offset_to_robo(local_acml_location)
-
-    # copy map and create a drawing frame
-    map_ref_loc = deepcopy(config["map_ref"]).convert("RGB")
 
     # corners of the workstations on the map
     corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
@@ -91,28 +104,50 @@ def localiseCam():
             # subtracting the detected distance from the workstation on the map
             loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
 
-        # Create message to publish
-        locMsg = PoseWithCovarianceStamped()
-        locMsg.header.frame_id = "map"
-        # Position
-        locMsg.pose.pose.position.x = loc_detec[0]
-        locMsg.pose.pose.position.y = loc_detec[1]
-        locMsg.pose.pose.position.z = 0
-        # Orientation
-        # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
-        quaternion = quaternion_from_euler(0, 0, detected_rotation)
-        locMsg.pose.pose.orientation.x = quaternion[0]
-        locMsg.pose.pose.orientation.y = quaternion[1]
-        locMsg.pose.pose.orientation.z = quaternion[2]
-        locMsg.pose.pose.orientation.w = quaternion[3]
-        # Publish message
-        try:
-            rospy.logdebug(
-                f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
-            )
-            publisher.publish(locMsg)
-        except:
-            rospy.logerr(f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}")
+    if loc_detec[0] != 0 and loc_detec[1] != 0:
+        last_known_loc = loc_detec
+        last_known_rot = detected_rotation
+    else:
+        deltaTime = time.time() - last_update
+        # Rotation
+        last_known_quaterion = quaternion_from_euler(0, 0, last_known_rot)
+        rot_odom_quaterion = quaternion_from_euler(0, 0, odom.twist.twist.angular.z)
+        _, _, detected_rotation = euler_from_quaternion(quaternion_multiply(last_known_quaterion, rot_odom_quaterion))
+        last_known_rot = detected_rotation
+        # Linear portion
+        # rot_radian = np.arcsin(detected_rotation)
+        loc_detec[0] = last_known_loc[0] + odom.twist.twist.linear.x * deltaTime * np.cos(detected_rotation)
+        loc_detec[1] = last_known_loc[1] + odom.twist.twist.linear.y * deltaTime * np.sin(detected_rotation)
+        last_known_loc = loc_detec
+
+    # Create message to publish
+    locMsg = PoseWithCovarianceStamped()
+    locMsg.header.frame_id = "map"
+    # Position
+    locMsg.pose.pose.position.x = loc_detec[0]
+    locMsg.pose.pose.position.y = loc_detec[1]
+    locMsg.pose.pose.position.z = 0
+    # Orientation
+    # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+    quaternion = quaternion_from_euler(0, 0, detected_rotation)
+    locMsg.pose.pose.orientation.x = quaternion[0]
+    locMsg.pose.pose.orientation.y = quaternion[1]
+    locMsg.pose.pose.orientation.z = quaternion[2]
+    locMsg.pose.pose.orientation.w = quaternion[3]
+    # Publish message
+    try:
+        rospy.logdebug(
+            f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
+        )
+        publisher.publish(locMsg)
+    except:
+        rospy.logerr(f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}")
+    last_update = time.time()
+
+
+def setOdom(newOdom: Odometry):
+    global odom
+    odom = newOdom
 
 
 def setImage(rawImage: Image):
@@ -174,10 +209,11 @@ def localization():
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
     config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
     # Saves the acml data to a global variable so the localization can use them
-    rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=10)
+    rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
     # Saves the image to a global variable so localization can use the image in its own thread
-    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=10)
+    rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
+    rospy.Subscriber(Topics.ODOM.value, Odometry, setOdom, queue_size=10)
 
     # For determining localization mode
     locMode = "lidar"

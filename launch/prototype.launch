@@ -4,7 +4,7 @@
     <arg name="map_file" default="$(eval find(arg('package_name'))  + '/param/FinalGridMapv2.yaml')"/>
     
     <!-- A working robot without risk estimation -->
-   <include file="$(find prototype)/launch/robotControl.launch">
+   <include file="$(find prototype)/launch/autonomousOperation.launch">
         <arg name="hostname" value="$(arg hostname)" />
         <arg name="map_file" value="$(arg map_file)" />
         <arg name="package_name" value="prototype" />
@@ -12,5 +12,5 @@
    </include>
 
    <!-- Risk estimation parts -->
-   <!-- <node pkg="$(arg package_name)" name="risk_estimator" type="risk_estimator_node.py" output="screen"/> -->
+   <node pkg="$(arg package_name)" name="risk_estimator" type="risk_estimator_node.py" output="screen"/>
 </launch>

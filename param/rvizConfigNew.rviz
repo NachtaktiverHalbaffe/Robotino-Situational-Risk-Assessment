@@ -519,6 +519,20 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Class: jsk_rviz_plugin/PolygonArray
+      Color: 25; 255; 0
+      Enabled: true
+      Name: PolygonArray
+      Queue Size: 10
+      Topic: /obstacles_visu
+      Unreliable: false
+      Value: true
+      coloring: Auto
+      enable lighting: true
+      normal length: 0.10000000149011612
+      only border: true
+      show normal: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

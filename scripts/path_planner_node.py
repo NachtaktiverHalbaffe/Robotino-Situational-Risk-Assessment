@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from real_robot_navigation.move_utils import modify_map
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
@@ -85,6 +86,9 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
 
     if obstacles != None:
         all_obst += obstacles
+
+    map_ref = modify_map(pathPlannerConfig[0], [], all_obst, convert_back_to_grey=True)
+
     # TODO modify PRM so it find the nearest node as start and goal
     # if len(PRMNodes) != 0 and not newObstacles:
     if False:
@@ -97,7 +101,7 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
         )
     else:
         traj, _, PRMNodes, _ = apply_PRM_init(
-            map_ref=pathPlannerConfig[0],
+            map_ref=map_ref,
             obstacles=all_obst,
             start=start,
             goal=goal,

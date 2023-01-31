@@ -2,8 +2,9 @@
 import csv
 import rospy
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped, Point
+from geometry_msgs.msg import PoseWithCovarianceStamped, Point, PolygonStamped
 from sensor_msgs.msg import Image
+from jsk_recognition_msgs.msg import PolygonArray
 from copy import deepcopy
 
 from prototype.msg import ObstacleMsg, ObstacleList
@@ -15,6 +16,26 @@ from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
 
+def visualizeObstacles():
+    """
+    sd
+    """
+    global detectedObstacles
+    msg = PolygonArray()
+    msg.header.frame_id = "map"
+    for obstacle in detectedObstacles:
+        polygon = PolygonStamped()
+        polygon.header.frame_id = "map"
+        for corner in obstacle.corners:
+            x = corner[0]
+            y = corner[1]
+            polygon.polygon.points.append(Point(x, y, 0.2))
+
+        msg.polygons.append(polygon)
+
+    rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(msg)
+
+
 def detect(log_detection_error=True):
     """
     Detects objects by using the camera with a YOLOv7 neural network. Mainly uses\
@@ -23,6 +44,7 @@ def detect(log_detection_error=True):
     global img_glob
     global real_data
     global config
+    global detectedObstacles
     if len(real_data) == 0:
         return
 
@@ -58,7 +80,7 @@ def detect(log_detection_error=True):
             [],
             detec_movables_obstacles,
             color=(0, 255, 255),
-            convert_back_to_grey=False,
+            convert_back_to_grey=True,
         )
 
     # ----------- Determine error distribution and write it to a CSV ------------
@@ -118,6 +140,9 @@ def detect(log_detection_error=True):
         publisher.publish(msg)
     except:
         rospy.logwarn(f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} ")
+
+    detectedObstacles = detec_movables_obstacles
+    visualizeObstacles()
 
 
 def setImage(rawImage: Image):
