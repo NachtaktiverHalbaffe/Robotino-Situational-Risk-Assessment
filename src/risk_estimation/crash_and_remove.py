@@ -2,22 +2,31 @@ from copy import deepcopy
 import os, sys
 import time
 import gym
+import rospy
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pickle as pkl
 from stable_baselines3.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines3.common.policies import ActorCriticCnnPolicy
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
-from sb3_model_same import SameExtractor
-import env_gym
-import config
-from SaveData import save_data, traj_length
-import numpy as np
-from mcts_for_crash_and_remove import *
-from sb3_as_adv import Sb3_as_adv
 from PIL import Image, ImageDraw
-import pandas as pd
-import matplotlib.pyplot as plt
-import pickle as pkl
 
+try:
+    # import env_gym
+    from .config import configs
+    from .SaveData import save_data, traj_length
+    from .mcts import *
+    from .sb3_as_adv import Sb3_as_adv
+    from .sb3_model_same import SameExtractor
+except:
+    # import env_gym
+    from config import configs
+    from SaveData import save_data, traj_length
+    from risk_estimation.mcts import *
+    from sb3_as_adv import Sb3_as_adv
+    from sb3_model_same import SameExtractor
 
 # TODO add better control of the trajectories
 # TODO brute force using one dimension, only use the ANGLE that is the domninant side
@@ -43,14 +52,19 @@ def calculate_collsion_order(prob_collision_with_Node):
 
 
 def modify_map_out(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True):
-    """This is takes a set of obstacles to remove from the image and a set to place in the image, often used for shifting obstacles in
+    """
+    This is takes a set of obstacles to remove from the image and a set to place in the image, often used for shifting obstacles in
     the map by passing the same obstacles at the old and new different locations
-    @param takes: the image we want to modify
-    @param obstacles_org: set of obstacles to remove from the image
-    @param obstacles: set of obstacles to place in the image
-    @param color: the color of the object being placed
-    @param convert_back_to_grey: if the image should be converted back into grey, needed if used in the PRM
-    @return: map_ref_adv: the modified image
+
+    Args:
+        map_ref (Image): The map reference (image) we want to modify
+        obstacles_org (set(Obstacle)): Obstacles to remove from the image
+        obstacle (set(Obstacle)): Obstacles to place in the image
+        color( set(int,int,int), optional): the color of the object being placed (in RGB). Defaults to white (255,255,255)
+        convert_back_to_grey (bool, optional): if the image should be converted back into grey, needed if used in the PRM. Defaults to true
+
+    Returns:
+        map_ref_adv (Image): the modified image
     """
     map_ref_adv = deepcopy(map_ref)
     map_ref_adv = map_ref_adv.convert("RGB")
@@ -76,12 +90,15 @@ def modify_map_out(map_ref, obstacles_org, obstacles, color=(255, 255, 255), con
 
 def run_pruned(env, adv1, crash_point=0, reduce=False, forced_traj=None):
     """
-    @param env: An environment object
-    @param adv1: An agent object
-    @param crash_point: An integer representing the point at which the collision occurs. default value is 0.
-    @param reduce: A boolean value indicating whether the persistent map is reduced. default value is False.
-    @param forced_traj: A potential forced trajectory for the environment. default value is None which means vanilla is used.
-    @return prob_collision : A float representing the probability of collision
+    Args:
+        env: An environment object
+        adv1: An agent object
+        crash_point: An integer representing the point at which the collision occurs. default value is 0.
+        reduce: A boolean value indicating whether the persistent map is reduced. default value is False.
+        forced_traj: A potential forced trajectory for the environment. default value is None which means vanilla is used.
+
+    Returns:
+        prob_collision(float) : Probability of collision
     """
     observation, traj_vanilla = env.env_real.reset(
         "adv1", start=[93, 122], goal=configs["goal"], forced_traj=forced_traj, persisten_map=reduce
@@ -93,9 +110,6 @@ def run_pruned(env, adv1, crash_point=0, reduce=False, forced_traj=None):
         pruned_tree, done_after_collision=False, use_new_agent=True
     )
     return prob_collision
-
-
-# def run_rl_risk_loop():
 
 
 def run_crash_and_remove(
@@ -129,11 +143,17 @@ def run_crash_and_remove(
         amount_of_exploration (int, optional): Number of attemts the agent gets to find a collision. Defaults to 10
         intialTraj( list of coordinates): Initial trajectory for which the risk estimation should be run. Defaults to None
 
-    Returns:
-        into a dict:
+    Returns (in a dict):
+        rl_prob (list(float)): Probabilities calculated by the reinforcement learning agents
+        brute_prob (list(float)): Probabilities calculated by brute-forcing. Can be taken as an ground truth
+        traj (list(Trajectory)): Trajectory used in the corresponding risk estimation
+        len_traj (list(int)): Number of nodes of the trajectory
+        len_traj_list_in_m  (list()): Actual length of the trajectory
+        rl_actions_to_crash_lists (list of list(int)): A list the adversary has done to provoke a collision
+        wall_discards (list(int)): Number of discarded RL runs due to wall collision
     """
 
-    "loading the agent and the environment"
+    #  -------------------------- loading the agent and the environment ----------------------------------------
     env_name = "robo_navigation-single_dimension-v0"
     # env = DummyVecEnv([lambda: Monitor(gym.make(env_name, config=configs))
     #                  for i in range(1)])
@@ -152,7 +172,7 @@ def run_crash_and_remove(
     obs = env.reset()
     adv1 = Sb3_as_adv(env, load_dir=configs["model_location"])
 
-    "lists we want to save to panda dataframe"
+    # Lists we want to save to panda dataframe
     brute_force_list = []
     rl_list = []
     traj_list = []
@@ -160,7 +180,7 @@ def run_crash_and_remove(
     len_traj_list_in_m = []
     rl_actions_to_crash_lists = []
 
-    "info how often the exception hit wall needs to be handeled"  # TODO find better handeling than discarding the run
+    # Info how often the exception hit wall needs to be handeled  # TODO find better handeling than discarding the run
     wall_discards = 0
 
     # for i in range(len)
@@ -179,10 +199,10 @@ def run_crash_and_remove(
         df = df.sort_values(by="error", ascending=False)
 
     while len(rl_actions_to_crash_lists) < amount_of_exploration:
-        print("runs saved", len(rl_actions_to_crash_lists))
-        """If we want to examine past experiences, replay will be enabled and multiple aspects of the code will be
-        retrieved from a dataframe instead of being generated. Additionally, a prompt will be included for the user
-        to confirm they have finished reviewing the output images"""
+        rospy.logdebug("[Crash and Remove] Runs saved", len(rl_actions_to_crash_lists))
+        # If we want to examine past experiences, replay will be enabled and multiple aspects of the code will be
+        # retrieved from a dataframe instead of being generated. Additionally, a prompt will be included for the user
+        # to confirm they have finished reviewing the output images
 
         env.env_real.map_ref = modify_map_out(
             env.env_real.map_ref, [], all_obst, color=(255, 255, 255), convert_back_to_grey=True
@@ -190,46 +210,53 @@ def run_crash_and_remove(
         env.env_real.map_ref_adv = deepcopy(env.env_real.map_ref)
         env.env_real.obstacles = deepcopy(all_obst)
 
+        # Replay
         if replay_on:
             data_point = len(rl_actions_to_crash_lists)
             loaded_run_info = df.iloc[data_point]
             env.env_real.visualize = True
-            observation, traj_vanilla = env.env_real.reset(
+            _, traj_vanilla = env.env_real.reset(
                 "adv1", start=[93, 122], goal=configs["goal"], new_traj=True, forced_traj=loaded_run_info["traj"]
             )
+        # Generating based on existing trajectory
         elif initialTraj != None:
-            observation, traj_vanilla = env.env_real.reset(
+            _, traj_vanilla = env.env_real.reset(
                 "adv1", start=[93, 122], goal=configs["goal"], new_traj=True, forced_traj=initialTraj
             )
+        # Randomly generate new trajectory
+        else:
+            _, traj_vanilla = env.env_real.reset("adv1", start=[93, 122], goal=configs["goal"], new_traj=True)
         traj_vanilla_org = deepcopy(traj_vanilla)
 
         if use_brute_force_baseline:
-            "Run the pruned brute force algorythem"
+            # Run the pruned brute force algorithm
             mcts_total_time = 0
             t4 = time.perf_counter()
             prob_collision_brute = run_pruned(env, adv1)
             mcts_total_time += time.perf_counter() - t4
-            print("Brute force prob_collision is: ", prob_collision_brute)
-            print("Brute force results in: ", mcts_total_time, "seconds")
+            rospy.logdebug("Brute force prob_collision is: ", prob_collision_brute)
+            rospy.logdebug("Brute force results in: ", mcts_total_time, "seconds")
 
-            print("Press enter to start rl loop")
+            # print("Press enter to start rl loop")
             if replay_on:
-                print("data_point is ", data_point)
-                print("\U0001F4C0", "old error", loaded_run_info["error"])
+                rospy.logdebug("data_point is ", data_point)
+                rospy.logdebug("\U0001F4C0", "old error", loaded_run_info["error"])
                 a = input()
 
-        "Run the rl loop"
+        # --------------------------------- Run the RL loop --------------------------------------
         prob_collision_with_Node = []
         successful_actions = []
         env.set_persisten_map(True)
         break_out = False
         temp_disable_replay = False
+
         for i in range(0, attempts):
             obs = env.reset()
             done = False
             step = 0
             actions = []
             while not done:
+                # -- With replay --
                 if replay_on and not temp_disable_replay:
                     if i < len(loaded_run_info["rl_actions_to_crash_lists"]):
                         if len(actions) < len(loaded_run_info["rl_actions_to_crash_lists"][i]):
@@ -238,39 +265,49 @@ def run_crash_and_remove(
                     if action_was_loaded:
                         action_was_loaded = False
                     else:
-                        print("all crash paths have been displayed")
-                        print("\U0001F4C0", "type a to have the agent try to find new paths, other for next")
+                        rospy.logdebug("[Crash and Remove] All crash paths have been displayed")
+                        rospy.logdebug(
+                            "[Crash and Remove] \U0001F4C0",
+                            "type a to have the agent try to find new paths, other for next",
+                        )
                         user_input = input()
                         if user_input == "a":
                             temp_disable_replay = True
                             action, _, _, _ = adv1.choose_action(obs)
                         else:
-                            print("final rl estimate:", calculate_collsion_order(prob_collision_with_Node))
+                            rospy.logdebug(
+                                "[Crash and Remove] Final rl estimate:",
+                                calculate_collsion_order(prob_collision_with_Node),
+                            )
                             if use_brute_force_baseline:
-                                print("final brute estimate:", prob_collision_brute)
+                                rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
                             break_out = True
                             break
+                # -- With live-generated data --
                 else:
                     action, _, _, _ = adv1.choose_action(obs)
                 actions.append(action)
+
                 # # a = input()
-                obs, reward, done, info = env.step(action)
+                obs, _, done, info = env.step(action)
                 step = step + 1
+
+                # ------ If collision happend ------
                 if info["collision_status"]:
                     # going back expand length
                     forced_traj = traj_vanilla[max(0, step - expand_length) : min(step + 1, len(traj_vanilla))]
                     if replay_on:
-                        print("\U0001F4C0", "collision_found")
+                        rospy.logdebug("[Crash and Remove] \U0001F4C0", "collision_found")
                         a = input()
 
                     prob_collision_found = run_pruned(env, adv1, forced_traj=forced_traj, reduce=True)
                     env.env_real.trajectory_vanilla = deepcopy(traj_vanilla_org)
                     prob_collision_with_Node.append((prob_collision_found, step))
                     if replay_on:
-                        print("\U0001F4C0", "crash prob", prob_collision_found)
+                        rospy.logdebug("[Crash and Remove] \U0001F4C0", "crash prob", prob_collision_found)
                         a = input()
                     else:
-                        print("prob_collision_found crash prob", prob_collision_found)
+                        rospy.logdebug("[Crash and Remove] Prob_collision_found crash prob", prob_collision_found)
 
                     # TODO Move this out if we want to skip wall casts maybe do a do not save here
                     if "obstables_to_remove" in info:
@@ -283,15 +320,17 @@ def run_crash_and_remove(
                             env.env_real.obstacles.pop(obst[1])
                         successful_actions.append(actions)
                     else:
-                        print("There was a crash without an obstacle")
+                        rospy.logdebug("[Crash and Remove] There was a crash without an obstacle")
                         break_out = True
                         if replay_on:
-                            print("\U0001F4C0", "obstacles not remove")
+                            rospy.logdebug("[Crash and Remove] \U0001F4C0", "obstacles not remove")
                             a = input()
                     env.env_real.visu_adv_traj_map = deepcopy(env.env_real.map_ref_adv)
                     env.env_real.visu_adv_traj_map = env.env_real.visu_adv_traj_map.convert("RGB")
+
+            # Replay
             if replay_on and temp_disable_replay:
-                print("\U0001F4C0", "episode_end, type a to break out")
+                rospy.logdebug("[Crash and Remove] \U0001F4C0", "episode_end, type a to break out")
                 a = input()
                 if a == "a":
                     break_out = True
@@ -301,20 +340,23 @@ def run_crash_and_remove(
                 wall_discards = wall_discards + 1
                 break
 
-            print("Current_estimate", calculate_collsion_order(prob_collision_with_Node))
+            rospy.logdebug("Current_estimate", calculate_collsion_order(prob_collision_with_Node))
 
         if not break_out:
 
-            # TODO if len()<3 there ight be probles
-
-            print("final rl estimate:", calculate_collsion_order(prob_collision_with_Node))
+            # TODO if len()<3 there might be problems
+            rospy.loginfo("[Crash and Remove] Final RL estimate:", calculate_collsion_order(prob_collision_with_Node))
             if use_brute_force_baseline:
-                print("final brute estimate:", prob_collision_brute)
+                rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
             if replay_on:
                 a = input()
             if temp_disable_replay:
-                print("the old final rl estimate:", calculate_collsion_order(loaded_run_info["rl_prob"]))
+                rospy.logdebug(
+                    "[Crash and Remove] The old final RL estimate:",
+                    calculate_collsion_order(loaded_run_info["rl_prob"]),
+                )
                 a = input()
+
             rl_list.append(prob_collision_with_Node)
             brute_force_list.append(prob_collision_brute)
             traj_list.append(traj_vanilla)
@@ -339,6 +381,7 @@ def run_crash_and_remove(
                 pkl.dump(df_save, filehandler)
                 filehandler.close()
 
+    # ----- Save the final results ----
     data = {
         "rl_prob": rl_list,
         "brute_prob": brute_force_list,
@@ -348,8 +391,6 @@ def run_crash_and_remove(
         "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
         "wall_discards": wall_discards,
     }
-
-    "save the final results"
     if not replay_on:
         df_save = pd.DataFrame(data)
 
@@ -357,13 +398,13 @@ def run_crash_and_remove(
         pkl.dump(df_save, filehandler)
         filehandler.close()
 
-        print("wall_discards", wall_discards)
+        rospy.logdebug("[Crash and Remove] Wall_discards", wall_discards)
 
     return data
 
 
 if __name__ == "__main__":
-    configs = config.configs[0]
+    configs = configs[0]
     env_name = "robo_navigation-v01"
     use_brute_force_baseline = True
 

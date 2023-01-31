@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   robotino_msgs
   visualization_msgs
+  jsk_recognition_msgs
   message_generation
 )
 
@@ -52,6 +53,7 @@ add_message_files(
   FILES
   ObstacleMsg.msg
   ObstacleList.msg
+  Risk.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -74,6 +76,7 @@ generate_messages(
   std_msgs
   geometry_msgs
   nav_msgs
+  jsk_recognition_msgs
 )
 
 ################################################

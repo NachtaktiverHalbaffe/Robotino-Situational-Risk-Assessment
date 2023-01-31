@@ -54,6 +54,7 @@
   <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
   <depend>robotino_msgs</depend>
+  <depend>jsk_recognition_msgs</depend>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>

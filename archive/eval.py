@@ -5,8 +5,8 @@ from .config import configs
 from .Environment import Environment
 from .ppo import Agent
 from .mcts import *
-from .SaveData import save_data, traj_length
-from .probability_cal import real_to_pixel, risk_calculation
+from ..src.risk_estimation.SaveData import save_data, traj_length
+from ..src.risk_estimation.probability_cal import real_to_pixel, risk_calculation
 from .AutoLabel import read_data
 from sklearn.svm import SVR
 

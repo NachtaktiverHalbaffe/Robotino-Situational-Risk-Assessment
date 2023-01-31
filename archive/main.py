@@ -12,7 +12,7 @@ from ppo import Agent
 from archive.CSV_Logger import CSV_Logger
 from mcts import *
 
-from probability_cal import real_to_pixel, action_prob_cal, risk_calculation, cumm_risk
+from risk_estimation.probability_cal import real_to_pixel, action_prob_cal, risk_calculation, cumm_risk
 from archive.plotgraph import plt_action
 
 
@@ -223,14 +223,10 @@ def run_session_adv(config, test_mode):
         n_reset_nodes = 300
         if (episode % n_reset_nodes == 0) or episode == 1:
             # Has run n_reset_nodes => sample new graph for PRM and new trajectory
-            observation, traj_vanilla = env.reset(
-                "adv1", new_nodes=True, start=config["start"], goal=config["goal"]
-            )
+            observation, traj_vanilla = env.reset("adv1", new_nodes=True, start=config["start"], goal=config["goal"])
         else:
             # Hasn't run n_reset_nodes => just sample new trajectory
-            observation, traj_vanilla = env.reset(
-                "adv1", start=config["start"], goal=config["goal"]
-            )
+            observation, traj_vanilla = env.reset("adv1", start=config["start"], goal=config["goal"])
         # Get stop time of resetting process
         reset_total_time += time.perf_counter() - t2
 
@@ -263,9 +259,7 @@ def run_session_adv(config, test_mode):
             # in simulation environment
             ##############################
             t1 = time.perf_counter()
-            action_index, prob, val, raw_probs = adv1.choose_action(
-                observation, test_mode=test_mode
-            )
+            action_index, prob, val, raw_probs = adv1.choose_action(observation, test_mode=test_mode)
             choose_action_total_time += time.perf_counter() - t1
             t3 = time.perf_counter()
 
@@ -280,16 +274,12 @@ def run_session_adv(config, test_mode):
             action_prob_value = action_prob(action_index)
 
             # Perform step
-            observation_, reward, done, collision_status, _ = env.step_adv1(
-                action_angle_offset, action_prob_value
-            )
+            observation_, reward, done, collision_status, _ = env.step_adv1(action_angle_offset, action_prob_value)
             step_total_time += time.perf_counter() - t3
 
             # Append necessary step data to track session
             steps_episodes_log.append(episode_counter)
-            steps_probs_log.append(
-                np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2)
-            )
+            steps_probs_log.append(np.round(raw_probs.cpu().detach().numpy().squeeze(0), 2))
             steps_val_log.append(np.round(val, 2))
             steps_reward_log.append(np.round(reward, 2))
             steps_collisions_log.append(collision_status)
@@ -306,9 +296,7 @@ def run_session_adv(config, test_mode):
             ep_probs.append(prob)
             ep_vals.append(val)
             ep_rewards.append(reward)
-            ep_entropy.append(
-                torch.squeeze(Categorical(raw_probs).entropy().detach(), 0).item()
-            )
+            ep_entropy.append(torch.squeeze(Categorical(raw_probs).entropy().detach(), 0).item())
             ep_dones.append(done)
             action_value.append(pos_offset)
             action_count = thisdict.get(pos_offset)
@@ -324,19 +312,13 @@ def run_session_adv(config, test_mode):
                     collisions.append(1)
                     print(
                         "\U0000274c",
-                        bcolors.BOLD
-                        + bcolors.FAIL
-                        + "Collision occured and not reached"
-                        + bcolors.ENDC,
+                        bcolors.BOLD + bcolors.FAIL + "Collision occured and not reached" + bcolors.ENDC,
                     )
                 else:
                     collisions.append(0)
                     print(
                         "\U00002705",
-                        bcolors.BOLD
-                        + bcolors.OKGREEN
-                        + "Reached at the destination"
-                        + bcolors.ENDC,
+                        bcolors.BOLD + bcolors.OKGREEN + "Reached at the destination" + bcolors.ENDC,
                     )
 
                 # Write adversary parameters into memory
@@ -429,19 +411,11 @@ def run_session_adv(config, test_mode):
             adv1.save_models(path=config["log_name"] + "_models/", name=str(episode))
 
         # Save model if episode had best reward
-        if (
-            (avg_reward > avg_reward_best + 0.01)
-            and (not test_mode)
-            and (episode > avg_window)
-        ):
+        if (avg_reward > avg_reward_best + 0.01) and (not test_mode) and (episode > avg_window):
             avg_reward_best = avg_reward
             adv1.save_models(path=config["log_name"] + "_models/", name="best_reward")
         # Save model if episode had the best score ==> episode was the best
-        if (
-            (avg_score > avg_score_best + 0.01)
-            and (not test_mode)
-            and (episode > avg_window_score)
-        ):
+        if (avg_score > avg_score_best + 0.01) and (not test_mode) and (episode > avg_window_score):
             print(">>>>> new best !!! <<<<<")
             avg_score_best = avg_score
             adv1.save_models(path=config["log_name"] + "_models/", name="best")

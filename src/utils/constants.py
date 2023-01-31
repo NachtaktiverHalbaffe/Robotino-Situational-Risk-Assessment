@@ -13,6 +13,7 @@ class Topics(Enum):
     LOCALIZATION_MODE = "/localization_mode"
     LOCALIZATION = "/pose"
     OBSTACLES = "/obstacles"
+    OBSTACLES_VISU = "/obstacles_visu"
     IMAGE_RAW = "/image_raw"
     IMAGE_BB_WS = "/image_bb_ws"
     IMAGE_BB_MOVEABLE = "/image_bb_moveable"
@@ -23,6 +24,7 @@ class Topics(Enum):
     MARKERS = "/target_markers"
     MARKERS_NAV = "/target_nav_markers"
     LIDAR_ENABLED = "/lidar_enabled"
+    RISK_ESTIMATION = "/risk_estimation"
 
 
 class Nodes(Enum):

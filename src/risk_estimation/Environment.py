@@ -2,7 +2,7 @@ import os
 import pickle
 import sys
 import time
-
+import rospy
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw
@@ -16,7 +16,7 @@ from autonomous_operation.PRM import (
     get_node_with_coordinates,
     calc_nearest_dist,
 )
-from autonomous_operation.object_detection import apply_object_detection
+from autonomous_operation.object_detection import apply_object_detection, Obstacle
 import copy
 from copy import deepcopy
 
@@ -232,7 +232,7 @@ def clear_image_files():
         try:
             os.remove("./image/adv_trajectory.png")
         except PermissionError:
-            print("permissionerror while removing ./image/adv_trajectory.png")
+            rospy.logerr("Permission error while removing ./image/adv_trajectory.png")
 
 
 def initialize_map(map_path):
@@ -283,29 +283,19 @@ def initialize_traj(
         nodes: new or old nodes, depending on param nodes
         edges_all: edges with their new costs (or unchanged costs, depending on whether we passed nodes)
     """
-    # print(start, goal)
     if not nodes:
         if env:
             # env.map_ref, env.obstacles = create_random_map()
-            # print("in not nodes and if env")
-            # print(start,goal)
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                env.map_ref, env.obstacles
-            )  # , start=start, goal=goal
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(env.map_ref, env.obstacles)  # , start=start, goal=goal
         else:
-            # print("in not nodes and else env")
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                map_ref, obstacles
-            )  # , start=start, goal=goal
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(map_ref, obstacles)  # , start=start, goal=goal
 
         # pickle dump ~~~
-        # print('dumping nodes...')
         # open_file = open('nodes_presentation', "wb")
         # pickle.dump(nodes, open_file)
         # open_file.close()
     else:
         # for specific start / goal location: ------------------
-        # print("in else nodes")
         start_node = get_node_with_coordinates(nodes, (62, 74))
         goal_node = get_node_with_coordinates(nodes, (109, 125))
         traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
@@ -315,7 +305,6 @@ def initialize_traj(
         # ------------------------------------------------------
 
         # traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
-    # print('fresh trajectory:', traj)
 
     return traj, nodes, edges_all
 
@@ -382,12 +371,8 @@ def initialize_state_prot(environment, visualize=False):
     #     visualize_traj(map_visu, traj, forAgent=True)
 
     # calculate the nearest distance / point to all objects
-    nearest_distances, most_critical_points = calc_nearest_dist(
-        traj, environment.obstacles
-    )
-    for i in range(
-        0, len(nearest_distances)
-    ):  # gives us the nearest distance / point for each segment in a list
+    nearest_distances, most_critical_points = calc_nearest_dist(traj, environment.obstacles)
+    for i in range(0, len(nearest_distances)):  # gives us the nearest distance / point for each segment in a list
         nearest_distances[i] = np.round(nearest_distances[i][0])
         most_critical_points[i] = most_critical_points[i][0]
         if nearest_distances[i] <= 0:
@@ -397,20 +382,9 @@ def initialize_state_prot(environment, visualize=False):
     nearest_distances = np.array(nearest_distances)
     vanilla_cost = 1 / np.min(nearest_distances)
 
-    # print('actually before prot and before adversary:', environment.trajectory_vanilla)
-    # environment.trajectory_vanilla = traj
-    init_state = StateProt(
-        generate_obs_from_rgb_img(map_visu), traj[0].coordinates, vanilla_cost
-    )
-
-    # print('nearest distances:')
-    # print(nearest_distances)
-    # print('most critical points:')
-    # print(most_critical_points)
-    # print('vanilla_distance_metric:', vanilla_cost)
+    init_state = StateProt(generate_obs_from_rgb_img(map_visu), traj[0].coordinates, vanilla_cost)
 
     t_init_state = time.perf_counter() - t0
-    # print('time init_state (protagonist):', t_init_state)
 
     if visualize:
         map_visu.save("./image/prot_obs.png")
@@ -428,7 +402,6 @@ def copy_nodes(edges):
     Returns:
         copy of all nodes in edges and copy of edges themselves
     """
-    t0 = time.perf_counter()
     edges_copy = copy.deepcopy(edges)
     nodes_copy = []
     for edge in edges_copy:
@@ -436,7 +409,6 @@ def copy_nodes(edges):
             nodes_copy.append(edge.node1)
         if not (edge.node2 in nodes_copy):
             nodes_copy.append(edge.node2)
-    print("time_copy_nodes:", time.perf_counter() - t0)
     return nodes_copy, edges_copy
 
 
@@ -487,7 +459,6 @@ class Environment:
         goal=[109, 125],
     ):
         clear_image_files()
-        self.debug_prints = False
         # For now only have angle-offset as action
         # self.action_space = gym.spaces.Discrete(5)          # {-10, -5, 0, 5, 10}
         # self.observation_space = gym.spaces.Box(low=np.full((160, 160), 0), high=np.full((160, 160), 1), shape=(160, 160), dtype=int) # 0: empty, 1: object, 2: trajectory segment (planned), 3: current position
@@ -499,9 +470,7 @@ class Environment:
         self.obstacles = [obst_table]
         base_info, map_config = get_base_info()
         obstacles_ws, names_ws = get_obstacles_in_pixel_map(base_info)
-        obstacles_movable, names_movables = get_obstacles_in_pixel_map(
-            base_info, "movable"
-        )
+        obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, "movable")
         self.obstacles.extend(obstacles_ws)
         self.obstacles.extend(obstacles_movable)
         self.map_ref = self.modify_map_2(
@@ -520,9 +489,7 @@ class Environment:
             self.trajectory_vanilla,
             self.nodes_vanilla,
             self.edges_all_vanilla,
-        ) = initialize_traj(
-            self.map_ref, self.obstacles, nodes=None, start=start, goal=goal
-        )
+        ) = initialize_traj(self.map_ref, self.obstacles, nodes=None, start=start, goal=goal)
         self.nodes_prot, self.edges_all_prot = copy_nodes(self.edges_all_vanilla)
         self.relevant_segments = relevant_segments
         """config parameter that determines how many segments of a trajectory are "seen"\
@@ -572,16 +539,10 @@ class Environment:
         add = [(2, 2), (2, -2), (-2, -2), (-2, 2)]
         add = [(0, 0), (0, -0), (-0, -0), (-0, 0)]
         for obstacle in obstacles_org:
-            # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='black')
             # increase the size of the obstacle by one pixel
-            # corners = [tuple(map(lambda i,j:i+j,obstacle.corners[i],add[i])) for i in range(4)]
-            map_ref_adv_draw.polygon(
-                obstacle.corners, fill=(0, 0, 0), outline=(0, 0, 0)
-            )
+            map_ref_adv_draw.polygon(obstacle.corners, fill=(0, 0, 0), outline=(0, 0, 0))
         # add = [(1,1),(1,-1),(-1,-1),(-1,1)]
         for obstacle in obstacles:
-            # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='white')
-            # corners = [tuple(map(lambda i,j:i+j,obstacle.corners[i],add[i])) for i in range(4)]
             map_ref_adv_draw.polygon(obstacle.corners, fill=color, outline=color)
         if convert_back_to_grey:
             map_ref_adv = map_ref_adv.convert("L")
@@ -591,10 +552,7 @@ class Environment:
         self.state_adv1.traj_index = node_num
         if len(pos) > 0:
             if pos[0] == -1:
-                self.state_adv1.position = self.trajectory_vanilla[
-                    node_num - 1
-                ].coordinates
-                # print("in -1 pos")
+                self.state_adv1.position = self.trajectory_vanilla[node_num - 1].coordinates
             else:
                 self.state_adv1.position = pos
         self.state_adv1.angle = 0
@@ -637,9 +595,7 @@ class Environment:
         command_disturbed = Command(angle_comm_new, v_comm_new, command_vanilla.t)
 
         # t0 = time.perf_counter()
-        pos_new, angle_new = calc_new_position(
-            self.state_adv1.position, self.state_adv1.angle, command_disturbed
-        )
+        pos_new, angle_new = calc_new_position(self.state_adv1.position, self.state_adv1.angle, command_disturbed)
 
         if not "dist_loc" in actions_sb3:
             pos_new[0] = pos_new[0] + action
@@ -647,10 +603,7 @@ class Environment:
         # This block deals with the situation when the adversary coincidentally steers the robot on the position
         # of the next node in the trajectory (which would end up in a segment with distance 0)
         if not (self.state_adv1.traj_index + 1 >= len(self.trajectory_vanilla)):
-            if (
-                pos_new
-                == self.trajectory_vanilla[self.state_adv1.traj_index + 1].coordinates
-            ).all():
+            if (pos_new == self.trajectory_vanilla[self.state_adv1.traj_index + 1].coordinates).all():
                 self.state_adv1.traj_index += 1
                 if self.state_adv1.traj_index >= len(self.trajectory_vanilla):
                     # traj finished (skipping last node because we are already there
@@ -668,17 +621,14 @@ class Environment:
                 ),  # TODO check if +1 and -1 can be safely removed
                 len(self.trajectory_vanilla),
             )
-            for node in self.trajectory_vanilla[
-                self.state_adv1.traj_index + 1 : relevant_max
-            ]:
+            for node in self.trajectory_vanilla[self.state_adv1.traj_index + 1 : relevant_max]:
                 traj_vanilla_coordinates.append(node.coordinates)
 
         segment_adv_coordinates = [self.state_adv1.position, pos_new]
 
         """ Swapnil: Change the position by adding pixels, once it has reached the new position"""
         if (
-            self.state_adv1.position[0] == pos_new[0]
-            and self.state_adv1.position[1] == pos_new[1]
+            self.state_adv1.position[0] == pos_new[0] and self.state_adv1.position[1] == pos_new[1]
         ) and not "dist_loc" in actions_sb3:
             pos_new[1] = pos_new[1] + action + 1
             pos_new[0] = pos_new[0] + 1
@@ -735,27 +685,21 @@ class Environment:
                 # self.visu_adv_traj_map.save('./image/adv_trajectory.png')
                 self.visu_adv_traj_map.save("./image/adv_trajectory_DEBUG.png")
             except PermissionError:
-                print("permissionError when saving file")
+                rospy.logerr("[Environment] PermissionError when saving file")
 
         #########################################################
         # ---------------------- Cost calculation ------------------------------
         #########################################################
         # Calculation of difference in costs (according to reference map)
         cost_segments_vanilla = 0
-        for i in range(
-            0, len(self.edges_vanilla[self.state_adv1.traj_index - 1 : relevant_max])
-        ):
-            cost_segments_vanilla += self.edges_vanilla[
-                self.state_adv1.traj_index - 1 + i
-            ].cost
+        for i in range(0, len(self.edges_vanilla[self.state_adv1.traj_index - 1 : relevant_max])):
+            cost_segments_vanilla += self.edges_vanilla[self.state_adv1.traj_index - 1 + i].cost
         cost_difference = cost_adv_segments - cost_segments_vanilla
 
         ###########################################################################
         ## TODO DRY: Move this block into a function
         # calculation of difference in distance to closest object adversary
-        nearest_distances_adv, most_critical_points_adv = calc_nearest_dist(
-            [adv1_node1, adv1_node2], self.obstacles
-        )
+        nearest_distances_adv, most_critical_points_adv = calc_nearest_dist([adv1_node1, adv1_node2], self.obstacles)
         for i in range(0, len(nearest_distances_adv)):
             # gives us the nearest distance / point for each segment in a list
             nearest_distances_adv[i] = np.round(nearest_distances_adv[i][0])
@@ -801,22 +745,17 @@ class Environment:
             collision = 1
             if self.done_after_collision:
                 done = True
-                if self.debug_prints:
-                    print("\U0001F6AB - collision")
+                rospy.logdebug("[Environment] \U0001F6AB - collision")
         else:
             reward = distance_reward
         if "combined" in probs_action_sb3:
-            reward = (
-                reward + np.log(probs_action_sb3["combined"]) * 20
-            )  # *config.configs[i]['prob_const']
-            # print('reward is ',reward)
+            reward = reward + np.log(probs_action_sb3["combined"]) * 20  # *config.configs[i]['prob_const']
         else:
             """swapnil"""
-            reward = reward * action_prob * config.configs[i]["prob_const"]
+            reward = reward * action_prob * configs[i]["prob_const"]
         """ Stephan """
         # reward = distance_reward
         old_position = self.state_adv1.position
-        # print("Old Position: ", old_position)
 
         ##############################################################
         # ------------------------ Updating trajectory ------------------------------
@@ -832,9 +771,7 @@ class Environment:
             done = True
         if not done:
             segments_vanilla = [Node(pos_new[0], pos_new[1])]
-            segments_vanilla.extend(
-                self.trajectory_vanilla[self.state_adv1.traj_index : relevant_max]
-            )
+            segments_vanilla.extend(self.trajectory_vanilla[self.state_adv1.traj_index : relevant_max])
             map_visu_new = copy.deepcopy(self.map_ref)
             # t1 = time.perf_counter()
             draw_traj(map_visu_new, segments_vanilla, forAgent=True)
@@ -846,9 +783,8 @@ class Environment:
             # generate_obs_time = time.perf_counter()-t4
 
         info = collision
+        rospy.logdebug("[Environment] No collision")
 
-        if not collision and done and self.debug_prints:
-            print("no collision")
         # scaling reward
         reward = reward / reward_for_crash
         return (
@@ -893,15 +829,8 @@ class Environment:
         map_ref_prot = Image.fromarray(map_ref_prot.astype("uint8"), mode="L")
 
         # map_ref_prot.save('./image/map_prot.png')
-
-        # print('trajectory before prot (###):', self.trajectory_vanilla)
-        # print('edges_vanilla before prot:', get_traj_edges(self.trajectory_vanilla))
-        start_node = get_node_with_coordinates(
-            self.nodes_prot, self.trajectory_vanilla[0].coordinates
-        )
-        goal_node = get_node_with_coordinates(
-            self.nodes_prot, self.trajectory_vanilla[-1].coordinates
-        )
+        start_node = get_node_with_coordinates(self.nodes_prot, self.trajectory_vanilla[0].coordinates)
+        goal_node = get_node_with_coordinates(self.nodes_prot, self.trajectory_vanilla[-1].coordinates)
 
         ###########################################
         # ----------------- Apply action ---------------------
@@ -921,19 +850,7 @@ class Environment:
             length_prot += edge.length
 
         traj_vanilla_copy = copy.copy(self.trajectory_vanilla)
-        # print('vanilla vorher:')
-        # print(self.trajectory_vanilla)
         self.trajectory_vanilla = traj
-        # print('copy vorher:')
-        # print(traj_vanilla_copy)
-        # print('traj vorher (nach prot)')
-        # print(traj)
-
-        # print('len(self.nodes_prot)', len(self.nodes_prot))
-        # print('edges after prot:', get_traj_edges(traj))
-        # print('edges_vanilla after prot:', get_traj_edges(self.trajectory_vanilla))
-        # print('trajectory after prot (###):', traj)
-        # print('trajectory vanilla after prot (###):', self.trajectory_vanilla)
 
         #############################################################
         # ------------------  Apply action of adversary ----------------------------
@@ -941,61 +858,42 @@ class Environment:
         collided = 0
         if self.adversary:
             # part of the step_prot(..) is the adversary applying his action (here)
-            # print('applying adversary on prot_traj...')
             map_visu = copy.deepcopy(self.map_ref)
 
             draw_traj(map_visu, traj, forAgent=True)
 
-            self.state_adv1 = StateAdv1(
-                generate_obs_from_rgb_img(map_visu), traj[0].coordinates
-            )
+            self.state_adv1 = StateAdv1(generate_obs_from_rgb_img(map_visu), traj[0].coordinates)
             observation = self.state_adv1.obs
 
             traj = [traj[0]]
             done = False
 
             while not done:
-                action_index, _, _, _ = self.adversary.choose_action(
-                    observation, test_mode=True
-                )
+                action_index, _, _, _ = self.adversary.choose_action(observation, test_mode=True)
                 action_angle_offset = np.deg2rad(
                     ACTION_SPACE_STEP_ADVERSARY * action_index
                     - (int(N_ACTIONS_ADVERSARY / 2) * ACTION_SPACE_STEP_ADVERSARY)
                 )
-                observation, _, done, collision, node_adv = self.step_adv1(
-                    action_angle_offset
-                )
+                observation, _, done, collision, node_adv = self.step_adv1(action_angle_offset)
                 if collision == 1:
                     collided = 1
                 traj.append(node_adv)
 
         self.trajectory_vanilla = traj_vanilla_copy
-        # print('copy')
-        # print(traj_vanilla_copy)
-        # print('vanilla nachher')
-        # print(self.trajectory_vanilla)
-        # print('trajectory')
-        # print(traj)
 
         # Calculate length of original trajectory
         length_vanilla = 0
         for edge in get_traj_edges(self.trajectory_vanilla):
             length_vanilla += edge.length
-        # print('length_vanilla', length_vanilla)
 
         # This (0.5) is an important hyperparameter that regulates the balance between
         # performance and safety (in combination with the other rewards and cost values...) -> might has to be adjusted!!!
         eps = 1e-12
         traj_length_penalty = 0.5 * (1 - length_vanilla / (length_prot + eps))
-        # print('traj_length_penalty', traj_length_penalty)
-
-        # print('trajectory after prot (and possibly adversary):', traj)
 
         # TODO Another DRY?
         # calculate the nearest distance / point to all objects
-        nearest_distances, most_critical_points = calc_nearest_dist(
-            traj, self.obstacles
-        )
+        nearest_distances, most_critical_points = calc_nearest_dist(traj, self.obstacles)
         for i in range(0, len(nearest_distances)):
             # gives us the nearest distance / point for each segment in a list
             nearest_distances[i] = np.round(nearest_distances[i][0])
@@ -1006,12 +904,9 @@ class Environment:
         nearest_distances = np.array(nearest_distances)
 
         prot_cost = 0.5 * (1 / np.min(nearest_distances))
-        # print('dist cost after prot and after adv', prot_cost)
 
         if bool(collided):
             prot_cost = 1
-        # print('prot_cost (distance) ', prot_cost)
-        # distance_difference = self.state_prot.vanilla_cost - prot_cost
         distance_cost = prot_cost
 
         #########################################
@@ -1019,15 +914,9 @@ class Environment:
         #########################################
         debug_visu = True
         if debug_visu:
-            map_ref_prot = draw_traj(
-                map_ref_prot, self.trajectory_vanilla, forAgent=False, color=(255, 0, 0)
-            )
-            map_ref_prot = draw_traj(
-                map_ref_prot, traj, forAgent=False, color=(0, 0, 255)
-            )
+            map_ref_prot = draw_traj(map_ref_prot, self.trajectory_vanilla, forAgent=False, color=(255, 0, 0))
+            map_ref_prot = draw_traj(map_ref_prot, traj, forAgent=False, color=(0, 0, 255))
             map_ref_prot.save("./image/map_prot.png")
-            # print('cost_difference:', cost_difference)
-            # time.sleep(10)
 
         #########################################
         # --------- Calculate cost and reward -----------
@@ -1093,11 +982,7 @@ class Environment:
                     goal=goal,
                 )
             else:
-                (
-                    self.trajectory_vanilla,
-                    self.nodes_vanilla,
-                    self.edges_all_vanilla,
-                ) = initialize_traj(
+                (self.trajectory_vanilla, self.nodes_vanilla, self.edges_all_vanilla,) = initialize_traj(
                     self.map_ref,
                     obstacles=self.obstacles,
                     visualize=self.visualize,
@@ -1105,11 +990,11 @@ class Environment:
                     start=start,
                     goal=goal,
                 )
-                self.nodes_prot, self.edges_all_prot = copy_nodes(
-                    self.edges_all_vanilla
-                )
+                self.nodes_prot, self.edges_all_prot = copy_nodes(self.edges_all_vanilla)
         if forced_traj is not None:
-            self.trajectory_vanilla = forced_traj  # self.trajectory_vanilla[crash_point:min(crash_point+6,len(self.trajectory_vanilla))]
+            self.trajectory_vanilla = (
+                forced_traj  # self.trajectory_vanilla[crash_point:min(crash_point+6,len(self.trajectory_vanilla))]
+            )
         self.edges_vanilla = get_traj_edges(self.trajectory_vanilla)
         obs_ret = None
 
@@ -1128,7 +1013,7 @@ class Environment:
             self.state_adv1.traj_index = 1
             self.state_prot = initialize_state_prot(self)
             obs_ret = self.state_prot.obs
-        if self.debug_prints:
-            print("Fresh:", self.trajectory_vanilla)
+
+        rospy.logdebug("[Environment] Fresh:", self.trajectory_vanilla)
 
         return obs_ret, self.trajectory_vanilla
