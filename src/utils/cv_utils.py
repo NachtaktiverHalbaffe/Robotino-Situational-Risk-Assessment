@@ -78,6 +78,7 @@ def best_match_workstation_index(
         old_loc_assumption: where we currently assume to be based on acml
         rotation_detected: the rotation the object detection infered
         base_info: this is the set of calibration data needed to correctly transform from acml to pixel cords
+        map_config (dict): The configuration of the map which is used for CV
 
     Returns:
         detected_obst: the detected object as an Obstacle

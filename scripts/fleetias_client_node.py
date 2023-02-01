@@ -15,7 +15,7 @@ PORT = 13002
 def activateFeature(feature: str, enabled: bool):
     """
     Enables or disables a feature. Done via publishing to \
-    topics, implementation of enabling/disabling is done in Node itself
+    topics. Implementation of enabling/disabling is done in Node itself
 
     Args:
         feature (str): Name of feature
@@ -31,9 +31,7 @@ def activateFeature(feature: str, enabled: bool):
         except:
             return
     else:
-        rospy.logwarn(
-            f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature'
-        )
+        rospy.logwarn(f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature')
         return f'Error: Feature "{feature}" unknown.'
 
     return f'Success: Feature "{feature}" activate/deactivated'
@@ -52,9 +50,7 @@ def addOffset(offset: list, feature: str):
     """
     if feature == "Localization":
         # Create message
-        data = rospy.wait_for_message(
-            Topics.LOCALIZATION.value, PoseWithCovarianceStamped
-        )
+        data = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
         data.pose.pose.position.x += offset[0]
         data.pose.pose.position.y += offset[1]
         # Publish message
@@ -117,9 +113,7 @@ def processMessage(data: dict):
             )
             response = pushTarget(type="resource", id=data["workstationID"])
         elif data["type"].lower() == "coordinate":
-            rospy.logdebug(
-                f'[FleetIAS-Client]: Received command "PushTarget with coordinate {data["coordinate"]}"'
-            )
+            rospy.logdebug(f'[FleetIAS-Client]: Received command "PushTarget with coordinate {data["coordinate"]}"')
             response = pushTarget(type="coordinate", coordinate=data["coordinate"])
         else:
             pass
@@ -140,6 +134,14 @@ def processMessage(data: dict):
 
 
 def communicate(client, server):
+    """
+    Handles the communication between the TCP server and client. It receives and fetches a \
+    message, processes them and send a response back to the client
+    
+    Args:
+        client (socket): The client which send the request
+        server (socket): The server itself
+    """
     server.settimeout(None)
     request = client.recv(512)
     if request:
@@ -162,6 +164,9 @@ def communicate(client, server):
 
 
 def runClient():
+    """
+    Runs the FleetIAS client. Although being named a client, it's technically a TCP server.
+    """
     ipAddr = rospy.get_param("~ip")
     # Setup socket
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

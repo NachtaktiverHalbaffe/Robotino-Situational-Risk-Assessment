@@ -33,12 +33,14 @@ last_update = time.time()
 
 def localiseCam():
     """
-    Uses the camera to localise the Robotino on the map. Uses the localization from Kai Binder\
-    and is only integrated here.
+    Uses the camera to localise the Robotino on the map. Uses the camera based\
+    localization from Kai Binder and is only integrated here.
     """
+    # For localization
     global img_glob
     global real_data
     global config
+    # For interpolating position if camera based localization isn't possible
     global last_known_loc
     global last_known_rot
     global last_update
@@ -50,13 +52,18 @@ def localiseCam():
 
     # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
     rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
-    if len(real_data) == 0:
-        return
+
     # last_known_locs and the map TODO not sure if deepopy ws_map is needed
     img_local = deepcopy(img_glob)
     dc_obstacles_ws = deepcopy(config["obstacles_ws"])
-    local_acml_location = deepcopy(real_data)
-    local_acml_location = offset_to_robo(local_acml_location)
+    # Use last known location as location assumption
+    if last_known_loc[0] != 0 and last_known_loc[1] != 0:
+        location_assumption = deepcopy(last_known_loc)
+        location_assumption = offset_to_robo(location_assumption)
+    # Last known location unknown => use acml data
+    else:
+        location_assumption = deepcopy(real_data)
+        location_assumption = offset_to_robo(location_assumption)
 
     # corners of the workstations on the map
     corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
@@ -72,7 +79,7 @@ def localiseCam():
 
         # turning the detected corners into an obstacle
         detected_obst = get_obstacles_from_detection(
-            detected_workstation_dist, local_acml_location, config["base_info"]
+            detected_workstation_dist, location_assumption, config["base_info"]
         )
         # comparing detected obstacles with workstations on map to find correct one
         detection_corners = list(map(tuple, zip(*detected_workstation_dist)))
@@ -81,14 +88,13 @@ def localiseCam():
             detected_obst,
             detection_corners,
             rots_ws,
-            local_acml_location,
+            location_assumption,
             rotation_detected,
             config["base_info"],
             config["map_config"],
         )
 
         # calculating rotation from detected and cord transforms
-        # detected_rotation = -(rots_ws[index_smallest_dist_ws]-rotation_detected+np.pi-1.204)
         detected_rotation = (
             -(rots_ws[index_smallest_dist_ws] - rotation_detected + np.pi - config["map_config"]["rot"]) + 2 * np.pi
         )

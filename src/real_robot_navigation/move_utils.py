@@ -19,6 +19,7 @@ from autonomous_operation.PRM import (
 )
 from autonomous_operation.object_detection import apply_object_detection
 from autonomous_operation.object_detection import Obstacle
+
 # sys.path.insert(0, os.path.dirname(os.path.dirname(__file__))+'/yolov7')
 # from detect_online import get_conf_and_model, loaded_detect
 
@@ -61,13 +62,9 @@ def initialize_traj(
     if not nodes:
         if env:
             # env.map_ref, env.obstacles = create_random_map()
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                env.map_ref, env.obstacles
-            )
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(env.map_ref, env.obstacles)
         else:
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                map_ref, obstacles, start=start, goal=end
-            )
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(map_ref, obstacles, start=start, goal=end)
 
         # pickle dump ~~~
         # print('dumping nodes...')
@@ -75,9 +72,7 @@ def initialize_traj(
         # pickle.dump(nodes, open_file)
         # open_file.close()
     elif start_node and goal_node:
-        traj, _, nodes, _ = apply_PRM(
-            map_ref, nodes, start_node=start_node, goal_node=goal_node
-        )
+        traj, _, nodes, _ = apply_PRM(map_ref, nodes, start_node=start_node, goal_node=goal_node)
 
     else:
         # for specific start / goal location: ------------------
@@ -387,9 +382,7 @@ def obstacle_adversary(obstacles, action_index):
     return obstacles_disturbed
 
 
-def modify_map(
-    map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True
-):
+def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True):
     """This is takes a set of obstacles to remove from the image and a set to place in the image, often used for shifting obstacles in
     the map by passing the same obstacles at the old and new different locations
     @param takes: the image we want to modify
@@ -407,10 +400,7 @@ def modify_map(
     for obstacle in obstacles_org:
         # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='black')
         # increase the size of the obstacle by one pixel
-        corners = [
-            tuple(map(lambda i, j: i + j, obstacle.corners[i], add[i]))
-            for i in range(4)
-        ]
+        corners = [tuple(map(lambda i, j: i + j, obstacle.corners[i], add[i])) for i in range(4)]
         map_ref_adv_draw.polygon(corners, fill=(0, 0, 0), outline=(0, 0, 0))
     add = [(1, 1), (1, -1), (-1, -1), (-1, 1)]
     for obstacle in obstacles:

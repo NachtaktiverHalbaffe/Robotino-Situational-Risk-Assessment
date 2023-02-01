@@ -37,13 +37,11 @@ def calc_command(target: Point):
         distance (float): The distance the Robotino has to move
     """
     # from [-1, 1] to [-pi, pi]
-    currentPos = rospy.wait_for_message(
-        Topics.LOCALIZATION.value, PoseWithCovarianceStamped
-    )
+    currentPos = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
     _, _, current_angle = euler_from_quaternion(currentPos.pose.pose.orientation)
-    # current_angle = np.arcsin(current_angle) * 2
-    # if current_angle < 0:  # from [-pi, pi] to [0, 2pi]
-    #     current_angle = current_angle + (2 * np.pi)
+    current_angle = np.arcsin(current_angle) * 2
+    if current_angle < 0:  # from [-pi, pi] to [0, 2pi]
+        current_angle = current_angle + (2 * np.pi)
 
     position = (currentPos.pose.pose.position.x, currentPos.pose.pose.position.y)
     target = (target.x, target.y)
@@ -116,9 +114,7 @@ def move(target: Point, dist):
         except:
             return False
 
-        currentPos = rospy.wait_for_message(
-            Topics.LOCALIZATION.value, PoseWithCovarianceStamped
-        )
+        currentPos = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
         position = (currentPos.pose.pose.position.x, currentPos.pose.pose.position.y)
         distance = np.linalg.norm(target - position)
 
@@ -207,8 +203,10 @@ def rotate(angle):
 
 def navigateToPoint(target: Point):
     """
+    Deprecated: Use move_base package from ROS instead
+
     Navigates the real Robotino to an specified target by first rotating\
-    towards the target and then driving forward
+    towards the target and then driving forward. 
 
     Args:
         target (Point): The coordinate to which the Robotino should drive
@@ -235,7 +233,8 @@ def navigateToPoint(target: Point):
 
 def control():
     """
-    Runs the node itself and subscribes to all necessary topics.
+    Runs the node itself and subscribes to all necessary topics. This node is responsible\
+    for sending the actual control commands to the real Robotino
     """
     rospy.init_node(Nodes.CONTROL.value)
     rospy.loginfo(f"Starting node {Nodes.CONTROL.value}")

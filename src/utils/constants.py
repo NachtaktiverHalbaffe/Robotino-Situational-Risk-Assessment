@@ -3,9 +3,7 @@ from enum import Enum
 
 class Topics(Enum):
     GLOBAL_PATH = "/path_global"
-    LOCAL_PATH = "/path_local"
     TARGET = "/target"
-    LOCAL_TARGET = "/target_local"
     TARGET_ID = "/target_id"
     NAV_POINT = "/nav_point"
     ACML = "/amcl_pose"
