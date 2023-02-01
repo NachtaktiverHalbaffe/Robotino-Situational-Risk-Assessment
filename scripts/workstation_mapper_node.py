@@ -30,9 +30,7 @@ def createMarkers(topic: str, markerType: str = "NavPosed"):
     for key in target_identified.keys():
         marker = Marker()
         marker.ns = key
-        marker.header.frame_id = target_identified[key][markerType]["posedstamped"][
-            "header"
-        ]["frame_id"]
+        marker.header.frame_id = target_identified[key][markerType]["posedstamped"]["header"]["frame_id"]
         marker.type = marker.SPHERE
         marker.action = marker.ADD
         marker.scale.x = 0.1
@@ -48,26 +46,14 @@ def createMarkers(topic: str, markerType: str = "NavPosed"):
             marker.color.r = 1.0
             marker.color.g = 1.0
             marker.color.b = 0.0
-        marker.pose.position.x = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["position"]["x"]
-        marker.pose.position.y = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["position"]["y"]
+        marker.pose.position.x = target_identified[key][markerType]["posedstamped"]["pose"]["position"]["x"]
+        marker.pose.position.y = target_identified[key][markerType]["posedstamped"]["pose"]["position"]["y"]
         # Set z to 0 so markers are placed directly onto image and aren't hovering in the air
         marker.pose.position.z = 0
-        marker.pose.orientation.x = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["orientation"]["x"]
-        marker.pose.orientation.y = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["orientation"]["y"]
-        marker.pose.orientation.z = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["orientation"]["z"]
-        marker.pose.orientation.w = target_identified[key][markerType]["posedstamped"][
-            "pose"
-        ]["orientation"]["w"]
+        marker.pose.orientation.x = target_identified[key][markerType]["posedstamped"]["pose"]["orientation"]["x"]
+        marker.pose.orientation.y = target_identified[key][markerType]["posedstamped"]["pose"]["orientation"]["y"]
+        marker.pose.orientation.z = target_identified[key][markerType]["posedstamped"]["pose"]["orientation"]["z"]
+        marker.pose.orientation.w = target_identified[key][markerType]["posedstamped"]["pose"]["orientation"]["w"]
         markerArray.markers.append(marker)
 
         target_id = 0
@@ -97,31 +83,29 @@ def fetchCoordinate(wsID: Int16):
     try:
         # Create ROS message
         targetCor = PoseStamped()
-        targetCor.pose.position.x = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["position"]["x"]
-        targetCor.pose.position.y = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["position"]["y"]
-        targetCor.pose.position.z = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["position"]["z"]
-        targetCor.pose.orientation.x = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["orientation"]["x"]
-        targetCor.pose.orientation.y = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["orientation"]["y"]
-        targetCor.pose.orientation.z = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["orientation"]["z"]
-        targetCor.pose.orientation.w = target_identified[f"Workstation{targetId}"][
-            "NavPosed"
-        ]["posedstamped"]["pose"]["orientation"]["w"]
+        targetCor.pose.position.x = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "position"
+        ]["x"]
+        targetCor.pose.position.y = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "position"
+        ]["y"]
+        targetCor.pose.position.z = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "position"
+        ]["z"]
+        targetCor.pose.orientation.x = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "orientation"
+        ]["x"]
+        targetCor.pose.orientation.y = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "orientation"
+        ]["y"]
+        targetCor.pose.orientation.z = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "orientation"
+        ]["z"]
+        targetCor.pose.orientation.w = target_identified[f"Workstation{targetId}"]["NavPosed"]["posedstamped"]["pose"][
+            "orientation"
+        ]["w"]
     except:
-        rospy.logerr(
-            f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}"
-        )
+        rospy.logerr(f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}")
         return
     # Publish coordinate
     try:
@@ -130,9 +114,7 @@ def fetchCoordinate(wsID: Int16):
             f"[Workstation Mapper] Published target ({targetCor.pose.position.x},{targetCor.pose.position.y}) to topic {Topics.TARGET.value}"
         )
     except:
-        rospy.logerr(
-            f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}"
-        )
+        rospy.logerr(f"[Workstation Mapper] Error, cant publish target to topic {Topics.TARGET.value}")
 
 
 def qrCodeScanner(rawImage: Image):
@@ -186,20 +168,14 @@ def qrCodeScanner(rawImage: Image):
             if objectDist < 2.0 and objectDist != 0.0:
                 # Find the x and y axis of the target wrt to laser frame
                 object_x, object_y = polar2Cartesion(objectDist, camera_angle)
-                navObject_x, navObject_y = polar2Cartesion(
-                    navObjectDist, navObjectAngle
-                )
+                navObject_x, navObject_y = polar2Cartesion(navObjectDist, navObjectAngle)
 
                 if myData in target_identified.keys():
-                    rospy.logdebug(
-                        f"[Workstation Mapper] {myData} is already identified"
-                    )
+                    rospy.logdebug(f"[Workstation Mapper] {myData} is already identified")
                 else:
                     posedstamped = PoseStamped()
                     navPosedstamped = PoseStamped()
-                    posedstamped = laser2mapConv(
-                        object_x, object_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0
-                    )
+                    posedstamped = laser2mapConv(object_x, object_y, 0.0, roll=camera_angle, pitch=0.0, yaw=0.0)
                     navPosedstamped = laser2mapConv(
                         navObject_x,
                         navObject_y,
@@ -255,13 +231,9 @@ def qrCodeScanner(rawImage: Image):
                             }
                         },
                     }
-                    rospy.loginfo(
-                        f"[Workstation Mapper] Identified workstation {myData} and saved marker"
-                    )
+                    rospy.loginfo(f"[Workstation Mapper] Identified workstation {myData} and saved marker")
             else:
-                rospy.logdebug(
-                    f"[Workstation Mapper] Target {myData} is not within range"
-                )
+                rospy.logdebug(f"[Workstation Mapper] Target {myData} is not within range")
 
 
 def workstationMapper():
@@ -280,9 +252,7 @@ def workstationMapper():
     rospy.Subscriber(Topics.TARGET_ID.value, Int16, fetchCoordinate, queue_size=10)
     # -------------------------------- QR Code Scanning ------------------------------------
     # Only start QR code scanner if not all workstations are identified
-    camera_sub = rospy.Subscriber(
-        Topics.IMAGE_RAW.value, Image, qrCodeScanner, queue_size=2
-    )
+    camera_sub = rospy.Subscriber(Topics.IMAGE_RAW.value, Image, qrCodeScanner, queue_size=2)
 
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
@@ -291,6 +261,7 @@ def workstationMapper():
         if len(target_identified.keys()) == 4:
             # unregister subscriber which is responsible for QR code scanning
             camera_sub.unregister()
+            _saveMarkersToJson()
         rate.sleep()
 
     _saveMarkersToJson()

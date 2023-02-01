@@ -32,7 +32,7 @@ from gui.ui_form import Ui_MainWindow
 from scripts.velocity import move, drive_backward, drive_forward, stop_robot, rotate
 from utils.py_ros_launch import ros_launch_without_core
 import src.risk_estimation.config as config
-from src.risk_estimation.eval import mains as evaluation
+from archive.eval import mains as evaluation
 from src.risk_estimation.AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
 from utils.constants import Topics, Nodes
 

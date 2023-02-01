@@ -8,7 +8,7 @@ from autonomous_operation.PRM import Edge, Node, apply_PRM, apply_PRM_init, get_
 from autonomous_operation.object_detection import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
-from utils.create_map_ref import createMapRef
+from utils.navigation_utils import createMapRef, trajToPath
 from utils.ros_logger import set_rospy_log_lvl
 from real_robot_navigation.move_utils_cords import (
     get_amcl_from_pixel_location,
@@ -18,8 +18,7 @@ from real_robot_navigation.move_utils_cords import (
 
 THRESHOLD_EDGE = 6
 
-publisherGlobal = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
-publisherLocal = rospy.Publisher(Topics.LOCAL_PATH.value, Path, queue_size=10)
+pathPublisher = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
 
 global obstacles
 obstacles = None
@@ -51,7 +50,7 @@ def setObstacles(obstaclesList: ObstacleList):
     newObstacles = True
 
 
-def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value):
+def runPRM(targetMessage: PoseStamped):
     """
     Runs the PRM to get a trajectory
 
@@ -59,7 +58,6 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
         targetMessage (geometry_msgs.Point): Target point to which the robotino should navigate. Is given by the subscriber who calls this function\
         currenPoint and obstacles are taken from an global variable
         pubTopic (str): Name of the topic to which the path should be published
-        map_ref (str): Path to the reference map
     Returns:
         Path is published to topic "/path_raw"
     """
@@ -76,6 +74,7 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     yCurrent = currentPoint.pose.pose.position.y
     rospy.logdebug(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
+    # Get configuration
     base_info, _ = get_base_info()
     all_obst = pathPlannerConfig[1]
     # Convert target and goal to node coordinates
@@ -84,16 +83,14 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
     goal = get_pixel_location_from_acml(*(xTarget, yTarget), *base_info)
     goal = [int(goal[0]), int(goal[1])]
 
+    # Add detected obstacles to map and modify map_ref so obstacles are placed
     if obstacles != None:
         all_obst += obstacles
-
     map_ref = modify_map(pathPlannerConfig[0], [], all_obst, convert_back_to_grey=True)
 
-    # TODO modify PRM so it find the nearest node as start and goal
-    # if len(PRMNodes) != 0 and not newObstacles:
-    if False:
+    if len(PRMNodes) != 0 and not newObstacles:
         traj, _, PRMNodes, _ = apply_PRM(
-            map_ref=pathPlannerConfig[0],
+            map_ref=map_ref,
             obstacles=all_obst,
             nodes=PRMNodes,
             start=start,
@@ -107,48 +104,27 @@ def runPRM(targetMessage: PoseStamped, pubTopic: str = Topics.GLOBAL_PATH.value)
             goal=goal,
         )
         newObstacles = False
-    edges = get_traj_edges(traj)
-
     rospy.logdebug(f"[Path Planner] PRM finished running")
+
     # Construct path message
-    path = Path()
-    path.header.frame_id = "map"
+    edges = get_traj_edges(traj)
+    trajectory = []
     i = -1
     for node in traj:
-        if i == -1:
-            # Convert node back into amcl form
-            node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
-            # Create a pose => Poses are the Nodes-equivalent in ROS's path
-            pose = PoseStamped()
-            pose.header.frame_id = "map"
-            pose.pose.position.x = node[0]
-            pose.pose.position.y = node[1]
-            pose.pose.position.z = 0
-            # Append pose to path
-            path.poses.append(pose)
-        elif float(edges[i].length) > THRESHOLD_EDGE:
-            # Convert node back into amcl form
-            node = get_amcl_from_pixel_location(node.x, node.y, *base_info)
-            # Create a pose => Poses are the Nodes-equivalent in ROS's path
-            pose = PoseStamped()
-            pose.header.frame_id = "map"
-            pose.pose.position.x = node[0]
-            pose.pose.position.y = node[1]
-            pose.pose.position.z = 0
-            # Append pose to path
-            path.poses.append(pose)
+        # Convert nodes back from pixelmap-domain into amcl domain
+        if (i == -1) or (float(edges[i].length) > THRESHOLD_EDGE):
+            trajectory.append(get_amcl_from_pixel_location(node.x, node.y, *base_info))
         else:
             rospy.logdebug(f"[Path Planner] Skipped edge with length {edges[i]}")
-
         i += 1
+    path = trajToPath(trajectory)
 
     # Publish path
-    publisher = rospy.Publisher(pubTopic, Path, queue_size=10)
     try:
-        rospy.logdebug(f"[Path Planner] Publishing path to {pubTopic}")
-        publisher.publish(path)
+        rospy.logdebug(f"[Path Planner] Publishing path to {Topics.GLOBAL_PATH.value}")
+        pathPublisher.publish(path)
     except:
-        print(f"[Path Planner] Error, cant publish path to topic {pubTopic}")
+        print(f"[Path Planner] Error, cant publish path to topic {Topics.GLOBAL_PATH.value}")
 
 
 def planner():
@@ -158,22 +134,16 @@ def planner():
     """
     global pathPlannerConfig
     rospy.init_node(Nodes.PATH_PLANNER.value)
-    set_rospy_log_lvl(rospy.INFO)
+    set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
+
     pathPlannerConfig = createMapRef(rospy.get_param("~map_ref"))
+
     # Starts the global PRM
-    globalSub = rospy.Subscriber(
+    plannerSub = rospy.Subscriber(
         Topics.TARGET.value,
         PoseStamped,
         runPRM,
-        queue_size=10,
-    )
-    # Starts the local PRM
-    rospy.Subscriber(
-        Topics.LOCAL_TARGET.value,
-        PoseStamped,
-        runPRM,
-        callback_args=[Topics.LOCAL_PATH.value],
         queue_size=10,
     )
     # Sets the currentPoint_acml global variable
@@ -196,8 +166,8 @@ def planner():
             setCurrentPose,
             queue_size=10,
         )
-        globalSub.unregister()
-        globalSub = rospy.Subscriber(
+        plannerSub.unregister()
+        plannerSub = rospy.Subscriber(
             Topics.TARGET.value,
             PoseStamped,
             runPRM,
@@ -214,5 +184,6 @@ def planner():
 if __name__ == "__main__":
     try:
         planner()
-    except:
+    except Exception as e:
+        print(e)
         rospy.loginfo(f"Shutdown node {Nodes.PATH_PLANNER.value}")

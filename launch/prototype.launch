@@ -1,7 +1,7 @@
 <launch>
     <arg name="package_name" value="prototype" />
     <arg name="hostname" default="129.69.102.242" />
-    <arg name="map_file" default="$(eval find(arg('package_name'))  + '/param/FinalGridMapv2.yaml')"/>
+    <arg name="map_file" default="$(eval find(arg('package_name'))  + '/param/FinalGridMapv2cleaned.yaml')"/>
     
     <!-- A working robot without risk estimation -->
    <include file="$(find prototype)/launch/autonomousOperation.launch">

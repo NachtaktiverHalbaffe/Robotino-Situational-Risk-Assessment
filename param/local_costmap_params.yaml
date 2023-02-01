@@ -17,7 +17,7 @@ local_costmap:
     - { name: obstacle_layer, type: "costmap_2d::ObstacleLayer" }
 
   static_layer:
-    enabled: false
+    enabled: true
     map_topic: "/map"
 
   inflation_layer:

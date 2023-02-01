@@ -91,7 +91,7 @@ The installing system should be an Ubuntu operating system. As gazebo best used 
 To initialize Python-Scripts as nodes, they have to be made executable. For this run:
 - Inside the ``/scripts`` folder to make all files executable
 ```zsh
-chmod +x*
+chmod +x *
 ```
 - To make one specific script executable
 ```zsh
@@ -100,36 +100,44 @@ chmod+x /path/to/script.py
 
 # Basic Project Documentation
 ## Manual
-- Start roscore:
-  - Navigate to **workspace**
-  - Run ``source devel/setup.sh`` in terminal
-- Start a launch configuration:
-  - Run ``roslaunch prototype <launchfile>`` 
-    - Each launchFile has own purpose
-    - prototype.launch: Launches whole prototype stack
-    - robotControl.launch: Launches the autonomous part of the Robotino
-    - identifyAndMap.launch:
+- Navigate to **workspace**
+- Run ``source devel/setup.sh`` in terminal
+- Either:
+  - Start roscore:
+    - If using ``roslaunch`` or ``rosrun``, then this is automatically done
+    - Run ``roscore`` in terminal
+  - Start a launch configuration:
+    - Run ``roslaunch prototype <launchfile>`` in terminal
+      - Each launchFile has own purpose
+      - prototype.launch: Launches whole prototype stack
+      - autonomousOperation.launch: Launches the autonomous part of the Robotino without risk estimation
+      - identifyAndMap.launch:
 
 ## Technical Docs
 ### ROS Topics
 The prototype mainly communicates over ROS and it's Topics (implementation by Felix Brugger). Following a overview of the used topics is given:
-| **Topic**            | **Message Type**              | **Description**                                                                      |
-| -------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| /acml_pose           | PoseWithCovarianceStamped     | Current position of Robotino                                                         |
-| /camera_pose         | PoseWithCovarianceStamped     | Current position of Robotino based on camera only                                    |
-| /image_raw           | Image                         | Image from camera sensor                                                             |
-| /image_bb            | Image                         | Image with the bounding boxes from the object detection on it                        |
-| /target              | Point                         | Coordinate to which the Robotino should navigate                                     |
-| /target_id           | Int16                         | ID of a workstation to which the Robotino should navigate                            |
-| /path_global         | Path                          | Global trajectory of the Robotino planned by PRM                                     |
-| /path_local          | Path                          | Trajectory between two nodes of /path_global (e.g. if dodging a obstacle is needed ) |
-| /obstacles           | ObstacleList (Custom message) | List of all detected obstacles                                                       |
-| /navigation_response | Bool                          | Response from Robotino when it ended a navigation to a node in the path              |
-| /odom                | Odometry                      | Current odometry (linear/angular velocity and orientation) from Robotino             |
-| /my_cmd_vel          | Twist                         | Sends move commands to Robotino so it executes it                                    |
-| /lidar_enabled       | Bool                          | If LIDAR should be used. Used to simulate a failing LIDAR sensor                     |
-| /target_markers      | MarkerArray                   | Marks the workstations in rviz                                                       |
-| /target_nav_markers  | MarkerArray                   | Marks the navigation points of the workstations in rviz                              |
+| **Topic**            | **Message Type**              | **Description**                                                                                                                     |
+| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| /acml_pose           | PoseWithCovarianceStamped     | Current position of Robotino                                                                                                        |
+| /camera_pose         | PoseWithCovarianceStamped     | Current position of Robotino based on camera only                                                                                   |
+| /distance_sensors    | PointCloud                    | The readings from the eight distance sensors                                                                                        |
+| /image_raw           | Image                         | Image from camera sensor                                                                                                            |
+| /image_bb_ws         | Image                         | Image with the bounding boxes (workstations) from the object detection on it                                                        |
+| /image_bb_moveable   | Image                         | Image with the bounding boxes (moveable obstacles) from the object detection on it                                                  |
+| /lidar_enabled       | Bool                          | If LIDAR should be used. Used to simulate a failing LIDAR sensor                                                                    |
+| /my_cmd_vel          | Twist                         | Sends move commands to Robotino so it executes it                                                                                   |
+| /navigation_response | Bool                          | Response from Robotino when it ended a navigation to a node in the path                                                             |
+| /obstacles           | ObstacleList (Custom message) | List of all detected obstacles                                                                                                      |
+| /obstacles_visu      | PolygonArray                  | For visualizing obstacles in rviz                                                                                                   |
+| /odom                | Odometry                      | Current odometry (linear/angular velocity and orientation) from Robotino                                                            |
+| /path_global         | Path                          | Global trajectory of the Robotino planned by PRM                                                                                    |
+| /pose                | PoseWithCovarianceStamped     | Current position of Robotino which is used by other nodes. Is  depending if LIDAR is working or noeither /acml_pose or /camera_pose |
+| /target              | Point                         | Coordinate to which the Robotino should navigate                                                                                    |
+| /target_id           | Int16                         | ID of a workstation to which the Robotino should navigate                                                                           |
+| /target_markers      | MarkerArray                   | Marks the workstations in rviz                                                                                                      |
+| /target_nav_markers  | MarkerArray                   | Marks the navigation points of the workstations in rviz                                                                             |
+| /risk_estimation     | Risk (custom message)         | The needed parameters for risk assessment determined by the risk estimation                                                         |
+
 ### Module overview (Most important ones)
 #### mainwindow.py
 GUI of the prototype. It's the main file (if run with gui, see manual)

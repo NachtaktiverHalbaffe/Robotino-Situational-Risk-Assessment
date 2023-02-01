@@ -21,7 +21,7 @@
         <param name="map_ref" value="$(arg path)/maps/FinalGridMapv2cleaned.png"/>
     </node>
     <node pkg="$(arg package_name)" name="strategy_planner" type="strategy_planner_node.py" output="screen" required="true" />
-    <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/>
+    <!-- <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/> -->
     <node pkg="$(arg package_name)" name="fleetias_client" type="fleetias_client_node.py" output="screen">
         <param name="ip" value="$(arg ip)"/>
     </node>
@@ -57,6 +57,8 @@
         <param name="base_frame_id" value="base_link"/>
         <param name="update_min_d" value="0.01"/>    <!--1cm  change-->
         <param name="update_min_a" value="0.05"/>  <!--2.865 degree change-->
+        <param name="initial_pose_x" value ="0.0"/>
+        <param name="initial_pose_y" value ="0.0"/>
     </node>
     
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/param/rvizConfigNew.rviz" respawn="true"/>

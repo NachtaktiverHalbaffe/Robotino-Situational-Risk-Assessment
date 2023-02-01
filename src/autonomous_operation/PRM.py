@@ -1,7 +1,13 @@
+import json
 import math
 import time
 import numpy as np
 from PIL import Image, ImageDraw
+from real_robot_navigation.move_utils_cords import (
+    get_amcl_from_pixel_location,
+    get_base_info,
+    get_pixel_location_from_acml,
+)
 import rospy
 import copy
 import time
@@ -130,11 +136,14 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
     N_nodes = 0
 
     nodes = []
+    wsNodes = _loadMarkersFromJson()
+    nodes.append(wsNodes)
+    N_nodes = len(nodes)
     # Add start and goal to list
     if start and goal:
         nodes.append(Node(start[0], start[1]))
         nodes.append(Node(goal[0], goal[1]))
-        N_nodes = 2
+        N_nodes += 2
 
     while N_nodes < N:
         # Generate random node
@@ -774,6 +783,27 @@ def draw_traj(map_visu, traj, forAgent, color=None):
 #         im_draw.point([(traj_node.coordinates[0], traj_node.coordinates[1])], fill=ADV_TRAJ_NODE_COLOR)
 
 
+def _loadMarkersFromJson():
+    """
+    Loads the workstation markers from the corresponding JSON file so it can be appended to the Nodes in the PRM
+    """
+    wsNodes = []
+    file = f"{PATH}/maps/markers.json"
+    base_info, _ = get_base_info()
+
+    if os.path.isfile(file):
+        with open(file) as jsonfile:
+            target_identified = json.load(jsonfile)
+
+        for key in target_identified.keys():
+            x = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["x"]
+            y = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["y"]
+            node = get_pixel_location_from_acml(x, y, *base_info)
+            wsNodes.append(Node(node[0], node[1]))
+
+    return wsNodes
+
+
 def get_node_with_coordinates(nodes, xycoords):
     """
     Searches for a node with the passed coordinates in the passed list
@@ -785,7 +815,6 @@ def get_node_with_coordinates(nodes, xycoords):
     Returns:
         ret_node (Node): Found Node or None
     """
-    t0 = time.perf_counter()
     ret_node = None
 
     for node in nodes:
@@ -861,7 +890,25 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
     return nodes, edges, obstacles_to_remove
 
 
-# def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start = [62,74], goal=[109, 125]):
+def findNearestNode(nodes, xCor, yCor):
+    t0 = time.perf_counter()
+    minDist = math.inf
+    nearestNode = None
+    for node in nodes:
+        # Calculate distance to node
+        xVec = nodes.x - xCor
+        yVec = nodes.y - yCor
+        dist = np.sqrt(np.square(xVec) + np.square(yVec))
+
+        # Save new nearest distance and corresponding node
+        if dist < minDist:
+            minDist = dist
+            nearestNode = node
+
+    rospy.logdebug(f"[PRM] Time to find nearest node with distance {minDist}: {time.perf_counter()-t0}")
+    return nearestNode
+
+
 def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=None, goal=None):
     """
     Applies the whole PRM process which includes all steps like sampling nodes, building a graph and\
@@ -880,10 +927,8 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
         edges_all (list(Edge)): All Edge in the graph
     """
     map_ref_copy = copy.deepcopy(map_ref)
-    # add nodes to the cropped map
-    starts = start
-    ends = goal
 
+    # add nodes to the cropped map
     load_nodes = False
     if load_nodes:
         # pickle load ~~~
@@ -981,13 +1026,18 @@ def apply_PRM(
         edges_change_back = calculate_edge_costs(map_ref, edges_all, prot=prot)
 
     # todo: a bit ugly for now --- [0] and [1] are the indices for the "start" and "goal" given by the apply_PRM(..) params
-    if not (start_node and goal_node):
+    # Generate random start and goal
+    if (not (start_node and goal_node)) or (not (start and goal)):
         start_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         while (start_node.coordinates == goal_node.coordinates).all():
             goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
+    # Use nearest node to start and goal so they are
+    elif start and goal:
+        startNode = findNearestNode(nodes_copy, *start)
+        if get_node_with_coordinates(nodes_copy, goal) == None:
+            goalNode = findNearestNode(nodes_copy, *goal)
     # calculate and draw trajectory with deijkstra's algorithm
-
     t1 = time.perf_counter()
     traj = deijkstra(nodes_copy, start_node, goal_node)
     deijkstra_time = time.perf_counter() - t1

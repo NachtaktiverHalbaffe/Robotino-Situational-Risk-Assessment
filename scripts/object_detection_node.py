@@ -18,7 +18,7 @@ from real_robot_navigation.move_utils_cords import *
 
 def visualizeObstacles():
     """
-    sd
+    Create Polygon messages and sends them to rviz. Is used to visualize the detected obstacles in rviz
     """
     global detectedObstacles
     msg = PolygonArray()
@@ -27,9 +27,8 @@ def visualizeObstacles():
         polygon = PolygonStamped()
         polygon.header.frame_id = "map"
         for corner in obstacle.corners:
-            x = corner[0]
-            y = corner[1]
-            polygon.polygon.points.append(Point(x, y, 0.2))
+            transformedCor = get_amcl_from_pixel_location(corner[0], corner[1], *config["base_info"])
+            polygon.polygon.points.append(Point(transformedCor[0], transformedCor[1], 0.2))
 
         msg.polygons.append(polygon)
 
