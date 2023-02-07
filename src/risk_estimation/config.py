@@ -1,3 +1,7 @@
+import os
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+
 config_1 = {
     "relevant_segments": 0,
     "done_after_collision": True,
@@ -16,17 +20,16 @@ config_1 = {
     "model_arch": "normal",
     "log_interval": 10,
     "log_name": "adv_1",  # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
-    #'map_path': './maps/map_y.png',
-    # 'map_path': './maps/FinalGridMapv2.png',
-    # 'geo_path': './maps/map_g.png',
-    "map_path": "./maps/map_g_cleaned.png",
-    "geo_path": "./maps/map_g_cleaned.png",
+    #'map_path': f'{PATH}/maps/map_y.png',
+    # 'map_path': f'{PATH}/maps/FinalGridMapv2.png',
+    # 'geo_path': f'{PATH}/maps/map_g.png',
+    "map_path": f"{PATH}/maps/map_g_cleaned.png",
+    "geo_path": f"{PATH}/maps/map_g_cleaned.png",
     "start": [62, 74],
     "goal": [109, 125],
     "eval_ep": 6,
-    #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
     "prob_const": 200,
-    "model_location": "./action_space_5.zip",
+    "model_location": f"{PATH}/action_space_5",
     "n_reset_nodes": 300,
 }
 
@@ -48,8 +51,8 @@ config_2 = {
     "model_arch": "normal",
     "log_interval": 20,
     "log_name": "adv_1",  # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary
-    "map_path": "./maps/map_y.png",
-    "geo_path": "./maps/map_geo.png",
+    "map_path": f"{PATH}/maps/map_y.png",
+    "geo_path": f"{PATH}/maps/map_geo.png",
     "start": [85, 52],
     "goal": [109, 125],
     #'map_path': '/home/abdul/MasterThesis/Commisioning/Yannik/Stephan_Master_IAS/maps/map_y.png'
@@ -74,9 +77,9 @@ config_1_thinesh = {
     "model_arch": "normal",
     "log_interval": 20,
     "log_name": "adv_1",  # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
-    # 'map_path': './maps/FinalGridMapv2.png',
-    "map_path": "./maps/FinalScannerMap1_gimp5.png",
-    #'map_path': './maps/map_y.png'
+    # 'map_path': f'{PATH}/maps/FinalGridMapv2.png',
+    "map_path": f"{PATH}/maps/FinalScannerMap1_gimp5.png",
+    #'map_path': f'{PATH}/maps/map_y.png'
 }
 
 config_2_thinesh = {
@@ -97,7 +100,7 @@ config_2_thinesh = {
     "model_arch": "normal",
     "log_interval": 20,
     "log_name": "adv_1",  # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary
-    "map_path": "./maps/map_y.png",
+    "map_path": f"{PATH}/maps/map_y.png",
 }
 
 config_3 = {}

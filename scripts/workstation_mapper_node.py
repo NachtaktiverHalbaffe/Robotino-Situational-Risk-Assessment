@@ -4,7 +4,7 @@ import rospy
 import cv2
 import os
 import numpy as np
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Bool
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker, MarkerArray
@@ -18,8 +18,13 @@ from utils.ros_logger import set_rospy_log_lvl
 
 # Global datcollection
 target_identified = {}
-
 publisher_target = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
+isPaused = False
+
+
+def setIsPaused(paused: Bool):
+    global isPaused
+    isPaused = paused.data
 
 
 def createMarkers(topic: str, markerType: str = "NavPosed"):
@@ -129,6 +134,7 @@ def qrCodeScanner(rawImage: Image):
         Saves identified workstations to global variable  "target_identified"
     """
     global target_identified
+    global isPaused
     br = CvBridge()
     img = br.imgmsg_to_cv2(rawImage, "rgb8")
 
@@ -140,7 +146,7 @@ def qrCodeScanner(rawImage: Image):
     # Resize image
     img_resized = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
-    if decode(img_resized):
+    if decode(img_resized) and not isPaused:
         # ------------------ Detecting QR Code --------------------------
         rospy.logdebug("[Workstation Mapper] Detecting QR Code")
         for barcode in decode(img_resized):
@@ -242,6 +248,7 @@ def workstationMapper():
     from Vaibav Tiwari which gets reused here.
     """
     global target_identified
+    global isPaused
     rospy.init_node(Nodes.WORKSTATION_MAPPER.value)
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.WORKSTATION_MAPPER.value}")
@@ -250,6 +257,7 @@ def workstationMapper():
     _loadMarkersFromJson()
     # Converts the id of a workstation to a coordinate which the path planner can use
     rospy.Subscriber(Topics.TARGET_ID.value, Int16, fetchCoordinate, queue_size=10)
+    rospy.Subscriber(Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, setIsPaused, queue_size=10)
     # -------------------------------- QR Code Scanning ------------------------------------
     # Only start QR code scanner if not all workstations are identified
     camera_sub = rospy.Subscriber(Topics.IMAGE_RAW.value, Image, qrCodeScanner, queue_size=2)
@@ -259,6 +267,7 @@ def workstationMapper():
         createMarkers(Topics.MARKERS_NAV.value)
         createMarkers(Topics.MARKERS.value, markerType="MarkerPosed")
         if len(target_identified.keys()) == 4:
+            isPaused = True
             # unregister subscriber which is responsible for QR code scanning
             camera_sub.unregister()
             _saveMarkersToJson()

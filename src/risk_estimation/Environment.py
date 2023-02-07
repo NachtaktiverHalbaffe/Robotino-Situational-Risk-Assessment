@@ -28,6 +28,7 @@ sys.setrecursionlimit(2000)
 
 ACTION_SPACE_STEP_ADVERSARY = 5
 N_ACTIONS_ADVERSARY = 5
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 
 class StateAdv1:
@@ -228,11 +229,11 @@ def clear_image_files():
     """
     Removes the image files of the trajectory adversaries
     """
-    if os.path.isfile("./image/adv_trajectory.png"):
+    if os.path.isfile(f"{PATH}/image/adv_trajectory.png"):
         try:
-            os.remove("./image/adv_trajectory.png")
+            os.remove(f"{PATH}/image/adv_trajectory.png")
         except PermissionError:
-            rospy.logerr("Permission error while removing ./image/adv_trajectory.png")
+            rospy.logerr(f"Permission error while removing {PATH}/image/adv_trajectory.png")
 
 
 def initialize_map(map_path):
@@ -329,7 +330,7 @@ def initialize_state_adv1(map_ref, traj, relevant_segments, visualize=False):
     map_visu = copy.deepcopy(map_ref)
     draw_traj(map_visu, traj, forAgent=True)
     # if visualize:
-    #     map_visu.save('./image/new_obs0.png')
+    #     map_visu.save(f'{PATH}/image/new_obs0.png')
 
     init_state = StateAdv1(generate_obs_from_rgb_img(map_visu), traj[0].coordinates)
 
@@ -387,7 +388,7 @@ def initialize_state_prot(environment, visualize=False):
     t_init_state = time.perf_counter() - t0
 
     if visualize:
-        map_visu.save("./image/prot_obs.png")
+        map_visu.save(f"{PATH}/image/prot_obs.png")
 
     return init_state
 
@@ -655,10 +656,10 @@ class Environment:
         # ---------------------------- Visualization ---------------------------------
         #############################################################
         if self.visualize:
-            if os.path.isfile("./image/adv_trajectory.png"):
-                visu_adv_traj_map = Image.open("./image/adv_trajectory.png")
+            if os.path.isfile(f"{PATH}/image/adv_trajectory.png"):
+                visu_adv_traj_map = Image.open(f"{PATH}/image/adv_trajectory.png")
             else:
-                visu_adv_traj_map = copy.deepcopy(Image.open("./image/map_traj.png"))
+                visu_adv_traj_map = copy.deepcopy(Image.open(f"{PATH}/image/map_traj.png"))
             risk_predicting = True
             if risk_predicting and self.need_new:
                 self.visu_adv_traj_map = copy.deepcopy(self.map_ref_adv)
@@ -682,8 +683,8 @@ class Environment:
                 fill=(100, 0, 0),
             )
             try:
-                # self.visu_adv_traj_map.save('./image/adv_trajectory.png')
-                self.visu_adv_traj_map.save("./image/adv_trajectory_DEBUG.png")
+                # self.visu_adv_traj_map.save('f{PATH}/image/adv_trajectory.png')
+                self.visu_adv_traj_map.save(f"{PATH}/image/adv_trajectory_DEBUG.png")
             except PermissionError:
                 rospy.logerr("[Environment] PermissionError when saving file")
 
@@ -777,7 +778,7 @@ class Environment:
             draw_traj(map_visu_new, segments_vanilla, forAgent=True)
             # visualize_traj_time = time.perf_counter()-t1
             # if self.visualize:
-            #    map_visu_new.save('./image/new_obs' + str(self.state_adv1.traj_index - 1) + '.png')    # debug
+            #    map_visu_new.save(f'{PATH}/image/new_obs' + str(self.state_adv1.traj_index - 1) + '.png')    # debug
             # t4 = time.perf_counter()
             self.state_adv1.obs = generate_obs_from_rgb_img(map_visu_new)
             # generate_obs_time = time.perf_counter()-t4
@@ -828,7 +829,7 @@ class Environment:
         # map_ref_prot = map_ref_prot.reshape(self.map_ref.size[1], self.map_ref.size[0])
         map_ref_prot = Image.fromarray(map_ref_prot.astype("uint8"), mode="L")
 
-        # map_ref_prot.save('./image/map_prot.png')
+        # map_ref_prot.save(f'{PATH}/image/map_prot.png')
         start_node = get_node_with_coordinates(self.nodes_prot, self.trajectory_vanilla[0].coordinates)
         goal_node = get_node_with_coordinates(self.nodes_prot, self.trajectory_vanilla[-1].coordinates)
 
@@ -916,7 +917,7 @@ class Environment:
         if debug_visu:
             map_ref_prot = draw_traj(map_ref_prot, self.trajectory_vanilla, forAgent=False, color=(255, 0, 0))
             map_ref_prot = draw_traj(map_ref_prot, traj, forAgent=False, color=(0, 0, 255))
-            map_ref_prot.save("./image/map_prot.png")
+            map_ref_prot.save(f"{PATH}/image/map_prot.png")
 
         #########################################
         # --------- Calculate cost and reward -----------
@@ -1014,6 +1015,6 @@ class Environment:
             self.state_prot = initialize_state_prot(self)
             obs_ret = self.state_prot.obs
 
-        rospy.logdebug("[Environment] Fresh:", self.trajectory_vanilla)
+        rospy.logdebug(f"[Environment] Fresh: {self.trajectory_vanilla}")
 
         return obs_ret, self.trajectory_vanilla

@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'form.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.4.1
+## Created by: Qt User Interface Compiler version 6.2.4
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -488,11 +488,6 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.spinBox_wsId = QSpinBox(self.tab_7)
-        self.spinBox_wsId.setObjectName(u"spinBox_wsId")
-
-        self.gridLayout_2.addWidget(self.spinBox_wsId, 1, 1, 1, 1)
-
         self.pushButton_driveToWS = QPushButton(self.tab_7)
         self.pushButton_driveToWS.setObjectName(u"pushButton_driveToWS")
 
@@ -503,16 +498,16 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.label_7, 1, 3, 1, 1)
 
-        self.pushButton_driveToCor = QPushButton(self.tab_7)
-        self.pushButton_driveToCor.setObjectName(u"pushButton_driveToCor")
-
-        self.gridLayout_2.addWidget(self.pushButton_driveToCor, 1, 5, 1, 1)
-
         self.label_5 = QLabel(self.tab_7)
         self.label_5.setObjectName(u"label_5")
         self.label_5.setTextFormat(Qt.MarkdownText)
 
         self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
+
+        self.spinBox_wsId = QSpinBox(self.tab_7)
+        self.spinBox_wsId.setObjectName(u"spinBox_wsId")
+
+        self.gridLayout_2.addWidget(self.spinBox_wsId, 1, 1, 1, 1)
 
         self.label_6 = QLabel(self.tab_7)
         self.label_6.setObjectName(u"label_6")
@@ -544,6 +539,11 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addLayout(self.horizontalLayout_3, 1, 4, 1, 1)
 
+        self.pushButton_driveToCor = QPushButton(self.tab_7)
+        self.pushButton_driveToCor.setObjectName(u"pushButton_driveToCor")
+
+        self.gridLayout_2.addWidget(self.pushButton_driveToCor, 1, 5, 1, 1)
+
 
         self.verticalLayout_9.addLayout(self.gridLayout_2)
 
@@ -559,6 +559,21 @@ class Ui_MainWindow(object):
         self.checkBox_LIDAR.setObjectName(u"checkBox_LIDAR")
 
         self.horizontalLayout_6.addWidget(self.checkBox_LIDAR)
+
+        self.checkBox_qrScanner = QCheckBox(self.tab_7)
+        self.checkBox_qrScanner.setObjectName(u"checkBox_qrScanner")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_qrScanner)
+
+        self.checkBox_bruteforce = QCheckBox(self.tab_7)
+        self.checkBox_bruteforce.setObjectName(u"checkBox_bruteforce")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_bruteforce)
+
+        self.checkBox_baselineRisk = QCheckBox(self.tab_7)
+        self.checkBox_baselineRisk.setObjectName(u"checkBox_baselineRisk")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_baselineRisk)
 
 
         self.verticalLayout_9.addLayout(self.horizontalLayout_6)
@@ -608,7 +623,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(3)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -676,13 +691,16 @@ class Ui_MainWindow(object):
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"## Manual Control", None))
         self.pushButton_driveToWS.setText(QCoreApplication.translate("MainWindow", u"Send Command", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Coordinate", None))
-        self.pushButton_driveToCor.setText(QCoreApplication.translate("MainWindow", u"Send Command", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"### Drive to ", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Workstation:", None))
         self.label_8.setText(QCoreApplication.translate("MainWindow", u"x:", None))
         self.label_9.setText(QCoreApplication.translate("MainWindow", u"y:", None))
+        self.pushButton_driveToCor.setText(QCoreApplication.translate("MainWindow", u"Send Command", None))
         self.label_10.setText(QCoreApplication.translate("MainWindow", u"### Enable features", None))
         self.checkBox_LIDAR.setText(QCoreApplication.translate("MainWindow", u"LIDAR", None))
+        self.checkBox_qrScanner.setText(QCoreApplication.translate("MainWindow", u"Scan QR Codes", None))
+        self.checkBox_bruteforce.setText(QCoreApplication.translate("MainWindow", u"Bruteforce risk estimation", None))
+        self.checkBox_baselineRisk.setText(QCoreApplication.translate("MainWindow", u"Baseline risk estimation", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), QCoreApplication.translate("MainWindow", u"Evaluation", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"Edit", None))

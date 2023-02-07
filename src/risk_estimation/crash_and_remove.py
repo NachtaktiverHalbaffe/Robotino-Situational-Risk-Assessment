@@ -33,8 +33,10 @@ except:
 # TODO MODIFY the env single dimsension
 # TODO MODIFY the monte carlo
 
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
-def calculate_collsion_order(prob_collision_with_Node):
+
+def calculate_collosion_order(prob_collision_with_Node):
     """
     This function takes in a list of tuples as input, where each tuple contains two values, a float value and an integer.
     The float value represents the probability of collision with a specific node and the integer value represents the order of appearance of the node.
@@ -116,7 +118,7 @@ def run_crash_and_remove(
     configs,
     env_name,
     use_brute_force_baseline=False,
-    save_location="./risk_data_frames/df_rl_v_brut.obj",
+    save_location=f"{PATH}/risk_data_frames/df_rl_v_brut.obj",
     replay_on=False,
     load_location=None,
     attempts=10,
@@ -164,7 +166,7 @@ def run_crash_and_remove(
         env,
         policy_kwargs=policy_kwargs,
         verbose=1,
-        tensorboard_log="./logs/",
+        tensorboard_log=f"{PATH}/logs/",
         n_steps=64,
         learning_rate=0.1,
         device="cuda",
@@ -193,12 +195,15 @@ def run_crash_and_remove(
         file.close()
         list_rl = []
         for prob_collision_with_Node in df["rl_prob"]:
-            list_rl.append(calculate_collsion_order(prob_collision_with_Node))
+            list_rl.append(calculate_collosion_order(prob_collision_with_Node))
         df["rl_final_prob"] = list_rl
         df["error"] = (df["rl_final_prob"] - df["brute_prob"]).abs()
         df = df.sort_values(by="error", ascending=False)
 
+    i = 0
     while len(rl_actions_to_crash_lists) < amount_of_exploration:
+        i += 1
+        rospy.logdebug(f"[Crash and Remove] Running {i}. exploration")
         rospy.logdebug("[Crash and Remove] Runs saved", len(rl_actions_to_crash_lists))
         # If we want to examine past experiences, replay will be enabled and multiple aspects of the code will be
         # retrieved from a dataframe instead of being generated. Additionally, a prompt will be included for the user
@@ -277,7 +282,7 @@ def run_crash_and_remove(
                         else:
                             rospy.logdebug(
                                 "[Crash and Remove] Final rl estimate:",
-                                calculate_collsion_order(prob_collision_with_Node),
+                                calculate_collosion_order(prob_collision_with_Node),
                             )
                             if use_brute_force_baseline:
                                 rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
@@ -288,7 +293,6 @@ def run_crash_and_remove(
                     action, _, _, _ = adv1.choose_action(obs)
                 actions.append(action)
 
-                # # a = input()
                 obs, _, done, info = env.step(action)
                 step = step + 1
 
@@ -340,12 +344,12 @@ def run_crash_and_remove(
                 wall_discards = wall_discards + 1
                 break
 
-            rospy.logdebug("Current_estimate", calculate_collsion_order(prob_collision_with_Node))
+            rospy.logdebug("Current_estimate", calculate_collosion_order(prob_collision_with_Node))
 
         if not break_out:
 
             # TODO if len()<3 there might be problems
-            rospy.loginfo("[Crash and Remove] Final RL estimate:", calculate_collsion_order(prob_collision_with_Node))
+            rospy.loginfo("[Crash and Remove] Final RL estimate:", calculate_collosion_order(prob_collision_with_Node))
             if use_brute_force_baseline:
                 rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
             if replay_on:
@@ -353,7 +357,7 @@ def run_crash_and_remove(
             if temp_disable_replay:
                 rospy.logdebug(
                     "[Crash and Remove] The old final RL estimate:",
-                    calculate_collsion_order(loaded_run_info["rl_prob"]),
+                    calculate_collosion_order(loaded_run_info["rl_prob"]),
                 )
                 a = input()
 
@@ -393,6 +397,7 @@ def run_crash_and_remove(
     }
     if not replay_on:
         df_save = pd.DataFrame(data)
+        df_save.to_csv(f"{PATH}/logs/risk_estimation.csv")
 
         filehandler = open(save_location, "wb")
         pkl.dump(df_save, filehandler)
@@ -431,7 +436,7 @@ if __name__ == "__main__":
         expand_length = run["expand_length"]
         amount_of_exploration = run["amount_of_exploration"]
         save_location = (
-            f"./risk_data_frames/bug_removed_{amount_of_exploration}/df_rl_v_brut_{attempts}_{expand_length}.obj"
+            f"{PATH}/risk_data_frames/bug_removed_{amount_of_exploration}/df_rl_v_brut_{attempts}_{expand_length}.obj"
         )
 
         run_crash_and_remove(

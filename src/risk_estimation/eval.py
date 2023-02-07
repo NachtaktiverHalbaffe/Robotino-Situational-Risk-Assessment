@@ -5,8 +5,8 @@ from .config import configs
 from .Environment import Environment
 from .ppo import Agent
 from .mcts import *
-from ..src.risk_estimation.SaveData import save_data, traj_length
-from ..src.risk_estimation.probability_cal import real_to_pixel, risk_calculation
+from .SaveData import save_data, traj_length
+from .probability_cal import real_to_pixel, risk_calculation
 from .AutoLabel import read_data
 from sklearn.svm import SVR
 
@@ -51,7 +51,7 @@ def risk_cal(action_collision):
     return risk_calculation(action_collision)
 
 
-def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False):
+def run_session_adv(config, test_mode, initTraj=[], mcts_eval="IDA", ida_brute_combine=False):
     """
     This function starts the training or evaluation process of the simulation-gap-adversary be sure\
     to pass the right path to your map in Environment.
@@ -136,11 +136,19 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
         n_reset_nodes = 300
         if (episode % n_reset_nodes == 0) or episode == 1:
             # Has run n_reset_nodes => sample new graph for PRM and new trajectory
-            observation, traj_vanilla = env.reset("adv1", new_nodes=True, start=config["start"], goal=config["goal"])
+            if len(initTraj) != 0:
+                observation, traj_vanilla = env.reset("adv1", new_nodes=True, forced_traj=initTraj)
+            else:
+                observation, traj_vanilla = env.reset(
+                    "adv1", new_nodes=True, start=config["start"], goal=config["goal"]
+                )
             obeservation_orig = observation
         else:
             # Hasn't run n_reset_nodes => just sample new trajectory
-            observation, traj_vanilla = env.reset("adv1", start=config["start"], goal=config["goal"])
+            if len(initTraj) != 0:
+                observation, traj_vanilla = env.reset("adv1", forced_traj=initTraj)
+            else:
+                observation, traj_vanilla = env.reset("adv1", start=config["start"], goal=config["goal"])
         # Get stop time of resetting process
         reset_total_time += time.perf_counter() - t2
 
@@ -463,16 +471,13 @@ def run_session_adv(config, test_mode, mcts_eval="IDA", ida_brute_combine=False)
     return np.sqrt(cumm_risk)
 
 
-def mains(mode=True, mcts_eval="IDA", combined_eval=False):
+def mains(mode=True, initTraj=[], mcts_eval="IDA", combined_eval=False):
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
     for i in range(0, n_sessions):
         risk = run_session_adv(
-            config.configs[i],
-            test_mode=mode,
-            mcts_eval=mcts_eval,
-            ida_brute_combine=combined_eval,
+            configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=combined_eval, initTraj=initTraj
         )
 
     print("evaluation finished")

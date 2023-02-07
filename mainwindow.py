@@ -18,6 +18,7 @@ from PySide6.QtCore import QThread, Signal, QProcess
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int16, Bool
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
 from threading import Thread
 
 ############ Generation of ui_form.py (GUI-file)
@@ -32,9 +33,11 @@ from gui.ui_form import Ui_MainWindow
 from scripts.velocity import move, drive_backward, drive_forward, stop_robot, rotate
 from utils.py_ros_launch import ros_launch_without_core
 import src.risk_estimation.config as config
-from archive.eval import mains as evaluation
+from risk_estimation.eval import mains as evaluation
 from src.risk_estimation.AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
 from utils.constants import Topics, Nodes
+from utils.navigation_utils import pathToTraj
+from prototype.msg import Risk
 
 
 class MainWindow(QMainWindow):
@@ -102,7 +105,7 @@ class MainWindow(QMainWindow):
         self.ui.btn_start_generateMap.clicked.connect(lambda: self.clicklaunch_("generate_map.launch"))
         self.ui.btn_start_prototype.clicked.connect(lambda: self.clicklaunch_("prototype.launch"))
         self.ui.btn_start_identifyAndMap.clicked.connect(lambda: self.clicklaunch_("identifyAndMap.launch"))
-        self.ui.btn_start_autonomous.clicked.connect(lambda: self.clicklaunch_("robotControl.launch"))
+        self.ui.btn_start_autonomous.clicked.connect(lambda: self.clicklaunch_("autonomousOperation.launch"))
         self.ui.Foward.clicked.connect(lambda: self.driveForward())
         self.ui.Backward.clicked.connect(lambda: self.driveBackward())
         self.ui.Left.clicked.connect(lambda: self.rotateLeft())
@@ -119,6 +122,12 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_driveToCor.clicked.connect(lambda: self.driveToCor())
         self.ui.checkBox_LIDAR.stateChanged.connect(lambda: self.activateFeature("lidar"))
         self.ui.checkBox_LIDAR.setChecked(True)
+        self.ui.checkBox_qrScanner.stateChanged.connect(lambda: self.activateFeature("qr"))
+        self.ui.checkBox_qrScanner.setChecked(True)
+        self.ui.checkBox_bruteforce.stateChanged.connect(lambda: self.activateFeature("bruteforce"))
+        self.ui.checkBox_bruteforce.setChecked(True)
+        self.ui.checkBox_baselineRisk.stateChanged.connect(lambda: self.activateFeature("baseline"))
+        self.ui.checkBox_baselineRisk.setChecked(True)
 
         # Make shure roscore is running before starting gui node
         try:
@@ -468,6 +477,24 @@ class MainWindow(QMainWindow):
                 publisher.publish(self.ui.checkBox_LIDAR.isChecked())
             except:
                 pass
+        elif "qr" in feature.lower():
+            publisher = rospy.Publisher(Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10)
+            try:
+                publisher.publish(self.ui.checkBox_qrScanner.isChecked())
+            except:
+                pass
+        elif "bruteforce" in feature.lower():
+            publisher = rospy.Publisher(Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10)
+            try:
+                publisher.publish(self.ui.checkBox_bruteforce.isChecked())
+            except:
+                pass
+        elif "baseline" in feature.lower():
+            publisher = rospy.Publisher(Topics.SOTA_ENABLED.value, Bool, queue_size=10)
+            try:
+                publisher.publish(self.ui.checkBox_baselineRisk.isChecked())
+            except:
+                pass
 
     def stop_worker(self):
         """
@@ -752,12 +779,27 @@ class ThreadClass(QThread):
         """
         print("Starting Thread...", self.mode)
         # cnt=0
-        done, risk = evaluation(mode=self.mode, mcts_eval=self.mcts, combined_eval=self.combined_eval)
+        path = rospy.wait_for_message(Topics.GLOBAL_PATH.value, Path)
+        done, risk = evaluation(
+            mode=self.mode, mcts_eval=self.mcts, combined_eval=self.combined_eval, initTraj=pathToTraj(path)
+        )
         self.is_running = False
         if done:
             self.any_signal.emit(risk)
         # while (True):
         #     self.any_signal.emit(done)
+
+        publisher = rospy.Publisher(Topics.RISK_ESTIMATION_SOTA.value, Risk, queue_size=10)
+        msg = Risk()
+        msg.probs.append(risk)
+        msg.trajectories.append(path)
+        msg.nr_nodes.append(len(path.poses))
+        msg.length_traj.append(0)
+        msg.wall_discards.append(0)
+        try:
+            publisher.publish(msg)
+        except:
+            pass
 
     def stop(self):
         """

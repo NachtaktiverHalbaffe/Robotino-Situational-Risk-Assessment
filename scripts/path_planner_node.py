@@ -72,7 +72,7 @@ def runPRM(targetMessage: PoseStamped):
     # Current position of robotino
     xCurrent = currentPoint.pose.pose.position.x
     yCurrent = currentPoint.pose.pose.position.y
-    rospy.logdebug(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
+    rospy.loginfo(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
     # Get configuration
     base_info, _ = get_base_info()
@@ -104,7 +104,7 @@ def runPRM(targetMessage: PoseStamped):
             goal=goal,
         )
         newObstacles = False
-    rospy.logdebug(f"[Path Planner] PRM finished running")
+    rospy.loginfo(f"[Path Planner] PRM finished running")
 
     # Construct path message
     edges = get_traj_edges(traj)
@@ -125,7 +125,7 @@ def runPRM(targetMessage: PoseStamped):
         rospy.logdebug(f"[Path Planner] Publishing path to {Topics.GLOBAL_PATH.value}")
         pathPublisher.publish(path)
     except:
-        print(f"[Path Planner] Error, cant publish path to topic {Topics.GLOBAL_PATH.value}")
+        rospy.logwarn(f"[Path Planner] Error, cant publish path to topic {Topics.GLOBAL_PATH.value}")
 
 
 def planner():
@@ -135,7 +135,7 @@ def planner():
     """
     global pathPlannerConfig
     rospy.init_node(Nodes.PATH_PLANNER.value)
-    set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
 
     pathPlannerConfig = createMapRef(rospy.get_param("~map_ref"))

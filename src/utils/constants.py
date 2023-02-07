@@ -22,7 +22,12 @@ class Topics(Enum):
     MARKERS = "/target_markers"
     MARKERS_NAV = "/target_nav_markers"
     LIDAR_ENABLED = "/lidar_enabled"
-    RISK_ESTIMATION = "/risk_estimation"
+    RISK_ESTIMATION_RL = "/risk_estimation_rl"
+    RISK_ESTIMATION_BRUTE = "/risk_estimation_brute"
+    RISK_ESTIMATION_SOTA = "/risk_estimation_sota"
+    BRUTEFORCE_ENABLED = "/bruteforce_enabled"
+    WORKSTATIONMAPPER_ENABLED = "/workstation_mapper_enabled"
+    SOTA_ENABLED = "/sota_enabled"
 
 
 class Nodes(Enum):
@@ -35,3 +40,18 @@ class Nodes(Enum):
     FLEETIAS_CLIENT = "fleetias_client"
     GUI = "gui"
     RISK_ESTIMATOR = "risk_estimator"
+
+
+class Metrics(Enum):
+    COLLISIONS = "collisions"
+    PRODUCTION_STOPS = "prodStop"
+    RISK = "risk"
+    COLLISION_PROBABILITY = "collisionProb"
+
+
+class LoggingLevel(Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    EVAL = "EVAL"

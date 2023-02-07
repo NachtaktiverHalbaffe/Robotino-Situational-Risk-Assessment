@@ -43,7 +43,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -638,9 +638,6 @@ background-image: url(src/gui/ml_rl_background.jpeg)
           </item>
           <item>
            <layout class="QGridLayout" name="gridLayout_2">
-            <item row="1" column="1">
-             <widget class="QSpinBox" name="spinBox_wsId"/>
-            </item>
             <item row="1" column="2">
              <widget class="QPushButton" name="pushButton_driveToWS">
               <property name="text">
@@ -655,13 +652,6 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="1" column="5">
-             <widget class="QPushButton" name="pushButton_driveToCor">
-              <property name="text">
-               <string>Send Command</string>
-              </property>
-             </widget>
-            </item>
             <item row="0" column="0">
              <widget class="QLabel" name="label_5">
               <property name="text">
@@ -671,6 +661,9 @@ background-image: url(src/gui/ml_rl_background.jpeg)
                <enum>Qt::MarkdownText</enum>
               </property>
              </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QSpinBox" name="spinBox_wsId"/>
             </item>
             <item row="1" column="0">
              <widget class="QLabel" name="label_6">
@@ -703,6 +696,13 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </item>
              </layout>
             </item>
+            <item row="1" column="5">
+             <widget class="QPushButton" name="pushButton_driveToCor">
+              <property name="text">
+               <string>Send Command</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
           <item>
@@ -721,6 +721,27 @@ background-image: url(src/gui/ml_rl_background.jpeg)
              <widget class="QCheckBox" name="checkBox_LIDAR">
               <property name="text">
                <string>LIDAR</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_qrScanner">
+              <property name="text">
+               <string>Scan QR Codes</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_bruteforce">
+              <property name="text">
+               <string>Bruteforce risk estimation</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_baselineRisk">
+              <property name="text">
+               <string>Baseline risk estimation</string>
               </property>
              </widget>
             </item>

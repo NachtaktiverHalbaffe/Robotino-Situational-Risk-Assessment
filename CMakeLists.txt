@@ -54,6 +54,8 @@ add_message_files(
   ObstacleMsg.msg
   ObstacleList.msg
   Risk.msg
+  ProbabilityRL.msg
+  ProbabilitiesRL.msg
 )
 
 ## Generate services in the 'srv' folder

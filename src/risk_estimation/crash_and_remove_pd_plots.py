@@ -1,7 +1,7 @@
 import pickle as pkl
 import matplotlib.pyplot as plt
 import numpy as np
-from crash_and_remove import calculate_collsion_order
+from crash_and_remove import calculate_collosion_order
 
 #########################
 ####Choose Files here####
@@ -39,7 +39,7 @@ for i, name in enumerate(filenames):
 
     list_rl = []
     for prob_collision_with_Node in df["rl_prob"]:
-        list_rl.append(calculate_collsion_order(prob_collision_with_Node))
+        list_rl.append(calculate_collosion_order(prob_collision_with_Node))
     df["rl_prob"] = list_rl
 
     if i == 0 or not same_bins:

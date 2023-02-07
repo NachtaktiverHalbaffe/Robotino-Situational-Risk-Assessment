@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import json
-from threading import Thread
 import rospy
 import socket
-
+from threading import Thread
 from std_msgs.msg import Int16, Bool
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 from utils.constants import Topics, Nodes
+from utils.evalmanager_client import EvalManagerClient
 
 PORT = 13002
 
@@ -26,6 +26,7 @@ def activateFeature(feature: str, enabled: bool):
     """
     publisher = rospy.Publisher(feature, Bool)
     if "lidar" in feature.lower():
+        EvalManagerClient().evalLogLIDAR(enabled)
         try:
             publisher.publish(enabled)
         except:
