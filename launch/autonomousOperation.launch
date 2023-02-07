@@ -4,7 +4,7 @@
     <arg name="hostname" default="129.69.102.242" />
     <arg name="ip" default="129.69.102.246"/>
     <arg name="path" value="$(eval find(arg('package_name')))" />
-    <arg name="map_file" default="$(arg path)/param/FinalGridMapv2.yaml"/>
+    <arg name="map_file" default="$(arg path)/param/FinalGridMapv2cleaned.yaml"/>
     <!-- Remap topics -->
     <remap from="cmd_vel_real" to="/my_cmd_vel" /> 
     <include file="$(find robotino_node)/launch/robotino_node.launch">
@@ -57,8 +57,9 @@
         <param name="base_frame_id" value="base_link"/>
         <param name="update_min_d" value="0.01"/>    <!--1cm  change-->
         <param name="update_min_a" value="0.05"/>  <!--2.865 degree change-->
-        <param name="initial_pose_x" value ="0.0"/>
-        <param name="initial_pose_y" value ="0.0"/>
+        <param name="initial_pose_x" value ="-3.2"/>
+        <param name="initial_pose_y" value ="1.2"/>
+        <param name="initial_pose_a" value="-0.23"/>
     </node>
     
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/param/rvizConfigNew.rviz" respawn="true"/>

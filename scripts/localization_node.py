@@ -250,7 +250,7 @@ def localization():
     # Publish localization
     rate = rospy.Rate(25)
     msg = PoseWithCovarianceStamped()
-    localiseCam()
+    Thread(target=localiseCam).start()
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
         if useLidar:

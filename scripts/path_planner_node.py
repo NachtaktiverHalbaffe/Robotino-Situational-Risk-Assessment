@@ -46,8 +46,8 @@ def setObstacles(obstaclesList: ObstacleList):
         # Create Obstacle
         tmpObstacle.append(Obstacle(tmpCorners))
     obstacles = tmpObstacle
-
-    newObstacles = True
+    if len(obstaclesList.obstacles) != 0:
+        newObstacles = True
 
 
 def runPRM(targetMessage: PoseStamped):
@@ -113,7 +113,8 @@ def runPRM(targetMessage: PoseStamped):
     for node in traj:
         # Convert nodes back from pixelmap-domain into amcl domain
         if (i == -1) or (float(edges[i].length) > THRESHOLD_EDGE):
-            trajectory.append(get_amcl_from_pixel_location(node.x, node.y, *base_info))
+            # trajectory.append(get_amcl_from_pixel_location(node.x, node.y, *base_info))
+            trajectory.append((node.x, node.y))
         else:
             rospy.logdebug(f"[Path Planner] Skipped edge with length {edges[i]}")
         i += 1

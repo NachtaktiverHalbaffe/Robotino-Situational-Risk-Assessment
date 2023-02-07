@@ -136,15 +136,15 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
     N_nodes = 0
 
     nodes = []
-    wsNodes = _loadMarkersFromJson()
-    nodes.append(wsNodes)
-    N_nodes = len(nodes)
     # Add start and goal to list
     if start and goal:
         nodes.append(Node(start[0], start[1]))
         nodes.append(Node(goal[0], goal[1]))
-        N_nodes += 2
+    for node in _loadMarkersFromJson():
+        if get_node_with_coordinates(nodes, node) == None:
+            nodes.append(Node(node[0], node[1]))
 
+    N_nodes = len(nodes)
     while N_nodes < N:
         # Generate random node
         random_x = np.random.randint(im_width)
@@ -799,8 +799,7 @@ def _loadMarkersFromJson():
             x = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["x"]
             y = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["y"]
             node = get_pixel_location_from_acml(x, y, *base_info)
-            wsNodes.append(Node(node[0], node[1]))
-
+            wsNodes.append((int(node[0]), int(node[1])))
     return wsNodes
 
 
@@ -894,12 +893,11 @@ def findNearestNode(nodes, xCor, yCor):
     t0 = time.perf_counter()
     minDist = math.inf
     nearestNode = None
+    cor = np.array([xCor, yCor])
     for node in nodes:
         # Calculate distance to node
-        xVec = nodes.x - xCor
-        yVec = nodes.y - yCor
-        dist = np.sqrt(np.square(xVec) + np.square(yVec))
-
+        vec = np.array([node.x, node.y])
+        dist = np.linalg.norm(cor - vec)
         # Save new nearest distance and corresponding node
         if dist < minDist:
             minDist = dist
@@ -952,7 +950,7 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
 
     nodes_copy = copy.copy(nodes)
     map_visu.save(f"{PATH}/maps/map_graph.png")
-    rospy.logdebug("[PRM] Time add_neighbours:", time.perf_counter() - t0)
+    rospy.logdebug(f"[PRM] Time add_neighbours: {time.perf_counter() - t0}")
 
     """" Uncomment this code to give your own path"""
     # start_node = get_node_with_coordinates(nodes, np.array(starts))
@@ -967,8 +965,8 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
 
     # calculate and draw trajectory with deijkstra's algorithm
     traj = deijkstra(nodes, start_node, goal_node)
-    rospy.logdebug("[PRM] Time deijkstra:", time.perf_counter() - t2)
-    rospy.logdebug("[PRM] Trajectory:", get_traj_edges(traj))
+    rospy.logdebug(f"[PRM] Time deijkstra: {time.perf_counter() - t2}")
+    rospy.logdebug(f"[PRM] Trajectory: {get_traj_edges(traj)}")
     # visualize_traj(map_visu, traj)     # use for a visualization of the traj. with the whole graph also
     map_visu = copy.deepcopy(map_ref)
     draw_traj(map_visu, traj, False)
@@ -1027,16 +1025,17 @@ def apply_PRM(
 
     # todo: a bit ugly for now --- [0] and [1] are the indices for the "start" and "goal" given by the apply_PRM(..) params
     # Generate random start and goal
-    if (not (start_node and goal_node)) or (not (start and goal)):
+    if start_node != None and goal_node != None:
         start_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
         while (start_node.coordinates == goal_node.coordinates).all():
             goal_node = nodes_copy[np.random.randint(0, len(nodes_copy))]
     # Use nearest node to start and goal so they are
-    elif start and goal:
-        startNode = findNearestNode(nodes_copy, *start)
-        if get_node_with_coordinates(nodes_copy, goal) == None:
-            goalNode = findNearestNode(nodes_copy, *goal)
+    elif start != None and goal != None:
+        start_node = findNearestNode(nodes_copy, start[0], start[1])
+        goal_node = get_node_with_coordinates(nodes_copy, goal)
+        if goal_node == None:
+            goal_node = findNearestNode(nodes_copy, goal[0], goal[1])
     # calculate and draw trajectory with deijkstra's algorithm
     t1 = time.perf_counter()
     traj = deijkstra(nodes_copy, start_node, goal_node)

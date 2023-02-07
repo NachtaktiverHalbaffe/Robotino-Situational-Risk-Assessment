@@ -4,190 +4,49 @@ import rospy
 import actionlib
 import message_filters
 import numpy as np
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PoseStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import PointCloud
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback, MoveBaseActionResult
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
+from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
+from utils.navigation_utils import trajToPath, pathToTraj
+from utils.risk_estimation_utils import closestNode, getIntersection
+from utils.evalmanager_client import EvalManagerClient
+from risk_estimation.crash_and_remove import calculate_collosion_order
+from real_robot_navigation.move_utils_cords import (
+    get_base_info,
+    get_pixel_location_from_acml,
+)
 
-global feedbackValue
 feedbackValue = []
+doneFeedback = -1
+trajectory = []
+evalManagerClient = EvalManagerClient()
 
 
-def moveBaseCallback(data):
+def _moveBaseCallback(data: MoveBaseFeedback):
     global feedbackValue
 
-    # print(data)
     feedbackValue = []
     feedbackValue.append(data.base_position.pose.position.x)
     feedbackValue.append(data.base_position.pose.position.y)
     feedbackValue.append(data.base_position.pose.position.z)
 
 
-def moveBaseClient(path: Path):
-    """
-    Executes a global strategy. It's basically driving a trajectory and using a local planner if a hazard\
-    is detected which wasn't mitigated by the risk evaluation.
-
-    Args:
-        path (nav_msgs.Path): The path to drive
-    """
-    global feedbackValue
-
-    rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
-    for node in path.poses[1:]:
-        client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        # Creates a new goal with the MoveBaseGoal constructor
-        goal = MoveBaseGoal()
-        # feedback = MoveBaseFeedback()
-        goal.target_pose.header.frame_id = "map"
-        goal.target_pose.header.stamp = rospy.Time.now()
-        goal.target_pose.pose.position.x = node.pose.position.x
-        goal.target_pose.pose.position.y = node.pose.position.y
-        goal.target_pose.pose.position.z = 0
-        goal.target_pose.pose.orientation.w = 1.0
-        # Move 0.5 meters forward along the x axis of the "map" coordinate frame
-        # No rotation of the mobile base frame w.r.t. map frame
-        #  yaw
-
-        client.wait_for_server()
-        # Sends the goal to the action server.
-        client.send_goal(goal, feedback_cb=moveBaseCallback)
-
-        while not rospy.is_shutdown():
-            if feedbackValue:
-                if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
-                    abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
-                ):
-                    client.cancel_goal()
-                    break
-
-        result = client.get_result()
+def _moveBaseDoneCallback(data, _):
+    global doneFeedback
+    doneFeedback = int(data)
 
 
-def execute(path: Path, isLocalPlanner=False):
-    """
-    Executes a global strategy. It's basically driving a trajectory and using a local planner if a hazard\
-    is detected which wasn't mitigated by the risk evaluation.
-
-    Args:
-        path (nav_msgs.Path): The path to drive
-        isLocalPlanner (bool, optional): If it executes a local (True) or global (False) path. Defaults to False
-    """
-    global currentTarget
-    global isInLocalMode
-    nodes = path.poses
-    publisher = rospy.Publisher(Topics.NAV_POINT.value, Point)
-
-    for node in nodes:
-        targetPoint = Point()
-        targetPoint.x = node.pose.position.x
-        targetPoint.y = node.pose.position.y
-        currentTarget = targetPoint
-        try:
-            publisher.publish(targetPoint)
-            response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
-            if response:
-                # Navigated successfully to node, continue with next node
-                continue
-            elif isInLocalMode and not isLocalPlanner:
-                # Current navigation was aborted to drive around a obstacle
-                # => wait until target is reached to seek global path again
-                response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
-                if response:
-                    # Local navigation finished => Continue global navigation
-                    publisher.publish(targetPoint)
-                    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
-                    if response:
-                        # Navigated successfully to node, continue with next node
-                        continue
-                else:
-                    # Local navigation also failed => Abort task
-                    break
-            else:
-                # Navigation failed, aborting task
-                return
-
-        except:
-            return
-
-
-def detectedHazard():
-    """ 
-    Identifies the hazard and plans the action to avoid them (usually detecting obstacles over infrared sensors)\
-    => Is basically a part of a local planner
-    """
-    global currentTarget
-    global isInLocalMode
-    isInLocalMode = False
-    # Distance threshold under which a hazard is detected
-    THRESHOLD_DISTANCE = 8
-    # Time which a hazard must be present to be detected as a passive obstacle
-    WAIT_TIME = 4
-
-    while not rospy.is_shutdown():
-        try:
-            rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
-            dist = _fetchIRReadings(rawReadings)
-
-            if np.min(dist) < THRESHOLD_DISTANCE:
-                # Detected hazard ==> stop until problem is resolved
-                rospy.loginfo("[Strategy Planner] IR sensors detected hazard. Emergency breaking now")
-                rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
-
-                # Wait if hazard resolves itself
-                time.sleep(WAIT_TIME)
-                rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
-                dist = _fetchIRReadings(rawReadings)
-
-                if np.min(dist) > THRESHOLD_DISTANCE:
-                    # Hazard isn't detected anymore => Is most likely a active obstacle which
-                    # isn't here anymore e.g. another Robotino
-                    # ===> Slow down as avoidance measure
-                    rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(False)
-                    continue
-                else:
-                    # Hazard still detected => Is most likely a passive obstacle
-                    # ===> Drive around (start PRM with next target Node as target)
-                    # TODO Add Obstacle to map
-                    isInLocalMode = True
-                    rospy.Publisher(Topics.LOCAL_TARGET.value, Point).publish(currentTarget)
-        except:
-            return
-
-
-def chooseStrategy(path: Path):
-    """ """
-
-
-def strategyPlanner(runWithRiskEstimation=True):
-    """
-    Runs the node itself and subscribes to all necessary topics.
-
-    Args:
-        runWithRiskEstimation (bool, optional): If it should run after risk estimation (True) or after a\
-                                                                            trajectory is planned (False). Defaults to True 
-    """
-    rospy.init_node(Nodes.STRATEGY_PLANNER.value)
-    set_rospy_log_lvl(rospy.INFO)
-    rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
-    if not runWithRiskEstimation:
-        # Just drive the trajectory
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClient, queue_size=1)
-        # rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, execute)
-        # rospy.Subscriber(Topics.LOCAL_PATH.value, Path, execute, callback_args=[True])
-    else:
-        # Start driving when the risk values come in
-        pathSub = message_filters.Subscriber(Topics.GLOBAL_PATH.value, Path)
-
-        t1 = message_filters.ApproximateTimeSynchronizer([pathSub], queue_size=10, slop=0.5)
-        t1.registerCallback(chooseStrategy)
-
-    # detectedHazard()
-    rospy.spin()
+def _setTrajectory(traj: Path):
+    """Setter for trajectory"""
+    global trajectory
+    trajectory = []
+    trajectory = pathToTraj(traj)
 
 
 def _fetchIRReadings(rawReadings: PointCloud):
@@ -222,6 +81,268 @@ def _fetchIRReadings(rawReadings: PointCloud):
     dist.append(np.sqrt(rawReadings.points[8].x ** 2 + rawReadings.points[8].y ** 2))
 
     return dist
+
+
+def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
+    """
+    Executes a global strategy. It's basically driving a trajectory and using a local planner if a hazard\
+    is detected which wasn't mitigated by the risk evaluation.
+
+    Args:
+        path (nav_msgs.Path): The path to drive
+    """
+    global feedbackValue
+    global doneFeedback
+
+    rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
+    for node in path.poses[1:]:
+        client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        # Creates a new goal with the MoveBaseGoal constructor
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = "map"
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x = node.pose.position.x
+        goal.target_pose.pose.position.y = node.pose.position.y
+        goal.target_pose.pose.position.z = 0
+        goal.target_pose.pose.orientation.w = 1.0
+
+        client.wait_for_server()
+        # Sends the goal to the action server.
+        client.send_goal(goal, feedback_cb=_moveBaseCallback, done_cb=_moveBaseDoneCallback)
+        while not rospy.is_shutdown():
+            if feedbackValue:
+                if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
+                    abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
+                ):
+                    client.cancel_goal()
+                    break
+
+        time.sleep(0.5)
+        print(doneFeedback)
+        if doneFeedback != 2:
+            break
+
+        doneFeedback = -1
+
+    return doneFeedback
+
+
+def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
+    """
+    Drives to a node. It's basically driving a trajectory and using a local planner if a hazard\
+    is detected which wasn't mitigated by the risk evaluation.
+
+    Args:
+        path (nav_msgs.Path): The path to drive
+    """
+    global feedbackValue
+    rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
+
+    client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+    # Creates a new goal with the MoveBaseGoal constructor
+    goal = MoveBaseGoal()
+    goal.target_pose.header.frame_id = "map"
+    goal.target_pose.header.stamp = rospy.Time.now()
+    goal.target_pose.pose.position.x = pose.pose.position.x
+    goal.target_pose.pose.position.y = pose.pose.position.y
+    goal.target_pose.pose.position.z = 0
+    goal.target_pose.pose.orientation.w = 1.0
+
+    client.wait_for_server()
+    # Sends the goal to the action server.
+    client.send_goal(goal, feedback_cb=_moveBaseCallback)
+
+    while not rospy.is_shutdown():
+        if feedbackValue:
+            if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
+                abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
+            ):
+                client.cancel_goal()
+                break
+
+    return client.get_result()
+
+
+def detectHazard():
+    """
+    Identifies the hazard/collision
+    """
+    global currentTarget
+    # Distance threshold under which a hazard is detected
+    THRESHOLD_DISTANCE = 2
+
+    while not rospy.is_shutdown():
+        try:
+            rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
+            dist = _fetchIRReadings(rawReadings)
+
+            if np.min(dist) < THRESHOLD_DISTANCE:
+                # Detected hazard ==> stop until problem is resolved
+                rospy.loginfo("[Strategy Planner] IR sensors detected hazard. Emergency breaking now")
+                evalManagerClient.evalLogCollision()
+                rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
+        except:
+            return
+
+
+def chooseStrategy(riskEstimation: Risk):
+    """ 
+    Plans the behaviour of the robot depending on the given parameters
+
+    Args:
+        riskEstimation (custom risk-message): The risk parameters. Gets passed by the subscriber who\
+                                                                          calls this function as a callback function
+    """
+    global trajectory
+    COST_CRASH = 200
+    COST_PRODUCTION_STOP = 100
+    COST_COLLISIONSTOP = COST_CRASH + COST_PRODUCTION_STOP
+
+    ###################################################
+    # ----------------- Get risk parameters -----------------------
+    ###################################################
+    probabilities = riskEstimation.probs_rl
+    for traj in riskEstimation.trajectories:
+        trajectories = pathToTraj(traj)
+    cummProbabilites = []
+    criticalNodes = set()
+    for prob in probabilities:
+        probs = []
+        for singleProb in prob:
+            probability = singleProb.probability
+            nodeIndex = singleProb.nodeIndex
+            criticalNodes.add(nodeIndex)
+            probs.append((probability, nodeIndex))
+    cummProbabilites.append(calculate_collosion_order(probs))
+
+    ##################################################
+    # ----------------- Calculate general risk --------------------
+    ##################################################
+    # Risk of collision
+    riskCollision = []
+    # Risk of creating a production stop
+    riskStop = COST_PRODUCTION_STOP
+    # Risk of collision and creating a production stop
+    riskCollisionStop = []
+    # List of nodes where the trajectory is potentially intersected by trajectories of other robots
+    intersectedNodes = []
+
+    rospy.logdebug("[Strategy Planner] Starting expectation value calculation")
+    for i in range(len(trajectories)):
+        # Overall risk of collision
+        riskCollision.append(np.multiply(COST_CRASH, cummProbabilites[i]))
+        # Risk of colilsion and productionstop
+        collisionStopProbs = 0
+        for nodeNr in criticalNodes:
+            # TODO Determine if critical sector crosses paths of other Robotinos
+            robotEdge = [[0, 0], [1, 1]]
+            for edge in robotEdge:
+                criticalIntersection, isIntersected = getIntersection(
+                    trajectories[nodeNr - 1],
+                    trajectories[nodeNr],
+                    edge[0],
+                    edge[1],
+                )
+                if isIntersected:
+                    intersectedNodes.append(nodeNr)
+                    collisionStopProbs += np.multiply(COST_COLLISIONSTOP, cummProbabilites[i])
+
+        collisionStopProbs.append(collisionStopProbs)
+        rospy.logdebug(
+            f"[Strategy Planner] Finished global risk estimation.\nRisk collision: {riskCollision[i]}\nRisk collision\&stop: {collisionStopProbs[i]}\nRisk combined: {riskCollision[i]+collisionStopProbs[i]}"
+        )
+    # Logging in Evaluationmanager
+    evalManagerClient.evalLogRisk(np.average(riskCollision) + np.average(riskCollisionStop))
+
+    #####################################################
+    # ------------------- Behaviour planning ------------------------
+    #####################################################
+    if np.average(riskCollision) + np.average(riskCollisionStop) < riskStop:
+        for i in range(len(trajectory.poses)):
+            if i in criticalNodes:
+                # Critical sector => Executing  under safety constraints
+                rospy.logdebug("[Strategy Planner] Entering critical sector")
+                localCollisionrisk = 0
+                localCollisionStopRisk = 0
+
+                # Choosing the trajectory which fits the best to the current localization and using this risk for decision making
+                currentPose = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
+                currentPose = get_pixel_location_from_acml(
+                    currentPose.pose.pose.position.x, currentPose.pose.pose.position.y, *get_base_info()
+                )
+                currentPose = np.array(currentPose)
+                minDist = np.inf
+                for j in range(len(trajectories)):
+                    node = np.array((trajectories[j][i][0], trajectories[j][i][1]))
+                    dist = np.linalg.norm(node - currentPose)
+
+                    if dist < minDist:
+                        minDist = dist
+                        localCollisionrisk = np.multiply(COST_CRASH, probabilities[j].probabilities.probability)
+                        if j in intersectedNodes:
+                            localCollisionrisk = np.multiply(
+                                COST_COLLISIONSTOP, probabilities[j].probabilities.probability
+                            )
+                # Logging in Evaluationmanager
+                evalManagerClient.evalLogCriticalSector(
+                    x=trajectory[i].poses.pose.position.x,
+                    y=trajectory[i].poses.pose.position.y,
+                    localRisk=localCollisionrisk + localCollisionStopRisk,
+                )
+
+                ############################################################
+                #  ------------------------- Behaviour execution -------------------------
+                ############################################################
+                if localCollisionrisk + localCollisionStopRisk < riskStop:
+                    # Risk is reasonable low enough => Navigate
+                    result = moveBaseClient(trajectory.poses[i])
+                    if result.status != 3:
+                        # move base failed
+                        evalManagerClient.evalLogStop()
+                        return
+                else:
+                    # Risk is too high => Don't navigate
+                    rospy.logdebug(
+                        f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{localCollisionrisk + localCollisionStopRisk}"
+                    )
+                    break
+            else:
+                # Uncritical sector => Just executing navigation
+                rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
+                # Logging in Evaluationmanager
+                evalManagerClient.evalLogCriticalSector(
+                    x=trajectory[i].poses.pose.position.x,
+                    y=trajectory[i].poses.pose.position.y,
+                )
+                result = moveBaseClient(trajectory.poses[i])
+                if result.status != 3:
+                    # move base failed
+                    evalManagerClient.evalLogStop()
+                    return
+
+
+def strategyPlanner(runWithRiskEstimation=True):
+    """
+    Runs the node itself and subscribes to all necessary topics.
+
+    Args:
+        runWithRiskEstimation (bool, optional): If it should run after risk estimation (True) or after a\
+                                                                            trajectory is planned (False). Defaults to True 
+    """
+    rospy.init_node(Nodes.STRATEGY_PLANNER.value)
+    set_rospy_log_lvl(rospy.DEBUG)
+    rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
+
+    if not runWithRiskEstimation:
+        # Just drive the trajectory
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1)
+    else:
+        # Start driving when the risk values come in
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory)
+        rospy.Subscriber(Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy)
+
+    # detectHazard()
+    rospy.spin()
 
 
 if __name__ == "__main__":
