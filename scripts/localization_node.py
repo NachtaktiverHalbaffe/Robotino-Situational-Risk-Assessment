@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from threading import Thread
 import time
 import rospy
 import numpy as np
@@ -9,6 +10,7 @@ from std_msgs.msg import Bool
 from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
 from copy import deepcopy
 from cv_bridge import CvBridge
+from decimal import Decimal
 
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
@@ -22,13 +24,11 @@ from utils.cv_utils import (
 )
 
 locPublisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
-
-global last_known_loc
-last_known_loc = [0, 0]
-global last_known_rot
-last_known_rot = 0
-global last_update
+last_known_loc = ["init_data", 0, 0, 0]
 last_update = time.time()
+img_glob = []
+odom = Odometry()
+PRECISION = 3
 
 
 def localiseCam():
@@ -42,113 +42,133 @@ def localiseCam():
     global config
     # For interpolating position if camera based localization isn't possible
     global last_known_loc
-    global last_known_rot
     global last_update
     global odom
+    last_known_odom = odom
+    dc_obstacles_ws = deepcopy(config["obstacles_ws"])
 
     publisher = rospy.Publisher(Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
-    loc_detec = [0, 0]
-    detected_rotation = 0
+    while not rospy.is_shutdown():
+        loc_detec = [0, 0]
+        detected_rotation = 0
 
-    # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
-    rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
+        # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
+        rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
+        # last_known_locs and the map TODO not sure if deepopy ws_map is needed
+        if len(img_glob) != 0:
+            img_local = deepcopy(img_glob)
+        else:
+            continue
 
-    # last_known_locs and the map TODO not sure if deepopy ws_map is needed
-    img_local = deepcopy(img_glob)
-    dc_obstacles_ws = deepcopy(config["obstacles_ws"])
-    # Use last known location as location assumption
-    if last_known_loc[0] != 0 and last_known_loc[1] != 0:
-        location_assumption = deepcopy(last_known_loc)
-        location_assumption = offset_to_robo(location_assumption)
-    # Last known location unknown => use acml data
-    else:
-        location_assumption = deepcopy(real_data)
-        location_assumption = offset_to_robo(location_assumption)
+        # Use last known location as location assumption if at least it located once with camera-based localization, otherwise use amcl data as initial pose
+        if not "init_data" in last_known_loc[0].lower() and not "cv_data" in last_known_loc[0].lower():
+            location_assumption = deepcopy(last_known_loc)
+            if not "interpolated_data" in location_assumption[0].lower():
+                location_assumption = offset_to_robo(last_known_loc)
+        else:
+            if len(real_data) != 0:
+                location_assumption = deepcopy(real_data)
+                location_assumption = offset_to_robo(location_assumption)
+            else:
+                continue
 
-    # corners of the workstations on the map
-    corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
+        # corners of the workstations on the map
+        corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
 
-    # getting the detection based on the newest image
-    localise_dict = loaded_detect(img_local, *config["conf_network"], node="localization")
-    # if there was a detection
-    if localise_dict:
-        detected_workstation_dist, rotation_detected = (
-            localise_dict["birds_eye"],
-            localise_dict["rotation"],
-        )
+        # getting the detection based on the newest image
+        localise_dict = loaded_detect(img_local, *config["conf_network"], node="localization")
+        # if there was a detection
+        if localise_dict:
+            detected_workstation_dist, rotation_detected = (
+                localise_dict["birds_eye"],
+                localise_dict["rotation"],
+            )
 
-        # turning the detected corners into an obstacle
-        detected_obst = get_obstacles_from_detection(
-            detected_workstation_dist, location_assumption, config["base_info"]
-        )
-        # comparing detected obstacles with workstations on map to find correct one
-        detection_corners = list(map(tuple, zip(*detected_workstation_dist)))
-        index_smallest_dist_ws = best_match_workstation_index(
-            corners_map_all,
-            detected_obst,
-            detection_corners,
-            rots_ws,
-            location_assumption,
-            rotation_detected,
-            config["base_info"],
-            config["map_config"],
-        )
+            # turning the detected corners into an obstacle
+            detected_obst = get_obstacles_from_detection(
+                detected_workstation_dist, location_assumption, config["base_info"]
+            )
+            # comparing detected obstacles with workstations on map to find correct one
+            detection_corners = list(map(tuple, zip(*detected_workstation_dist)))
+            index_smallest_dist_ws = best_match_workstation_index(
+                corners_map_all,
+                detected_obst,
+                detection_corners,
+                rots_ws,
+                location_assumption,
+                rotation_detected,
+                config["base_info"],
+                config["map_config"],
+            )
 
-        # calculating rotation from detected and cord transforms
-        detected_rotation = (
-            -(rots_ws[index_smallest_dist_ws] - rotation_detected + np.pi - config["map_config"]["rot"]) + 2 * np.pi
-        )
-        # basicly just transpose for the list
-        corners_detec_2 = list(map(tuple, zip(*detected_workstation_dist)))
-        # we get the detected localisation be subtracting the detected distances of a workstation from the actual one
-        # NOTE The -3 means we only go through once, all should be the same, useful for debug
-        for i in range(len(corners_detec_2) - 3):
-            # change cords so we have the distance from the ws on the map
-            corner = convert_cam_to_robo(corners_detec_2[i][1], -corners_detec_2[i][0], detected_rotation)
-            # change cords
-            ws_map = get_amcl_from_pixel_location(*corners_map_all[index_smallest_dist_ws][i], *config["base_info"])
-            # subtracting the detected distance from the workstation on the map
-            loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
+            # calculating rotation from detected and cord transforms
+            detected_rotation = (
+                -(rots_ws[index_smallest_dist_ws] - rotation_detected + np.pi - config["map_config"]["rot"])
+                + 2 * np.pi
+            )
+            # basicly just transpose for the list
+            corners_detec_2 = list(map(tuple, zip(*detected_workstation_dist)))
+            # we get the detected localisation be subtracting the detected distances of a workstation from the actual one
+            # NOTE The -3 means we only go through once, all should be the same, useful for debug
+            for i in range(len(corners_detec_2) - 3):
+                # change cords so we have the distance from the ws on the map
+                corner = convert_cam_to_robo(corners_detec_2[i][1], -corners_detec_2[i][0], detected_rotation)
+                # change cords
+                ws_map = get_amcl_from_pixel_location(
+                    *corners_map_all[index_smallest_dist_ws][i], *config["base_info"]
+                )
+                # subtracting the detected distance from the workstation on the map
+                loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
 
-    if loc_detec[0] != 0 and loc_detec[1] != 0:
-        last_known_loc = loc_detec
-        last_known_rot = detected_rotation
-    else:
-        deltaTime = time.time() - last_update
-        # Rotation
-        last_known_quaterion = quaternion_from_euler(0, 0, last_known_rot)
-        rot_odom_quaterion = quaternion_from_euler(0, 0, odom.twist.twist.angular.z)
-        _, _, detected_rotation = euler_from_quaternion(quaternion_multiply(last_known_quaterion, rot_odom_quaterion))
-        last_known_rot = detected_rotation
-        # Linear portion
-        # rot_radian = np.arcsin(detected_rotation)
-        loc_detec[0] = last_known_loc[0] + odom.twist.twist.linear.x * deltaTime * np.cos(detected_rotation)
-        loc_detec[1] = last_known_loc[1] + odom.twist.twist.linear.y * deltaTime * np.sin(detected_rotation)
-        last_known_loc = loc_detec
+        if loc_detec[0] != 0 and loc_detec[1] != 0 and detected_rotation != 0:
+            last_known_loc = [
+                "cv_data",
+                round(float(loc_detec[0]), PRECISION),
+                round(float(loc_detec[1]), PRECISION),
+                round(float(detected_rotation), PRECISION),
+            ]
+        elif "cv_data" in last_known_loc[0].lower() or "interpolated_data" in last_known_loc[0].lower():
+            # Calculate position => add difference between last odom and currentodom to last known location
+            loc_detec[0] = odom.pose.pose.position.x
+            loc_detec[1] = odom.pose.pose.position.y
+            loc_detec[0] = round(last_known_loc[1] + (loc_detec[0] - last_known_odom.pose.pose.position.x), PRECISION)
+            loc_detec[1] = round(last_known_loc[2] + (loc_detec[1] - last_known_odom.pose.pose.position.y), PRECISION)
+            # Calculate orientation=> add difference between last odom and currentodom to last known rotation
+            quat = odom.pose.pose.orientation
+            quatLastknown = last_known_odom.pose.pose.orientation
+            _, _, detected_rotation = euler_from_quaternion([quat.x, quat.y, quat.z, quat.w])
+            _, _, last_known_rotation = euler_from_quaternion(
+                [quatLastknown.x, quatLastknown.y, quatLastknown.z, quatLastknown.w]
+            )
+            detected_rotation = round(last_known_loc[3] + (detected_rotation - last_known_rotation), PRECISION)
 
-    # Create message to publish
-    locMsg = PoseWithCovarianceStamped()
-    locMsg.header.frame_id = "map"
-    # Position
-    locMsg.pose.pose.position.x = loc_detec[0]
-    locMsg.pose.pose.position.y = loc_detec[1]
-    locMsg.pose.pose.position.z = 0
-    # Orientation
-    # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
-    quaternion = quaternion_from_euler(0, 0, detected_rotation)
-    locMsg.pose.pose.orientation.x = quaternion[0]
-    locMsg.pose.pose.orientation.y = quaternion[1]
-    locMsg.pose.pose.orientation.z = quaternion[2]
-    locMsg.pose.pose.orientation.w = quaternion[3]
-    # Publish message
-    try:
-        rospy.logdebug(
-            f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
-        )
-        publisher.publish(locMsg)
-    except:
-        rospy.logerr(f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}")
-    last_update = time.time()
+            last_known_loc = ["interpolated_data", loc_detec[0], loc_detec[1], detected_rotation]
+
+        last_known_odom = odom
+        # Create message to publish
+        locMsg = PoseWithCovarianceStamped()
+        locMsg.header.frame_id = "map"
+        # Position
+        locMsg.pose.pose.position.x = loc_detec[0]
+        locMsg.pose.pose.position.y = loc_detec[1]
+        locMsg.pose.pose.position.z = 0
+        # Orientation
+        # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+        quaternion = quaternion_from_euler(0, 0, detected_rotation)
+        locMsg.pose.pose.orientation.x = quaternion[0]
+        locMsg.pose.pose.orientation.y = quaternion[1]
+        locMsg.pose.pose.orientation.z = quaternion[2]
+        locMsg.pose.pose.orientation.w = quaternion[3]
+        # Publish message
+        try:
+            rospy.logdebug(
+                f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
+            )
+            publisher.publish(locMsg)
+        except:
+            rospy.logerr(f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}")
+            break
+        last_update = time.time()
 
 
 def setOdom(newOdom: Odometry):
@@ -177,7 +197,7 @@ def setImage(rawImage: Image):
     ]
 
     # Run localisation
-    localiseCam()
+    # localiseCam()
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -214,19 +234,23 @@ def localization():
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
     config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
+    # config = initCV(
+    #     "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/statedict_ws_tiny5.pt",
+    #     "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/param/FinalGridMapv2cleaned.png",
+    # )
     # Saves the acml data to a global variable so the localization can use them
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
     # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
-    rospy.Subscriber(Topics.ODOM.value, Odometry, setOdom, queue_size=10)
+    rospy.Subscriber(Topics.ODOM.value, Odometry, setOdom, queue_size=25)
 
     # For determining localization mode
     locMode = "lidar"
     # Publish localization
-    rate = rospy.Rate(500)
+    rate = rospy.Rate(25)
     msg = PoseWithCovarianceStamped()
-
+    localiseCam()
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
         if useLidar:
@@ -262,5 +286,6 @@ def localization():
 if __name__ == "__main__":
     try:
         localization()
-    except:
+    except Exception as e:
+        print(e)
         rospy.loginfo(f"Shutdown node {Nodes.LOCALIZATION.value}")

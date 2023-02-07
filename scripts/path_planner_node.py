@@ -18,7 +18,7 @@ from real_robot_navigation.move_utils_cords import (
 
 THRESHOLD_EDGE = 6
 
-pathPublisher = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10)
+pathPublisher = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10, latch=True)
 
 global obstacles
 obstacles = None
