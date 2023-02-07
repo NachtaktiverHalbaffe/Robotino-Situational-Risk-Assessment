@@ -17,7 +17,8 @@ except:
     from autonomous_operation.object_detection import Obstacle
     from move_utils import *
     from move_utils_cords import *
-    
+
+
 def get_box_and_klapp():
     """
     This is a list of the true postions of the movable objects on the map\
@@ -56,7 +57,7 @@ def get_box_and_klapp():
     #         'angle': 0}
     objects.append(klapp)
     objects.append(box)
-    # objects.append(hocker)
+    objects.append(hocker)
 
     names = [object["name"] for object in objects]
     return objects, names
