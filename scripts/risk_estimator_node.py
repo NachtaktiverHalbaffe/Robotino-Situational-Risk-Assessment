@@ -3,10 +3,11 @@ import rospy
 from nav_msgs.msg import Path
 from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 from gym.envs.registration import register
 
 from risk_estimation import config
+from risk_estimation.eval import mains
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
 from utils.navigation_utils import trajToPath, pathToTraj
@@ -25,6 +26,31 @@ register(
     max_episode_steps=1000,
     reward_threshold=2000000,
 )
+
+
+def estimateBaseline(globalPath: Path):
+    """
+    Runs the risk estimation itself.
+
+    Args:
+        globalPath (navigation_msgs.Path): The planned trajectory. Gets usually passed by the subscriber
+
+    Returns:
+        Publishes a risk message to the topic "/risk_estimation"
+    """
+    rospy.loginfo("[Risk Estimator] Started risk estimation with SOTA")
+    done, risk = mains(mode=False, mcts_eval="IDA", combined_eval=False, initTraj=pathToTraj(globalPath))
+    rospy.loginfo(f"[Risk Estimator] Finished risk estimation with SOTA. Risk: {risk}")
+
+    msg = Float32
+    msg.data = risk
+
+    publisher = rospy.Publisher(Topics.RISK_ESTIMATION_SOTA.value, Float32, queue_size=10, latch=True)
+
+    try:
+        publisher.publish(msg)
+    except Exception as e:
+        rospy.logerr(f"[Risk Estimator] Couldn't publish SOTA risk message: {e}")
 
 
 def estimate(globalPath: Path):
@@ -47,7 +73,6 @@ def estimate(globalPath: Path):
             env_name=ENV_NAME,
             use_brute_force_baseline=True,
             replay_on=False,
-            load_location=False,
             attempts=3,
             amount_of_exploration=200,
             initialTraj=traj,
@@ -58,12 +83,14 @@ def estimate(globalPath: Path):
             env_name=ENV_NAME,
             use_brute_force_baseline=False,
             replay_on=False,
-            load_location=False,
             attempts=3,
             amount_of_exploration=200,
             initialTraj=traj,
         )
     rospy.loginfo("[Risk Estimator] Finished risk estimation")
+    rospy.logdebug(
+        f"[Risk Estimator] Probability params:\nNr of iterations:{len(estimation['rl_prob'])}\nProbabilities:{estimation['rl_prob']}"
+    )
 
     # Create ros message
     msgRlRisk = Risk()
@@ -90,8 +117,8 @@ def estimate(globalPath: Path):
                 msgBruteRisk.trajectories.append(trajToPath(estimation["traj"][i]))
 
     # Publish ros message
-    publisherRL = rospy.Publisher(Topics.RISK_ESTIMATION_RL.value, queue_size=10)
-    publisherBrute = rospy.Publisher(Topics.RISK_ESTIMATION_BRUTE.value, queue_size=10)
+    publisherRL = rospy.Publisher(Topics.RISK_ESTIMATION_RL.value, queue_size=10, latch=True)
+    publisherBrute = rospy.Publisher(Topics.RISK_ESTIMATION_BRUTE.value, queue_size=10, latch=True)
     try:
         publisherRL.publish(msgRlRisk)
         if useBrute:
@@ -113,8 +140,21 @@ def riskEstimator():
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.RISK_ESTIMATOR.value}")
 
-    rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimate, queue_size=10)
+    rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimate, queue_size=1)
     rospy.Subscriber(Topics.BRUTEFORCE_ENABLED.value, Bool, setUseBrute, queue_size=10)
+
+    sotaSub = rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
+    sotaSub.unregister()
+    while not rospy.is_shutdown():
+        useBaseline = rospy.wait_for_message(Topics.SOTA_ENABLED.value, Bool)
+        if not useBaseline.data:
+            try:
+                sotaSub.unregister()
+            except:
+                # No Subscriber registered
+                pass
+        else:
+            sotaSub = rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
 
     # Prevents python from exiting until this node is stopped
     rospy.spin()

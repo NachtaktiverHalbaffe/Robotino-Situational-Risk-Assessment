@@ -793,7 +793,6 @@ def _loadMarkersFromJson():
     """
     wsNodes = []
     file = f"{PATH}/maps/markers.json"
-    print(file)
     base_info, _ = get_base_info()
 
     if os.path.isfile(file):

@@ -28,6 +28,8 @@ class Topics(Enum):
     BRUTEFORCE_ENABLED = "/bruteforce_enabled"
     WORKSTATIONMAPPER_ENABLED = "/workstation_mapper_enabled"
     SOTA_ENABLED = "/sota_enabled"
+    MOVE_BASE_FEEDBACK = "/move_base/feedback"
+    MOVE_BASE_RESULT = "/move_base/result"
 
 
 class Nodes(Enum):
@@ -40,6 +42,7 @@ class Nodes(Enum):
     FLEETIAS_CLIENT = "fleetias_client"
     GUI = "gui"
     RISK_ESTIMATOR = "risk_estimator"
+    MOVE_BASE = "move_base"
 
 
 class Metrics(Enum):

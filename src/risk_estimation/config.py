@@ -29,7 +29,7 @@ config_1 = {
     "goal": [109, 125],
     "eval_ep": 6,
     "prob_const": 200,
-    "model_location": f"{PATH}/action_space_5",
+    "model_location": f"{PATH}/src/risk_estimation/action_space_5",
     "n_reset_nodes": 300,
 }
 

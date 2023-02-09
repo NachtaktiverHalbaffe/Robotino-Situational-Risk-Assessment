@@ -1,6 +1,10 @@
-from stable_baselines3 import PPO
 import numpy as np
+import os, sys
+from stable_baselines3 import PPO
 from stable_baselines3.common.policies import obs_as_tensor
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+sys.path.append(f"{PATH}/src/risk_estimation/sb3_model_same.py")
 
 
 class Sb3_as_adv:

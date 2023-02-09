@@ -125,9 +125,9 @@ class MainWindow(QMainWindow):
         self.ui.checkBox_qrScanner.stateChanged.connect(lambda: self.activateFeature("qr"))
         self.ui.checkBox_qrScanner.setChecked(True)
         self.ui.checkBox_bruteforce.stateChanged.connect(lambda: self.activateFeature("bruteforce"))
-        self.ui.checkBox_bruteforce.setChecked(True)
+        self.ui.checkBox_bruteforce.setChecked(False)
         self.ui.checkBox_baselineRisk.stateChanged.connect(lambda: self.activateFeature("baseline"))
-        self.ui.checkBox_baselineRisk.setChecked(True)
+        self.ui.checkBox_baselineRisk.setChecked(False)
 
         # Make shure roscore is running before starting gui node
         try:
@@ -711,7 +711,7 @@ class MainWindow(QMainWindow):
             Takes the shape from the shape dropdown menu in the RL section of the localization adversary tab
         """
         object_type = self.ui.shape_selector.currentText()
-        configs = config.configs[0]
+        configs = config.cfgs[0]
         map = cv2.imread(configs["map_path"])  # , cv2.IMREAD_GRAYSCALE)
 
         scale_percent = 200  # percent of original size

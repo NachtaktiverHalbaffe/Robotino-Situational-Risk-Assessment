@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 import time
+import yaml
 import rospy
 import actionlib
-import message_filters
+import dynamic_reconfigure.client
 import numpy as np
 from geometry_msgs.msg import Point, PoseStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import PointCloud
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback, MoveBaseActionResult
+from move_base_msgs.msg import (
+    MoveBaseAction,
+    MoveBaseGoal,
+    MoveBaseActionFeedback,
+    MoveBaseActionResult,
+    MoveBaseFeedback,
+)
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
@@ -37,9 +44,32 @@ def _moveBaseCallback(data: MoveBaseFeedback):
     feedbackValue.append(data.base_position.pose.position.z)
 
 
-def _moveBaseDoneCallback(data, _):
+def _moveBaseActionCallback(data: MoveBaseActionFeedback):
+    pass
+
+
+def _moveBaseActionDoneCallback(data: MoveBaseActionResult):
     global doneFeedback
-    doneFeedback = int(data)
+    doneFeedback = int(data.status.status)
+    print(data)
+
+
+def reconfigureMovebase(lidarEnabled: Bool):
+    """
+    Updates the configuration of move_base. It basically adds or removes the\
+    LIDAR from the used sensors in the obstacle cost layer
+
+    Args:
+        lidarEnabled (Bool): If lidas is enabled
+    """
+    # Load correct configuration from config file
+    if lidarEnabled.data:
+        rospy.set_param("/move_base/local_costmap/obstacle_layer/observation_sources", "laser_scan_sensor ir_sensor")
+    else:
+        rospy.set_param("/move_base/local_costmap/obstacle_layer/observation_sources", "ir_sensor")
+
+    # Update parameters of move_base
+    rospy.logdebug(f"[Strategy Planner] Reconfigured move_base. Use LIDAR: {lidarEnabled.data}")
 
 
 def _setTrajectory(traj: Path):
@@ -108,19 +138,23 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
 
         client.wait_for_server()
         # Sends the goal to the action server.
-        client.send_goal(goal, feedback_cb=_moveBaseCallback, done_cb=_moveBaseDoneCallback)
+        client.send_goal(goal, feedback_cb=_moveBaseCallback)
         while not rospy.is_shutdown():
+            doneFeedback = -1
             if feedbackValue:
-                if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
-                    abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
+                if (
+                    (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
+                    and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1)
+                    or doneFeedback >= 2
                 ):
                     client.cancel_goal()
                     break
 
         time.sleep(0.5)
-        print(doneFeedback)
-        if doneFeedback != 2:
-            break
+        if doneFeedback != 3 and doneFeedback != 2:
+            # Error behaviour if move base didnt reach node
+            print("[Strategy Planner] Error")
+            continue
 
         doneFeedback = -1
 
@@ -154,8 +188,10 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
 
     while not rospy.is_shutdown():
         if feedbackValue:
-            if (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.15) and (
-                abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.15
+            if (
+                (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
+                and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1)
+                or doneFeedback >= 2
             ):
                 client.cancel_goal()
                 break
@@ -333,13 +369,16 @@ def strategyPlanner(runWithRiskEstimation=True):
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
 
+    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10)
+    rospy.Subscriber(Topics.MOVE_BASE_FEEDBACK.value, MoveBaseActionFeedback, _moveBaseActionCallback, queue_size=10)
+    rospy.Subscriber(Topics.MOVE_BASE_RESULT.value, MoveBaseActionResult, _moveBaseActionDoneCallback, queue_size=10)
     if not runWithRiskEstimation:
         # Just drive the trajectory
         rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1)
     else:
         # Start driving when the risk values come in
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory)
-        rospy.Subscriber(Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy)
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=1)
+        rospy.Subscriber(Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1)
 
     # detectHazard()
     rospy.spin()

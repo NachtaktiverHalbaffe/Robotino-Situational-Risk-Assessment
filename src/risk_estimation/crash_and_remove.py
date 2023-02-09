@@ -32,8 +32,8 @@ except:
 # TODO brute force using one dimension, only use the ANGLE that is the domninant side
 # TODO MODIFY the env single dimsension
 # TODO MODIFY the monte carlo
-
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+sys.path.append(f"{PATH}/src/risk_estimation/sb3_model_same.py")
 
 
 def calculate_collosion_order(prob_collision_with_Node):
@@ -103,10 +103,10 @@ def run_pruned(env, adv1, crash_point=0, reduce=False, forced_traj=None):
         prob_collision(float) : Probability of collision
     """
     observation, traj_vanilla = env.env_real.reset(
-        "adv1", start=[93, 122], goal=configs["goal"], forced_traj=forced_traj, persisten_map=reduce
+        "adv1", start=[93, 122], goal=cfgs["goal"], forced_traj=forced_traj, persisten_map=reduce
     )
     obeservation_orig = observation
-    mcts = MonteCarloTreeSearch(configs["N_actions"], traj_vanilla, env, adv1, obeservation_orig, test_mode=True)
+    mcts = MonteCarloTreeSearch(cfgs["N_actions"], traj_vanilla, env, adv1, obeservation_orig, test_mode=True)
     pruned_tree = mcts.expand()
     observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(
         pruned_tree, done_after_collision=False, use_new_agent=True
@@ -204,7 +204,7 @@ def run_crash_and_remove(
     while len(rl_actions_to_crash_lists) < amount_of_exploration:
         i += 1
         rospy.logdebug(f"[Crash and Remove] Running {i}. exploration")
-        rospy.logdebug("[Crash and Remove] Runs saved", len(rl_actions_to_crash_lists))
+        rospy.logdebug(f"[Crash and Remove] Runs saved {len(rl_actions_to_crash_lists)}")
         # If we want to examine past experiences, replay will be enabled and multiple aspects of the code will be
         # retrieved from a dataframe instead of being generated. Additionally, a prompt will be included for the user
         # to confirm they have finished reviewing the output images
@@ -225,9 +225,7 @@ def run_crash_and_remove(
             )
         # Generating based on existing trajectory
         elif initialTraj != None:
-            _, traj_vanilla = env.env_real.reset(
-                "adv1", start=[93, 122], goal=configs["goal"], new_traj=True, forced_traj=initialTraj
-            )
+            _, traj_vanilla = env.env_real.reset("adv1", new_traj=True, initialTraj=initialTraj)
         # Randomly generate new trajectory
         else:
             _, traj_vanilla = env.env_real.reset("adv1", start=[93, 122], goal=configs["goal"], new_traj=True)
@@ -239,13 +237,13 @@ def run_crash_and_remove(
             t4 = time.perf_counter()
             prob_collision_brute = run_pruned(env, adv1)
             mcts_total_time += time.perf_counter() - t4
-            rospy.logdebug("Brute force prob_collision is: ", prob_collision_brute)
-            rospy.logdebug("Brute force results in: ", mcts_total_time, "seconds")
+            rospy.logdebug(f"[Crash and Remove] Brute force prob_collision is: {prob_collision_brute}")
+            rospy.logdebug("[Crash and Remove] Brute force results in: {mcts_total_time} seconds")
 
             # print("Press enter to start rl loop")
             if replay_on:
-                rospy.logdebug("data_point is ", data_point)
-                rospy.logdebug("\U0001F4C0", "old error", loaded_run_info["error"])
+                rospy.logdebug(f"[Crash and Remove] Data_point is {data_point}")
+                rospy.logdebug(f"[Crash and Remove] \U0001F4C0 old error { loaded_run_info['error']}")
                 a = input()
 
         # --------------------------------- Run the RL loop --------------------------------------
@@ -272,8 +270,7 @@ def run_crash_and_remove(
                     else:
                         rospy.logdebug("[Crash and Remove] All crash paths have been displayed")
                         rospy.logdebug(
-                            "[Crash and Remove] \U0001F4C0",
-                            "type a to have the agent try to find new paths, other for next",
+                            "[Crash and Remove] \U0001F4C0 type a to have the agent try to find new paths, other for next",
                         )
                         user_input = input()
                         if user_input == "a":
@@ -281,11 +278,10 @@ def run_crash_and_remove(
                             action, _, _, _ = adv1.choose_action(obs)
                         else:
                             rospy.logdebug(
-                                "[Crash and Remove] Final rl estimate:",
-                                calculate_collosion_order(prob_collision_with_Node),
+                                f"[Crash and Remove] Final rl estimate: {calculate_collosion_order(prob_collision_with_Node)}",
                             )
                             if use_brute_force_baseline:
-                                rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
+                                rospy.logdebug(f"[Crash and Remove] Final brute estimate: {prob_collision_brute}")
                             break_out = True
                             break
                 # -- With live-generated data --
@@ -301,17 +297,17 @@ def run_crash_and_remove(
                     # going back expand length
                     forced_traj = traj_vanilla[max(0, step - expand_length) : min(step + 1, len(traj_vanilla))]
                     if replay_on:
-                        rospy.logdebug("[Crash and Remove] \U0001F4C0", "collision_found")
+                        rospy.logdebug("[Crash and Remove] \U0001F4C0 collision_found")
                         a = input()
 
                     prob_collision_found = run_pruned(env, adv1, forced_traj=forced_traj, reduce=True)
                     env.env_real.trajectory_vanilla = deepcopy(traj_vanilla_org)
                     prob_collision_with_Node.append((prob_collision_found, step))
                     if replay_on:
-                        rospy.logdebug("[Crash and Remove] \U0001F4C0", "crash prob", prob_collision_found)
+                        rospy.logdebug(f"[Crash and Remove] \U0001F4C0 crash prob {prob_collision_found}")
                         a = input()
                     else:
-                        rospy.logdebug("[Crash and Remove] Prob_collision_found crash prob", prob_collision_found)
+                        rospy.logdebug(f"[Crash and Remove] Prob_collision_found crash prob {prob_collision_found}")
 
                     # TODO Move this out if we want to skip wall casts maybe do a do not save here
                     if "obstables_to_remove" in info:
@@ -327,14 +323,14 @@ def run_crash_and_remove(
                         rospy.logdebug("[Crash and Remove] There was a crash without an obstacle")
                         break_out = True
                         if replay_on:
-                            rospy.logdebug("[Crash and Remove] \U0001F4C0", "obstacles not remove")
+                            rospy.logdebug("[Crash and Remove] \U0001F4C0 obstacles not remove")
                             a = input()
                     env.env_real.visu_adv_traj_map = deepcopy(env.env_real.map_ref_adv)
                     env.env_real.visu_adv_traj_map = env.env_real.visu_adv_traj_map.convert("RGB")
 
             # Replay
             if replay_on and temp_disable_replay:
-                rospy.logdebug("[Crash and Remove] \U0001F4C0", "episode_end, type a to break out")
+                rospy.logdebug(f"[Crash and Remove] \U0001F4C0 episode_end, type a to break out")
                 a = input()
                 if a == "a":
                     break_out = True
@@ -344,20 +340,23 @@ def run_crash_and_remove(
                 wall_discards = wall_discards + 1
                 break
 
-            rospy.logdebug("Current_estimate", calculate_collosion_order(prob_collision_with_Node))
+            rospy.logdebug(
+                f"[Crash and Remove] Current_estimate:  {calculate_collosion_order(prob_collision_with_Node)}"
+            )
 
         if not break_out:
 
             # TODO if len()<3 there might be problems
-            rospy.loginfo("[Crash and Remove] Final RL estimate:", calculate_collosion_order(prob_collision_with_Node))
+            rospy.loginfo(
+                f"[Crash and Remove] Final RL estimate: {calculate_collosion_order(prob_collision_with_Node)}"
+            )
             if use_brute_force_baseline:
-                rospy.logdebug("[Crash and Remove] Final brute estimate:", prob_collision_brute)
+                rospy.logdebug(f"[Crash and Remove] Final brute estimate: {prob_collision_brute}")
             if replay_on:
                 a = input()
             if temp_disable_replay:
                 rospy.logdebug(
-                    "[Crash and Remove] The old final RL estimate:",
-                    calculate_collosion_order(loaded_run_info["rl_prob"]),
+                    f"[Crash and Remove] The old final RL estimate: {calculate_collosion_order(loaded_run_info['rl_prob'])}",
                 )
                 a = input()
 
@@ -403,13 +402,13 @@ def run_crash_and_remove(
         pkl.dump(df_save, filehandler)
         filehandler.close()
 
-        rospy.logdebug("[Crash and Remove] Wall_discards", wall_discards)
+        rospy.logdebug(f"[Crash and Remove] Wall_discards {wall_discards}")
 
     return data
 
 
 if __name__ == "__main__":
-    configs = configs[0]
+    cfgs = configs[0]
     env_name = "robo_navigation-v01"
     use_brute_force_baseline = True
 
@@ -440,7 +439,7 @@ if __name__ == "__main__":
         )
 
         run_crash_and_remove(
-            configs=configs,
+            configs=cfgs,
             env_name=env_name,
             use_brute_force_baseline=use_brute_force_baseline,
             save_location=save_location,

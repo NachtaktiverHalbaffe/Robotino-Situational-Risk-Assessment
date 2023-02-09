@@ -263,8 +263,8 @@ def initialize_traj(
     visualize=False,
     edges_all=None,
     env=None,
-    start=[62, 74],
-    goal=[109, 125],
+    start=None,
+    goal=None,
 ):
     """Initialize a new usually random trajectory for training
     
@@ -297,9 +297,10 @@ def initialize_traj(
         # open_file.close()
     else:
         # for specific start / goal location: ------------------
-        start_node = get_node_with_coordinates(nodes, (62, 74))
-        goal_node = get_node_with_coordinates(nodes, (109, 125))
-        traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
+        if start != None and goal != None:
+            traj, _, nodes, _ = apply_PRM(map_ref, nodes, start=start, goal=goal, visualize=visualize)
+        else:
+            traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
 
         """ Uncomment the below code for own path"""
         # traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize, start_node=start_node, goal_node=goal_node)
@@ -948,6 +949,7 @@ class Environment:
         start=[62, 74],
         goal=[109, 125],
         forced_traj=None,
+        initialTraj=None,
         persisten_map=False,
         new_traj=False,
     ):
@@ -981,6 +983,15 @@ class Environment:
                     visualize=self.visualize,
                     start=start,
                     goal=goal,
+                )
+            elif initialTraj:
+                (self.trajectory_vanilla, self.nodes_vanilla, self.edges_all_vanilla,) = initialize_traj(
+                    self.map_ref,
+                    obstacles=self.obstacles,
+                    visualize=self.visualize,
+                    env=self,
+                    start=initialTraj[0],
+                    goal=initialTraj[len(initialize_traj) - 1],
                 )
             else:
                 (self.trajectory_vanilla, self.nodes_vanilla, self.edges_all_vanilla,) = initialize_traj(
