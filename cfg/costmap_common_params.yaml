@@ -1,0 +1,12 @@
+# Customized for ArloBot
+# max_obstacle_height: 0.60 # assume something like an arm is mounted on top of the robot
+obstacle_range: 3.0
+raytrace_range: 3.5
+
+# Obstacle Cost Shaping (http://wiki.ros.org/costmap_2d/hydro/inflation)
+robot_radius: 0.2 # robotino
+inflation_radius: 0.1 # max. distance from an obstacle at which costs are incurred for planning paths.
+cost_scaling_factor: 10 # exponential rate at which the obstacle cost drops off (default: 10)
+
+map_type: costmap
+transform_tolerance: 5 # seconds
