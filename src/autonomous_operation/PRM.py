@@ -156,7 +156,11 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
             distances.append(obstacle.distance_to_point((random_x, random_y)))
         dist = np.min(np.array(distances))
 
-        if (dist > RADIUS_ROBOT) and pixels[random_y][random_x] != 255 and pixels[random_y][random_x] != NODE_COLOR:
+        if (
+            (dist > RADIUS_ROBOT + 4)
+            and pixels[random_y][random_x] != 255
+            and pixels[random_y][random_x] != NODE_COLOR
+        ):
             # Only add node if no obstacle is too near
             pixels[random_y][random_x] = NODE_COLOR
             N_nodes += 1
@@ -947,8 +951,12 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
     # add neighbours / build up graph with edges and costs
     map_visu, nodes, edges_all = add_neighbours(map_ref_copy, nodes, N_NEIGHBOURS)
     # TODO: XXX this might cause trouble in for the adv!!! -> visualization will not exactly represent the truth (pixel perfect)
-    calculate_edge_costs(map_ref_copy, edges_all, obstacles)
-
+    try:
+        calculate_edge_costs(map_ref_copy, edges_all, obstacles)
+    except:
+        map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, goal)
+        map_visu, nodes, edges_all = add_neighbours(map_ref_copy, nodes, N_NEIGHBOURS)
+        calculate_edge_costs(map_ref_copy, edges_all, obstacles)
     nodes_copy = copy.copy(nodes)
     map_visu.save(f"{PATH}/maps/map_graph.png")
     rospy.logdebug(f"[PRM] Time add_neighbours: {time.perf_counter() - t0}")
