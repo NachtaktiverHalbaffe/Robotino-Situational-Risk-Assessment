@@ -457,6 +457,7 @@ class Environment:
         done_after_collision=True,
         visualize=False,
         adversary=None,
+        obstacles=None,
         start=[62, 74],
         goal=[109, 125],
     ):
@@ -467,14 +468,18 @@ class Environment:
         self.adversary = adversary
         self.map_ref, self.obstacles = initialize_map(map_path)
         "here we are obtaining all the obstacles as obstacles so that we can work with them for crash and remove"
-        corners_table = [(105, 110), (103, 96), (90, 90), (80, 98)]
-        obst_table = Obstacle(corners_table)
-        self.obstacles = [obst_table]
         base_info, map_config = get_base_info()
-        obstacles_ws, names_ws = get_obstacles_in_pixel_map(base_info)
-        obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, "movable")
+        obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
+        if obstacles == None:
+            obstacles_movable, _ = get_obstacles_in_pixel_map(base_info, "movable")
+            corners_table = [(105, 110), (103, 96), (90, 90), (80, 98)]
+            obst_table = Obstacle(corners_table)
+            self.obstacles = [obst_table]
+            self.obstacles.extend(obstacles_movable)
+        else:
+            self.obstacles = obstacles
         self.obstacles.extend(obstacles_ws)
-        self.obstacles.extend(obstacles_movable)
+
         self.map_ref = self.modify_map_2(
             self.map_ref,
             [],

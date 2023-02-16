@@ -103,10 +103,10 @@ def run_pruned(env, adv1, crash_point=0, reduce=False, forced_traj=None):
         prob_collision(float) : Probability of collision
     """
     observation, traj_vanilla = env.env_real.reset(
-        "adv1", start=[93, 122], goal=cfgs["goal"], forced_traj=forced_traj, persisten_map=reduce
+        "adv1", start=[93, 122], goal=configs[0]["goal"], forced_traj=forced_traj, persisten_map=reduce
     )
     obeservation_orig = observation
-    mcts = MonteCarloTreeSearch(cfgs["N_actions"], traj_vanilla, env, adv1, obeservation_orig, test_mode=True)
+    mcts = MonteCarloTreeSearch(configs[0]["N_actions"], traj_vanilla, env, adv1, obeservation_orig, test_mode=True)
     pruned_tree = mcts.expand()
     observation_, reward, done, collision_status, _, prob_collision, risk_ep = mcts.take_action(
         pruned_tree, done_after_collision=False, use_new_agent=True
@@ -125,6 +125,7 @@ def run_crash_and_remove(
     expand_length=3,
     amount_of_exploration=10,
     initialTraj=None,
+    obstacles=None,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -144,6 +145,7 @@ def run_crash_and_remove(
         expand_length (int, optional): Length of the brute for search around a collision. Defaults to 3
         amount_of_exploration (int, optional): Number of attemts the agent gets to find a collision. Defaults to 10
         intialTraj( list of coordinates): Initial trajectory for which the risk estimation should be run. Defaults to None
+        obstacles (list(Obstacle)): Detected obstacles which should be used in probability estimation
 
     Returns (in a dict):
         rl_prob (list(float)): Probabilities calculated by the reinforcement learning agents
@@ -159,7 +161,11 @@ def run_crash_and_remove(
     env_name = "robo_navigation-single_dimension-v0"
     # env = DummyVecEnv([lambda: Monitor(gym.make(env_name, config=configs))
     #                  for i in range(1)])
-    env = gym.make(env_name, config=configs)
+    if obstacles != None:
+        env = gym.make(env_name, config=configs, obstacles=obstacles)
+    else:
+        env = gym.make(env_name, config=configs)
+
     policy_kwargs = dict(features_extractor_class=SameExtractor)
     model = PPO(
         ActorCriticCnnPolicy,
@@ -200,10 +206,10 @@ def run_crash_and_remove(
         df["error"] = (df["rl_final_prob"] - df["brute_prob"]).abs()
         df = df.sort_values(by="error", ascending=False)
 
-    i = 0
+    run = 0
     while len(rl_actions_to_crash_lists) < amount_of_exploration:
-        i += 1
-        rospy.logdebug(f"[Crash and Remove] Running {i}. exploration")
+        run = run + 1
+        rospy.logdebug(f"[Crash and Remove] Running {run}. exploration")
         rospy.logdebug(f"[Crash and Remove] Runs saved {len(rl_actions_to_crash_lists)}")
         # If we want to examine past experiences, replay will be enabled and multiple aspects of the code will be
         # retrieved from a dataframe instead of being generated. Additionally, a prompt will be included for the user
@@ -230,7 +236,7 @@ def run_crash_and_remove(
         else:
             _, traj_vanilla = env.env_real.reset("adv1", start=[93, 122], goal=configs["goal"], new_traj=True)
         traj_vanilla_org = deepcopy(traj_vanilla)
-
+        prob_collision_brute = 0
         if use_brute_force_baseline:
             # Run the pruned brute force algorithm
             mcts_total_time = 0
@@ -389,7 +395,7 @@ def run_crash_and_remove(
         "rl_prob": rl_list,
         "brute_prob": brute_force_list,
         "traj": traj_list,
-        "len_traj": traj_list,
+        "len_traj": len_traj_list,
         "len_traj_list_in_m": len_traj_list_in_m,
         "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
         "wall_discards": wall_discards,
@@ -397,10 +403,6 @@ def run_crash_and_remove(
     if not replay_on:
         df_save = pd.DataFrame(data)
         df_save.to_csv(f"{PATH}/logs/risk_estimation.csv")
-
-        filehandler = open(save_location, "wb")
-        pkl.dump(df_save, filehandler)
-        filehandler.close()
 
         rospy.logdebug(f"[Crash and Remove] Wall_discards {wall_discards}")
 

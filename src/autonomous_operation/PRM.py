@@ -894,7 +894,6 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
 
 
 def findNearestNode(nodes, xCor, yCor):
-    t0 = time.perf_counter()
     minDist = math.inf
     nearestNode = None
     cor = np.array([xCor, yCor])
@@ -907,7 +906,7 @@ def findNearestNode(nodes, xCor, yCor):
             minDist = dist
             nearestNode = node
 
-    rospy.logdebug(f"[PRM] Time to find nearest node with distance {minDist}: {time.perf_counter()-t0}")
+    # rospy.logdebug(f"[PRM] Time to find nearest node with distance {minDist}: {time.perf_counter()-t0}")
     return nearestNode
 
 

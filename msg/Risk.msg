@@ -1,11 +1,11 @@
+# Raw collision probabilities
 ProbabilitiesRL[] probs_rl 
+# Bruteforce probabilities
+float32[] probs_brute
 # Collision probabilites for bruteforce
-float32[] probs_brute 
+float32[] globalRisks
 # The corresponding trajectory for the collisions probabilities
-nav_msgs/Path[] trajectories
+nav_msgs/Path trajectory
 # Number of nodes of the trajectory
-int16[] nr_nodes
-# Length of trajectory
-float32[] length_traj
-# Number of wall discards
-int32[] wall_discards
+CriticalSectors[] criticalSectors
+

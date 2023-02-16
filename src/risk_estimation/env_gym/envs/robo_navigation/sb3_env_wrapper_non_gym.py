@@ -32,7 +32,7 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 class RoboEnv_gym_2(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config, env=None):
+    def __init__(self, config, env=None, obstacles=None):
         self.persisten_map = False
         self.actions_per_dimension = 5
         self.num_action_options = self.actions_per_dimension
@@ -40,16 +40,27 @@ class RoboEnv_gym_2(gym.Env):
         self.config = config
         # create Environment
         visualize = True
-        self.env_real = Environment(
-            map_path=config["map_path"],
-            relevant_segments=config["relevant_segments"],
-            done_after_collision=config["done_after_collision"],
-            adversary=None,
-            visualize=visualize,
-            start=config["start"],
-            goal=config["goal"],
-        )
-
+        if obstacles == None:
+            self.env_real = Environment(
+                map_path=config["map_path"],
+                relevant_segments=config["relevant_segments"],
+                done_after_collision=config["done_after_collision"],
+                adversary=None,
+                visualize=visualize,
+                start=config["start"],
+                goal=config["goal"],
+            )
+        else:
+            self.env_real = Environment(
+                map_path=config["map_path"],
+                relevant_segments=config["relevant_segments"],
+                done_after_collision=config["done_after_collision"],
+                adversary=None,
+                visualize=visualize,
+                start=config["start"],
+                goal=config["goal"],
+                obstacles=obstacles,
+            )
         "some extra settings"
         self.n_reset_nodes = config["n_reset_nodes"]
         self.debug = False

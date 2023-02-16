@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import csv
 import rospy
+import os
 import numpy as np
 from geometry_msgs.msg import PoseWithCovarianceStamped, Point, PolygonStamped
 from sensor_msgs.msg import Image
@@ -16,6 +17,7 @@ from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
 img_glob = []
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 
 def visualizeObstacles():
@@ -47,8 +49,13 @@ def detect(log_detection_error=True):
     global config
     global detectedObstacles
 
-    PATH_ERROR_DIST = rospy.get_param("~path_error_dist")
-    PATH_ERROR_DIST_DOOR_CLOSED = rospy.get_param("~path_error_dist_doorclosed")
+    PATH_ERROR_DIST = rospy.get_param(
+        "~path_error_dist", default=f"{PATH}/logs/error_dist_csvs/error_dist_detec_22_12.csv"
+    )
+    PATH_ERROR_DIST_DOOR_CLOSED = rospy.get_param(
+        "~path_error_dist_doorclosed",
+        default=f"{PATH}/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv",
+    )
     publisher = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList, queue_size=10)
     # copy map and create a drawing frame
     map_ref = deepcopy(config["map_ref"]).convert("RGB")
@@ -123,6 +130,14 @@ def detect(log_detection_error=True):
                     write.writerow([error])
 
         # Create message
+        modify_map(
+            map_ref,
+            [],
+            detec_movables_obstacles,
+            color=(0, 255, 255),
+            convert_back_to_grey=True,
+            savePath=f"{PATH}/maps/map_obstacles.png",
+        )
         msg = ObstacleList()
         for obstacle in detec_movables_obstacles:
             corners = []
@@ -190,7 +205,10 @@ def objectDetection():
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.OBJECT_DETECTION.value}")
 
-    config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
+    config = initCV(
+        rospy.get_param("~weights_path", default=f"{PATH}/src/yolov7/weights/statedict_tiny10_hocker.pt"),
+        rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"),
+    )
     # Save the localization data to a global variable so the detection can use them
     rospy.Subscriber(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
     # Triggers to run the object detection

@@ -51,7 +51,7 @@ def risk_cal(action_collision):
     return risk_calculation(action_collision)
 
 
-def run_session_adv(config, test_mode, initTraj=[], mcts_eval="IDA", ida_brute_combine=False):
+def run_session_adv(config, test_mode, initTraj=[], mcts_eval="IDA", ida_brute_combine=False, obstacles=None):
     """
     This function starts the training or evaluation process of the simulation-gap-adversary be sure\
     to pass the right path to your map in Environment.
@@ -87,17 +87,27 @@ def run_session_adv(config, test_mode, initTraj=[], mcts_eval="IDA", ida_brute_c
         value_loss_coef=config["value_loss_coef"],
     )
 
-    print(config["start"], config["goal"])
-    env = Environment(
-        map_path=config["map_path"],
-        relevant_segments=config["relevant_segments"],
-        done_after_collision=config["done_after_collision"],
-        adversary=None,
-        visualize=True,
-        start=config["start"],
-        goal=config["goal"],
-    )
-
+    if obstacles == None:
+        env = Environment(
+            map_path=config["map_path"],
+            relevant_segments=config["relevant_segments"],
+            done_after_collision=config["done_after_collision"],
+            adversary=None,
+            visualize=True,
+            start=config["start"],
+            goal=config["goal"],
+        )
+    else:
+        env = Environment(
+            map_path=config["map_path"],
+            relevant_segments=config["relevant_segments"],
+            done_after_collision=config["done_after_collision"],
+            adversary=None,
+            visualize=True,
+            start=config["start"],
+            goal=config["goal"],
+            obstacles=obstacles,
+        )
     if test_mode:
         adv1.load_models(path=config["log_name"] + "_models/", name="best")
 
@@ -471,14 +481,24 @@ def run_session_adv(config, test_mode, initTraj=[], mcts_eval="IDA", ida_brute_c
     return np.sqrt(cumm_risk)
 
 
-def mains(mode=True, initTraj=[], mcts_eval="IDA", combined_eval=False):
+def mains(mode=True, initTraj=[], mcts_eval="IDA", combined_eval=False, obstacles=None):
     n_sessions = 1
     done = False
     """ mcts_eval: BRUTE_FORCE, BINARY_SEARCH, IDA"""
     for i in range(0, n_sessions):
-        risk = run_session_adv(
-            configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=combined_eval, initTraj=initTraj
-        )
+        if obstacles == None:
+            risk = run_session_adv(
+                configs[i], test_mode=mode, mcts_eval=mcts_eval, ida_brute_combine=combined_eval, initTraj=initTraj
+            )
+        else:
+            risk = run_session_adv(
+                configs[i],
+                test_mode=mode,
+                mcts_eval=mcts_eval,
+                ida_brute_combine=combined_eval,
+                initTraj=initTraj,
+                obstacles=obstacles,
+            )
 
     print("evaluation finished")
     done = True

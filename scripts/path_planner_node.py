@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from real_robot_navigation.move_utils import modify_map
 import rospy
+import os
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 
@@ -16,6 +17,7 @@ from real_robot_navigation.move_utils_cords import (
     get_pixel_location_from_acml,
 )
 
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 THRESHOLD_EDGE = 6
 
 pathPublisher = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10, latch=True)
@@ -138,7 +140,7 @@ def planner():
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
 
-    pathPlannerConfig = createMapRef(rospy.get_param("~map_ref"))
+    pathPlannerConfig = createMapRef(rospy.get_param("~map_ref", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"))
 
     # Starts the global PRM
     plannerSub = rospy.Subscriber(

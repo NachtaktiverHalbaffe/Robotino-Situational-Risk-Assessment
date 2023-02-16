@@ -382,7 +382,7 @@ def obstacle_adversary(obstacles, action_index):
     return obstacles_disturbed
 
 
-def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True):
+def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True, savePath=None):
     """This is takes a set of obstacles to remove from the image and a set to place in the image, often used for shifting obstacles in
     the map by passing the same obstacles at the old and new different locations
     @param takes: the image we want to modify
@@ -409,6 +409,9 @@ def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert
         map_ref_adv_draw.polygon(obstacle.corners, fill=color, outline=color)
     if convert_back_to_grey:
         map_ref_adv = map_ref_adv.convert("L")
+
+    if savePath != None:
+        map_ref_adv.save(savePath)
     return map_ref_adv
 
 

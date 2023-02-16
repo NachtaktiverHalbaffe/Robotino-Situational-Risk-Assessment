@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseStamped
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 from real_robot_navigation.move_utils import initialize_map, modify_map
 from real_robot_navigation.move_utils_cords import get_amcl_from_pixel_location, get_base_info
+from autonomous_operation.PRM import Node
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
@@ -66,7 +67,10 @@ def trajToPath(trajectory: list):
     base_info, _ = get_base_info()
 
     for node in trajectory:
-        acmlNode = get_amcl_from_pixel_location(node[0], node[1], *base_info)
+        if isinstance(node, Node):
+            acmlNode = get_amcl_from_pixel_location(node.x, node.y, *base_info)
+        else:
+            acmlNode = get_amcl_from_pixel_location(node[0], node[1], *base_info)
         # Create a pose => Poses are the Nodes-equivalent in ROS's path
         pose = PoseStamped()
         pose.header.frame_id = "map"

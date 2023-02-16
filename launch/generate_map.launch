@@ -1,0 +1,17 @@
+<launch>
+  <arg name="package_name" default="prototype" />
+    <arg name="path" value="$(eval find(arg('package_name')))" />
+	<!-- Connect to the robot -->
+  <include file="$(find robotino_node)/launch/robotino_node.launch">
+    <arg name="hostname" value="129.69.102.240"/>
+    <!-- more default parameters can be changed here -->
+  </include>
+  
+	<!-- open gmapping -->
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <rosparam file="$(arg path)/cfg/gmapping.yaml" command="load" />
+  </node>
+
+  <!-- open gmapping -->
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/cfg/rvizConfigNew.rviz" respawn="true"/>
+</launch>

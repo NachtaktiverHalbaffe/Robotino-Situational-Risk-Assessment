@@ -21,6 +21,7 @@ class Topics(Enum):
     EMERGENCY_BRAKE = "/emergency_break"
     MARKERS = "/target_markers"
     MARKERS_NAV = "/target_nav_markers"
+    MARKERS_COMMON_TRAJ = "/common_traj_markers"
     LIDAR_ENABLED = "/lidar_enabled"
     RISK_ESTIMATION_RL = "/risk_estimation_rl"
     RISK_ESTIMATION_BRUTE = "/risk_estimation_brute"

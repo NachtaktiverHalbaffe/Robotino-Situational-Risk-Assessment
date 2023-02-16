@@ -21,9 +21,9 @@ config_1 = {
     "log_interval": 10,
     "log_name": "adv_1",  # this should be prot_1 if we want to train the protagonist and adv_1 if we train/evaluate an adversary -> some hardcoded line in csv_logger and main
     #'map_path': f'{PATH}/maps/map_y.png',
-    # 'map_path': f'{PATH}/maps/FinalGridMapv2.png',
+    "map_path": f"{PATH}/maps/map_obstacles.png",
     # 'geo_path': f'{PATH}/maps/map_g.png',
-    "map_path": f"{PATH}/maps/map_g_cleaned.png",
+    # "map_path": f"{PATH}/maps/map_g_cleaned.png",
     "geo_path": f"{PATH}/maps/map_g_cleaned.png",
     "start": [62, 74],
     "goal": [109, 125],

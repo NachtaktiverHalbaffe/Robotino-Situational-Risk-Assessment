@@ -29,21 +29,33 @@ except:
 class RoboEnv_gym(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config):
+    def __init__(self, config, obstacles=None):
         self.actions_per_dimension = 5
         self.onesided = False
         self.config = config
         # create Environment
         visualize = True
-        self.env_real = Environment(
-            map_path=config["map_path"],
-            relevant_segments=config["relevant_segments"],
-            done_after_collision=config["done_after_collision"],
-            adversary=None,
-            visualize=visualize,
-            start=config["start"],
-            goal=config["goal"],
-        )
+        if obstacles == None:
+            self.env_real = Environment(
+                map_path=config["map_path"],
+                relevant_segments=config["relevant_segments"],
+                done_after_collision=config["done_after_collision"],
+                adversary=None,
+                visualize=visualize,
+                start=config["start"],
+                goal=config["goal"],
+            )
+        else:
+            self.env_real = Environment(
+                map_path=config["map_path"],
+                relevant_segments=config["relevant_segments"],
+                done_after_collision=config["done_after_collision"],
+                adversary=None,
+                visualize=visualize,
+                start=config["start"],
+                goal=config["goal"],
+                obstacles=obstacles,
+            )
 
         "some extra settings"
         self.n_reset_nodes = config["n_reset_nodes"]

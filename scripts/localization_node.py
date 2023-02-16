@@ -4,7 +4,7 @@ import time
 import rospy
 import numpy as np
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
 from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
@@ -23,12 +23,24 @@ from utils.cv_utils import (
     initCV,
 )
 
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
+PRECISION = 3
+
 locPublisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
 last_known_loc = ["init_data", 0, 0, 0]
 last_update = time.time()
 img_glob = []
 odom = Odometry()
-PRECISION = 3
+
+
+def createOdom(currentPose: PoseWithCovarianceStamped):
+    """"""
+    odomMsg = Odometry()
+    odomMsg.pose.pose.position = currentPose.pose.pose.position
+    odomMsg.pose.pose.orientation = currentPose.pose.pose.orientation
+
+    twistMsg = rospy.wait_for_message(Topics.ODOM.value, Twist)
+    odomMsg.twist = twistMsg
 
 
 def localiseCam():
@@ -233,11 +245,10 @@ def localization():
     rospy.init_node(Nodes.LOCALIZATION.value)
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
-    config = initCV(rospy.get_param("~weights_path"), rospy.get_param("map_path"))
-    # config = initCV(
-    #     "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/statedict_ws_tiny5.pt",
-    #     "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/param/FinalGridMapv2cleaned.png",
-    # )
+    config = initCV(
+        rospy.get_param("~weights_path", default=f"{PATH}/src/yolov7/weights/statedict_ws_tiny5.pt"),
+        rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"),
+    )
     # Saves the acml data to a global variable so the localization can use them
     rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)

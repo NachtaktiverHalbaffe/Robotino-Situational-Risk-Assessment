@@ -97,7 +97,7 @@ class MonteCarloTreeSearch:
         Returns:
             self.n_untried_actions (list(int)): A list of the untried actions which remains
         """
-        rospy.logdebug("[MCTS] Series of actions taken: ", self.actions_taken)
+        rospy.logdebug(f"[MCTS] Series of actions taken: {self.actions_taken}")
 
         """ Provide a list of untried actions intially reset to 0,0,.."""
         # n_untried_actions = self.full_tree[self.actions_taken:self.full_tree.shape[1]-1, self.actions_taken:self.full_tree.shape[1]-1]
@@ -121,7 +121,7 @@ class MonteCarloTreeSearch:
         Returns:
             final_actions (list(int)):
         """
-        rospy.logdebug("Expanding a tree...")
+        rospy.logdebug("[MCTS] Expanding a tree...")
         if new_edges:
             edges = num_edges
         else:
@@ -277,13 +277,13 @@ class MonteCarloTreeSearch:
         prob_collision = n_collisions / full_tree.shape[1]
         risk_total = cumm_risk * prob_collision
 
-        rospy.logdebug("[MCTS] Cummulative Risk: ", cumm_risk)
-        rospy.logdebug("[MCTS] Average Risk: ", cumm_risk / full_tree.shape[1])
-        rospy.logdebug("[MCTS] Total Risk: ", cumm_risk * (n_collisions / full_tree.shape[1]))
-        rospy.logdebug("[MCTS] Total Collisions: ", n_collisions)
-        rospy.logdebug("[MCTS] Total Successes: ", n_successes)
-        rospy.logdebug("[MCTS] Probability of being able to reach: ", n_successes / full_tree.shape[1])
-        rospy.logdebug("[MCTS] Probability of Collision: ", n_collisions / full_tree.shape[1])
+        rospy.logdebug(f"[MCTS] Cummulative Risk: {cumm_risk}")
+        rospy.logdebug(f"[MCTS] Average Risk: {cumm_risk / full_tree.shape[1]}")
+        rospy.logdebug(f"[MCTS] Total Risk: {cumm_risk * (n_collisions / full_tree.shape[1])}")
+        rospy.logdebug(f"[MCTS] Total Collisions: {n_collisions}")
+        rospy.logdebug(f"[MCTS] Total Successes: {n_successes}")
+        rospy.logdebug(f"[MCTS] Probability of being able to reach: {n_successes / full_tree.shape[1]}")
+        rospy.logdebug(f"[MCTS] Probability of Collision: {n_collisions / full_tree.shape[1]}")
         _ = 0
         return observation, reward, True, collision_status, _, np.round(prob_collision, 4), risk_total
 
@@ -362,7 +362,7 @@ class MonteCarloTreeSearch:
             )
 
             observation_, reward, done, collision_status, _, position_old = env.step_adv1(
-                action_angle_offset, create_leaf_node=False
+                action_angle_offset, create_leaf_node=Falseprint
             )
             # step_total_time += time.perf_counter() - t3
 

@@ -16,6 +16,7 @@ from utils.constants import Topics, Nodes
 from utils.conversions import polar2Cartesion
 from utils.ros_logger import set_rospy_log_lvl
 
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 # Global datcollection
 target_identified = {}
 publisher_target = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
@@ -278,7 +279,7 @@ def workstationMapper():
 
 def _saveMarkersToJson():
     global target_identified
-    file = rospy.get_param("~json_path")
+    file = rospy.get_param("~json_path", default=f"{PATH}/maps/markers.json")
     with open(file, "w") as jsonfile:
         json.dump(target_identified, jsonfile, sort_keys=True, indent=4)
 
@@ -287,7 +288,7 @@ def _saveMarkersToJson():
 
 def _loadMarkersFromJson():
     global target_identified
-    file = rospy.get_param("~json_path")
+    file = rospy.get_param("~json_path", default=f"{PATH}/maps/markers.json")
     if os.path.isfile(file):
         with open(file) as jsonfile:
             target_identified = json.load(jsonfile)

@@ -17,7 +17,7 @@ from move_base_msgs.msg import (
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
-from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL
+from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL, CriticalSector, CriticalSectors
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
 from utils.navigation_utils import trajToPath, pathToTraj
@@ -76,7 +76,7 @@ def _setTrajectory(traj: Path):
     """Setter for trajectory"""
     global trajectory
     trajectory = []
-    trajectory = pathToTraj(traj)
+    trajectory = traj
 
 
 def _fetchIRReadings(rawReadings: PointCloud):
@@ -156,8 +156,6 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
             print("[Strategy Planner] Error")
             continue
 
-        doneFeedback = -1
-
     return doneFeedback
 
 
@@ -196,7 +194,9 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
                 client.cancel_goal()
                 break
 
-    return client.get_result()
+        time.sleep(0.5)
+
+    return doneFeedback
 
 
 def detectHazard():
@@ -230,116 +230,55 @@ def chooseStrategy(riskEstimation: Risk):
                                                                           calls this function as a callback function
     """
     global trajectory
-    COST_CRASH = 200
-    COST_PRODUCTION_STOP = 100
-    COST_COLLISIONSTOP = COST_CRASH + COST_PRODUCTION_STOP
+    riskGlobal = riskEstimation.globalRisks
+    criticalSectors = riskEstimation.criticalSectors
+    # risk is simply the cost of a stop because probability is assumed to be 1
+    riskStop = 100
 
-    ###################################################
-    # ----------------- Get risk parameters -----------------------
-    ###################################################
-    probabilities = riskEstimation.probs_rl
-    for traj in riskEstimation.trajectories:
-        trajectories = pathToTraj(traj)
-    cummProbabilites = []
     criticalNodes = set()
-    for prob in probabilities:
-        probs = []
-        for singleProb in prob:
-            probability = singleProb.probability
-            nodeIndex = singleProb.nodeIndex
-            criticalNodes.add(nodeIndex)
-            probs.append((probability, nodeIndex))
-    cummProbabilites.append(calculate_collosion_order(probs))
+    for sectors in criticalSectors:
+        for node in sectors:
+            criticalNodes.add(node.node)
 
-    ##################################################
-    # ----------------- Calculate general risk --------------------
-    ##################################################
-    # Risk of collision
-    riskCollision = []
-    # Risk of creating a production stop
-    riskStop = COST_PRODUCTION_STOP
-    # Risk of collision and creating a production stop
-    riskCollisionStop = []
-    # List of nodes where the trajectory is potentially intersected by trajectories of other robots
-    intersectedNodes = []
-
-    rospy.logdebug("[Strategy Planner] Starting expectation value calculation")
-    for i in range(len(trajectories)):
-        # Overall risk of collision
-        riskCollision.append(np.multiply(COST_CRASH, cummProbabilites[i]))
-        # Risk of colilsion and productionstop
-        collisionStopProbs = 0
-        for nodeNr in criticalNodes:
-            # TODO Determine if critical sector crosses paths of other Robotinos
-            robotEdge = [[0, 0], [1, 1]]
-            for edge in robotEdge:
-                criticalIntersection, isIntersected = getIntersection(
-                    trajectories[nodeNr - 1],
-                    trajectories[nodeNr],
-                    edge[0],
-                    edge[1],
-                )
-                if isIntersected:
-                    intersectedNodes.append(nodeNr)
-                    collisionStopProbs += np.multiply(COST_COLLISIONSTOP, cummProbabilites[i])
-
-        collisionStopProbs.append(collisionStopProbs)
-        rospy.logdebug(
-            f"[Strategy Planner] Finished global risk estimation.\nRisk collision: {riskCollision[i]}\nRisk collision\&stop: {collisionStopProbs[i]}\nRisk combined: {riskCollision[i]+collisionStopProbs[i]}"
-        )
-    # Logging in Evaluationmanager
-    evalManagerClient.evalLogRisk(np.average(riskCollision) + np.average(riskCollisionStop))
-
-    #####################################################
-    # ------------------- Behaviour planning ------------------------
-    #####################################################
-    if np.average(riskCollision) + np.average(riskCollisionStop) < riskStop:
+    if np.average(riskGlobal) < riskStop:
         for i in range(len(trajectory.poses)):
             if i in criticalNodes:
                 # Critical sector => Executing  under safety constraints
                 rospy.logdebug("[Strategy Planner] Entering critical sector")
-                localCollisionrisk = 0
-                localCollisionStopRisk = 0
+                localRisk = []
 
+                for sectors in criticalSectors:
+                    for node in sectors:
+                        if node.node == i:
+                            localRisk.append(node.risk)
+                            break
                 # Choosing the trajectory which fits the best to the current localization and using this risk for decision making
                 currentPose = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
                 currentPose = get_pixel_location_from_acml(
                     currentPose.pose.pose.position.x, currentPose.pose.pose.position.y, *get_base_info()
                 )
-                currentPose = np.array(currentPose)
-                minDist = np.inf
-                for j in range(len(trajectories)):
-                    node = np.array((trajectories[j][i][0], trajectories[j][i][1]))
-                    dist = np.linalg.norm(node - currentPose)
 
-                    if dist < minDist:
-                        minDist = dist
-                        localCollisionrisk = np.multiply(COST_CRASH, probabilities[j].probabilities.probability)
-                        if j in intersectedNodes:
-                            localCollisionrisk = np.multiply(
-                                COST_COLLISIONSTOP, probabilities[j].probabilities.probability
-                            )
                 # Logging in Evaluationmanager
                 evalManagerClient.evalLogCriticalSector(
                     x=trajectory[i].poses.pose.position.x,
                     y=trajectory[i].poses.pose.position.y,
-                    localRisk=localCollisionrisk + localCollisionStopRisk,
+                    localRisk=np.average(localRisk),
                 )
 
                 ############################################################
                 #  ------------------------- Behaviour execution -------------------------
                 ############################################################
-                if localCollisionrisk + localCollisionStopRisk < riskStop:
+                if np.average(localRisk) < riskStop:
                     # Risk is reasonable low enough => Navigate
                     result = moveBaseClient(trajectory.poses[i])
-                    if result.status != 3:
+                    if result.status != 3 and result.status != 2:
                         # move base failed
                         evalManagerClient.evalLogStop()
                         return
                 else:
                     # Risk is too high => Don't navigate
                     rospy.logdebug(
-                        f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{localCollisionrisk + localCollisionStopRisk}"
+                        f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
                     )
                     break
             else:
@@ -355,6 +294,9 @@ def chooseStrategy(riskEstimation: Risk):
                     # move base failed
                     evalManagerClient.evalLogStop()
                     return
+    else:
+        # Retry risk estimation
+        rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10).publish(trajectory)
 
 
 def strategyPlanner(runWithRiskEstimation=True):
@@ -386,6 +328,6 @@ def strategyPlanner(runWithRiskEstimation=True):
 
 if __name__ == "__main__":
     try:
-        strategyPlanner(runWithRiskEstimation=False)
+        strategyPlanner()
     except:
         rospy.loginfo(f"Shutting down node {Nodes.STRATEGY_PLANNER.value}")

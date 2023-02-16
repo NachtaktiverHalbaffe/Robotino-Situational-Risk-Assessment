@@ -8,7 +8,6 @@ project(prototype)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  dynamic_reconfigure
   roscpp
   rospy
   std_msgs
@@ -57,6 +56,8 @@ add_message_files(
   Risk.msg
   ProbabilityRL.msg
   ProbabilitiesRL.msg
+  CriticalSector.msg 
+  CriticalSectors.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -97,10 +98,10 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-generate_dynamic_reconfigure_options(
-  # cfg/DynReconf1.cfg
-  # cfg/DynReconf2.cfg
-)
+# generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -134,6 +135,7 @@ catkin_install_python(PROGRAMS
                   scripts/object_detection_node.py
                   scripts/control_node.py
                   scripts/risk_estimator_node.py
+                  scripts/strategy_planner_node.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########
