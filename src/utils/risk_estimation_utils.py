@@ -8,19 +8,35 @@ from utils.constants import Topics
 
 def getCommonTraj():
     """
-    Just a hardcoded list of the trajectories which other robotinos (controlled by Festos proprietary software) commonly drives
+    Just a hardcoded list of the trajectories which other robotinos (controlled by Festos proprietary software)
+    commonly drives. Derived from the work of Han Hu
     """
+    # Location of workstations. Location of workstation and NOT their navigation markers are used
+    # because it is assumed that they start driving from a docked position
+    WS2 = (-1.03, -0.51)  # A
+    WS3 = (-0.64, 3.23)  # D
+    WS4 = (-1.86, 3.80)  # E
+    WS5 = (-0.27, 0.70)  # B
+    Robot = (-2.498, 0.219)  # Robotino parking point
+    # Common navigation points
+    C1 = (-1.619, 0.196)  # Near WS2 and Robot
+    C2 = (-0.859, 1.015)  # Near WS2 and WS5
+    C3 = (-0.941, 2.159)  # Near WS3
+    C4 = (-2.492, 1.950)  # Near WS4 and WS5
     edges = [
-        [(0.0034, 0.002), (3.4, 0.49)],  # 0 => C1
-        [(3.13, 0.57), (3.4, 0.49)],  # C1 => A
-        [(3.4, 0.49), (1.09, 3.19)],  # C1 => C2
-        [(2.5, 1.13), (2.22, 1.36)],  # C2 => D
-        [(3.4, 0.49), (1.09, 3.19)],  # C2 => C3
-        [(0.82, 2.94), (1.074, 3.07)],  # C3 => D
-        [(0.71, 2.74), (0.67, 2.51)],  # C2 => C4
-        [(0.71, 2.74), (0.69, 2.49)],  # C4 => B
-        [(3.16, 0.913), (0.73, 2.74)],  # C4 => C5
-        [(0.48, 0.71), (2.49, 2.51)],  # C5 => E
+        [C1, Robot],
+        [WS2, C1],
+        [C1, WS2],
+        [C2, WS2],
+        [C1, C2],
+        [C2, WS3],
+        [C2, C3],
+        [C3, WS3],
+        [C2, C4],
+        [C3, C4],
+        [C4, C1],
+        [C4, WS5],
+        [C4, WS4],
     ]
 
     return edges
@@ -28,7 +44,7 @@ def getCommonTraj():
 
 def visualizeCommonTraj():
     """
-    Send a markerarray to rviz where the common trajectories of other robotinos are visualized
+    Send a markerarray to rviz where the common trajectories of other robotinos are visualized. Just for debugging
     """
     markerArray = MarkerArray()
     edges = getCommonTraj()
@@ -61,15 +77,18 @@ def visualizeCommonTraj():
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
         # marker position
-        marker.pose.position.x = 0.0
-        marker.pose.position.y = 0.0
-        marker.pose.position.z = 0.0
+        # marker.pose.position.x = 0.0
+        # marker.pose.position.y = 0.0
+        # marker.pose.position.z = 0.0
 
         marker.points.append(startPoint)
         marker.points.append(endPoint)
         markerArray.markers.append(marker)
+        i += 1
 
-    rospy.Publisher(Topics.MARKERS_COMMON_TRAJ.value, MarkerArray, queue_size=10).publish(markerArray)
+    rospy.Publisher(
+        Topics.MARKERS_COMMON_TRAJ.value, MarkerArray, queue_size=10
+    ).publish(markerArray)
 
 
 def getIntersection(a1, a2, b1, b2):
@@ -86,12 +105,13 @@ def getIntersection(a1, a2, b1, b2):
          x,y-tuple: Intersection point of two edges or infinite if lines are parallel
          bool: If line is intersecting
     """
-    a = np.array(a1, a2)
-    b = np.array(b1, b2)
+    a = np.array([a1, a2])
+    b = np.array([b1, b2])
 
-    t, _ = np.linalg.solve(np.array([a[1] - a[0], b[0] - b[1]]).T, b[0] - a[0])
+    t, s = np.linalg.solve(np.array([a[1] - a[0], b[0] - b[1]]).T, b[0] - a[0])
 
-    if t < 1 and t >= 0:
+    # print(f"t: {t} s:{s}")
+    if (s <= 1 and s >= 0) and (t <= 1 and t >= 0):
         return (1 - t) * a[0] + t * a[1], True
     else:
         return np.inf, False

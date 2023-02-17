@@ -12,16 +12,17 @@ from stable_baselines3.common.policies import ActorCriticCnnPolicy
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from PIL import Image, ImageDraw
+from gym.envs.registration import register
 
 try:
-    # import env_gym
+    import risk_estimation.env_gym
     from .config import configs
     from .SaveData import save_data, traj_length
     from .mcts import *
     from .sb3_as_adv import Sb3_as_adv
     from .sb3_model_same import SameExtractor
 except:
-    # import env_gym
+    import env_gym
     from config import configs
     from SaveData import save_data, traj_length
     from risk_estimation.mcts import *
@@ -34,6 +35,14 @@ except:
 # TODO MODIFY the monte carlo
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 sys.path.append(f"{PATH}/src/risk_estimation/sb3_model_same.py")
+# kwargs_robo = {"config": {}}
+# register(
+#     id="robo_navigation-single_dimension-v0",
+#     entry_point="risk_estimation.env_gym.envs.robo_navigation:RoboEnv_gym_2",
+#     kwargs=kwargs_robo,
+#     max_episode_steps=1000,
+#     reward_threshold=2000000,
+# )
 
 
 def calculate_collosion_order(prob_collision_with_Node):
@@ -182,6 +191,7 @@ def run_crash_and_remove(
     #                  for i in range(1)])
     if obstacles != None:
         env = gym.make(env_name, config=configs, obstacles=obstacles)
+        # env = gym.make(env_name, config=configs)
     else:
         env = gym.make(env_name, config=configs)
 

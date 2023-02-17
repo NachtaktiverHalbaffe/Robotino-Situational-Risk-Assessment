@@ -17,7 +17,13 @@ from move_base_msgs.msg import (
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 
-from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL, CriticalSector, CriticalSectors
+from prototype.msg import (
+    Risk,
+    ProbabilityRL,
+    ProbabilitiesRL,
+    CriticalSector,
+    CriticalSectors,
+)
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
 from utils.navigation_utils import trajToPath, pathToTraj
@@ -64,12 +70,19 @@ def reconfigureMovebase(lidarEnabled: Bool):
     """
     # Load correct configuration from config file
     if lidarEnabled.data:
-        rospy.set_param("/move_base/local_costmap/obstacle_layer/observation_sources", "laser_scan_sensor ir_sensor")
+        rospy.set_param(
+            "/move_base/local_costmap/obstacle_layer/observation_sources",
+            "laser_scan_sensor ir_sensor",
+        )
     else:
-        rospy.set_param("/move_base/local_costmap/obstacle_layer/observation_sources", "ir_sensor")
+        rospy.set_param(
+            "/move_base/local_costmap/obstacle_layer/observation_sources", "ir_sensor"
+        )
 
     # Update parameters of move_base
-    rospy.logdebug(f"[Strategy Planner] Reconfigured move_base. Use LIDAR: {lidarEnabled.data}")
+    rospy.logdebug(
+        f"[Strategy Planner] Reconfigured move_base. Use LIDAR: {lidarEnabled.data}"
+    )
 
 
 def _setTrajectory(traj: Path):
@@ -214,7 +227,9 @@ def detectHazard():
 
             if np.min(dist) < THRESHOLD_DISTANCE:
                 # Detected hazard ==> stop until problem is resolved
-                rospy.loginfo("[Strategy Planner] IR sensors detected hazard. Emergency breaking now")
+                rospy.loginfo(
+                    "[Strategy Planner] IR sensors detected hazard. Emergency breaking now"
+                )
                 evalManagerClient.evalLogCollision()
                 rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
         except:
@@ -237,7 +252,7 @@ def chooseStrategy(riskEstimation: Risk):
 
     criticalNodes = set()
     for sectors in criticalSectors:
-        for node in sectors:
+        for node in sectors.sectors:
             criticalNodes.add(node.node)
 
     if np.average(riskGlobal) < riskStop:
@@ -253,15 +268,19 @@ def chooseStrategy(riskEstimation: Risk):
                             localRisk.append(node.risk)
                             break
                 # Choosing the trajectory which fits the best to the current localization and using this risk for decision making
-                currentPose = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
+                currentPose = rospy.wait_for_message(
+                    Topics.LOCALIZATION.value, PoseWithCovarianceStamped
+                )
                 currentPose = get_pixel_location_from_acml(
-                    currentPose.pose.pose.position.x, currentPose.pose.pose.position.y, *get_base_info()
+                    currentPose.pose.pose.position.x,
+                    currentPose.pose.pose.position.y,
+                    *get_base_info(),
                 )
 
                 # Logging in Evaluationmanager
                 evalManagerClient.evalLogCriticalSector(
-                    x=trajectory[i].poses.pose.position.x,
-                    y=trajectory[i].poses.pose.position.y,
+                    x=trajectory.poses[i].pose.position.x,
+                    y=trajectory.poses[i].pose.position.y,
                     localRisk=np.average(localRisk),
                 )
 
@@ -285,9 +304,9 @@ def chooseStrategy(riskEstimation: Risk):
                 # Uncritical sector => Just executing navigation
                 rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
                 # Logging in Evaluationmanager
-                evalManagerClient.evalLogCriticalSector(
-                    x=trajectory[i].poses.pose.position.x,
-                    y=trajectory[i].poses.pose.position.y,
+                evalManagerClient.evalLogUncriticalSector(
+                    x=trajectory.poses[i].pose.position.x,
+                    y=trajectory.poses[i].pose.position.y,
                 )
                 result = moveBaseClient(trajectory.poses[i])
                 if result.status != 3:
@@ -296,7 +315,9 @@ def chooseStrategy(riskEstimation: Risk):
                     return
     else:
         # Retry risk estimation
-        rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10).publish(trajectory)
+        rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10).publish(
+            trajectory
+        )
 
 
 def strategyPlanner(runWithRiskEstimation=True):
@@ -311,16 +332,32 @@ def strategyPlanner(runWithRiskEstimation=True):
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
 
-    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10)
-    rospy.Subscriber(Topics.MOVE_BASE_FEEDBACK.value, MoveBaseActionFeedback, _moveBaseActionCallback, queue_size=10)
-    rospy.Subscriber(Topics.MOVE_BASE_RESULT.value, MoveBaseActionResult, _moveBaseActionDoneCallback, queue_size=10)
+    rospy.Subscriber(
+        Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.MOVE_BASE_FEEDBACK.value,
+        MoveBaseActionFeedback,
+        _moveBaseActionCallback,
+        queue_size=10,
+    )
+    rospy.Subscriber(
+        Topics.MOVE_BASE_RESULT.value,
+        MoveBaseActionResult,
+        _moveBaseActionDoneCallback,
+        queue_size=10,
+    )
     if not runWithRiskEstimation:
         # Just drive the trajectory
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1)
+        rospy.Subscriber(
+            Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1
+        )
     else:
         # Start driving when the risk values come in
         rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=1)
-        rospy.Subscriber(Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1)
+        rospy.Subscriber(
+            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1
+        )
 
     # detectHazard()
     rospy.spin()

@@ -136,6 +136,7 @@ catkin_install_python(PROGRAMS
                   scripts/control_node.py
                   scripts/risk_estimator_node.py
                   scripts/strategy_planner_node.py
+                  scripts/image_capture.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########

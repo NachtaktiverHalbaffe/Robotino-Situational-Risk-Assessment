@@ -8,9 +8,9 @@
 
     <!-- Remap topics -->
     <remap from="cmd_vel_real" to="/my_cmd_vel" /> 
-    <!-- <include file="$(find robotino_node)/launch/robotino_node.launch">
+     <include file="$(find robotino_node)/launch/robotino_node.launch">
         <arg name="hostname" value="$(arg hostname)"/>
-     </include> -->
+     </include> 
 
     <!-- Global parameters which can be used inside nodes -->
     <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
@@ -63,5 +63,5 @@
         <param name="initial_pose_a" value="-0.23"/>
     </node>
     
-    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/cfg/rvizConfigNew.rviz" respawn="true"/> -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg path)/cfg/rvizConfigNew.rviz" respawn="true"/>
 </launch>

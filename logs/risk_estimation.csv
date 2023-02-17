@@ -1,2 +1,2 @@
 ,rl_prob,brute_prob,traj,len_traj,len_traj_list_in_m,rl_actions_to_crash_lists,wall_discards
-0,"[(0.4444, 2)]",0,"[[62 69], [68 92], [ 74 110], [ 90 122], [109 125]]",5,81.9788,"[[4, 2]]",0
+0,[],0,"[[78 99], [91 74], [102  54]]",3,51.0034,[],0

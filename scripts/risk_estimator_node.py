@@ -1,20 +1,37 @@
 #!/usr/bin/env python3
 import numpy as np
 import rospy
+import logging
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Bool, Float32
 
 from risk_estimation import config
 from risk_estimation.eval import mains
-from utils import evalmanager_client
+from utils.evalmanager_client import EvalManagerClient
 from utils.constants import Topics, Nodes
-from utils.risk_estimation_utils import getIntersection, visualizeCommonTraj, getCommonTraj
+from utils.risk_estimation_utils import (
+    getIntersection,
+    visualizeCommonTraj,
+    getCommonTraj,
+)
 from utils.ros_logger import set_rospy_log_lvl
 from utils.navigation_utils import pathToTraj
-from risk_estimation.crash_and_remove import calculate_collosion_order, run_crash_and_remove
-from prototype.msg import Risk, ProbabilityRL, ProbabilitiesRL, CriticalSector, CriticalSectors, ObstacleList
+from risk_estimation.crash_and_remove import (
+    calculate_collosion_order,
+    run_crash_and_remove,
+)
+from prototype.msg import (
+    Risk,
+    ProbabilityRL,
+    ProbabilitiesRL,
+    CriticalSector,
+    CriticalSectors,
+    ObstacleList,
+)
 from autonomous_operation.object_detection import Obstacle
+
+logger = logging.getLogger(__name__)
 
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
@@ -22,6 +39,23 @@ ATTEMPTS = 3
 AMOUNT_OF_EXPLORATION = 1
 
 useBrute = False
+useSOTA = False
+obstacleMsg = ObstacleList()
+
+
+def setUseBrute(enabled: Bool):
+    global useBrute
+    useBrute = enabled.data
+
+
+def setUseSOTA(enabled: Bool):
+    global useSOTA
+    useSOTA = enabled.data
+
+
+def setObstacle(obstacleList: ObstacleList):
+    global obstacleMsg
+    obstacleMsg = obstacleList
 
 
 def estimateBaseline(globalPath: Path):
@@ -34,9 +68,13 @@ def estimateBaseline(globalPath: Path):
     Returns:
         Publishes a risk message to the topic "/risk_estimation"
     """
+    global obstacleMsg
+    global useSOTA
+
+    if not useSOTA:
+        return
     rospy.loginfo("[Risk Estimator] Started risk estimation with SOTA")
     # Get obstacles
-    obstacleMsg = rospy.wait_for_message(Topics.OBSTACLES.value, ObstacleList)
     obstacles = []
     for obstacle in obstacleMsg.obstacles:
         # Create corners
@@ -47,14 +85,20 @@ def estimateBaseline(globalPath: Path):
         obstacles.append(Obstacle(tmpCorners))
 
     done, risk = mains(
-        mode=False, mcts_eval="IDA", combined_eval=False, initTraj=pathToTraj(globalPath), obstacles=obstacles
+        mode=False,
+        mcts_eval="IDA",
+        combined_eval=False,
+        initTraj=pathToTraj(globalPath),
+        obstacles=obstacles,
     )
     rospy.loginfo(f"[Risk Estimator] Finished risk estimation with SOTA. Risk: {risk}")
 
     msg = Float32
     msg.data = risk
 
-    publisher = rospy.Publisher(Topics.RISK_ESTIMATION_SOTA.value, Float32, queue_size=10, latch=True)
+    publisher = rospy.Publisher(
+        Topics.RISK_ESTIMATION_SOTA.value, Float32, queue_size=10, latch=True
+    )
 
     try:
         publisher.publish(msg)
@@ -82,7 +126,6 @@ def estimateRisk(globalPath: Path):
     ###################################################
     traj = pathToTraj(globalPath)
     # Get obstacles
-    obstacleMsg = rospy.wait_for_message(Topics.OBSTACLES.value, ObstacleList)
     obstacles = []
     for obstacle in obstacleMsg.obstacles:
         # Create corners
@@ -93,7 +136,9 @@ def estimateRisk(globalPath: Path):
         obstacles.append(Obstacle(tmpCorners))
 
     if useBrute:
-        rospy.loginfo("[Risk Estimator] Starting Probability Estimator&Fault Injector with brute force")
+        rospy.loginfo(
+            "[Risk Estimator] Starting Probability Estimator&Fault Injector with brute force"
+        )
         estimation = run_crash_and_remove(
             configs=CONFIG,
             env_name=ENV_NAME,
@@ -105,7 +150,9 @@ def estimateRisk(globalPath: Path):
             obstacles=obstacles,
         )
     else:
-        rospy.loginfo("[Risk Estimator] Starting Starting Probability Estimator&Fault Injector without brute force")
+        rospy.loginfo(
+            "[Risk Estimator] Starting Probability Estimator&Fault Injector without brute force"
+        )
         estimation = run_crash_and_remove(
             configs=CONFIG,
             env_name=ENV_NAME,
@@ -116,7 +163,7 @@ def estimateRisk(globalPath: Path):
             initialTraj=traj,
             obstacles=obstacles,
         )
-    rospy.loginfo("[Risk Estimator] Starting Probability Estimator&Fault Injector finished")
+    rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(
         f"[Risk Estimator] Probability params:\nNr of iterations:{len(estimation['rl_prob'])}\nProbabilities:{estimation['rl_prob']}"
     )
@@ -126,7 +173,7 @@ def estimateRisk(globalPath: Path):
     ###################################################
     # Create ros message
     riskMsg = Risk()
-    riskMsg.trajectory = estimation["traj"][0]
+    riskMsg.trajectory = globalPath
 
     rospy.loginfo("[Strategy Planner] Starting risk calculation")
     riskCollision = []
@@ -144,7 +191,11 @@ def estimateRisk(globalPath: Path):
             riskMsg.probs_brute.append(estimation["brute_prob"][i])
 
         # Calculate risk of collision => given by probability estimator
-        riskCollision.append(np.multiply(calculate_collosion_order(estimation["rl_prob"][i]), COST_COLLISION))
+        riskCollision.append(
+            np.multiply(
+                calculate_collosion_order(estimation["rl_prob"][i]), COST_COLLISION
+            )
+        )
 
         ###########################################
         # ------------ Process critical sectors --------------
@@ -171,9 +222,17 @@ def estimateRisk(globalPath: Path):
 
             # Calculate risk of collision and stop
             for edge in commonTraj:
+                startTraj = [
+                    float(globalPath.poses[nodeNr - 1].pose.position.x),
+                    float(globalPath.poses[nodeNr - 1].pose.position.y),
+                ]
+                endTraj = [
+                    float(globalPath.poses[nodeNr].pose.position.x),
+                    float(globalPath.poses[nodeNr].pose.position.y),
+                ]
                 _, isIntersected = getIntersection(
-                    [estimation["traj"][i][nodeNr - 1].x, estimation["traj"][i][nodeNr - 1].y],
-                    [estimation["traj"][i][nodeNr].x, estimation["traj"][i][nodeNr].y],
+                    startTraj,
+                    endTraj,
                     edge[0],
                     edge[1],
                 )
@@ -187,36 +246,38 @@ def estimateRisk(globalPath: Path):
                     criticalSector.isIntersected = False
                     criticalSector.risk_collisionStop = 0
 
-            criticalSector.risk = criticalSector.risk_collisionStop + criticalSector.risk_collision
-            riskCollisionStop.append(riskCollisionStopProb)
-            criticalSectorsMsg.sectors.append(criticalSectorsMsg)
+            criticalSector.risk = (
+                criticalSector.risk_collisionStop + criticalSector.risk_collision
+            )
+            criticalSectorsMsg.sectors.append(criticalSector)
 
+        riskCollisionStop.append(riskCollisionStopProb)
         riskMsg.criticalSectors.append(criticalSectorsMsg)
-
+        riskMsg.probs_rl.append(probabilitiesMsg)
         # Calculate global risk
-        riskMsg.globalRisks = riskCollision[i] + riskCollisionStop[i]
+        riskMsg.globalRisks.append(riskCollision[i] + riskCollisionStop[i])
         rospy.logdebug(
-            f"[Strategy Planner] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision\&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
+            f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
         )
-    rospy.loginfo(
-        f"[Strategy Planner] Finished global risk estimation.\nRisk collision: {np.average(riskCollision)}\nRisk collision\&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
-    )
+
     #######################################
     # ------ Finishing&sending risk message -----
     #######################################
     # Logging in Evaluationmanager
-    evalmanager_client.evalLogRisk(np.average(riskCollision) + np.average(riskCollisionStop))
+    EvalManagerClient().evalLogRisk(
+        np.average(riskCollision) + np.average(riskCollisionStop)
+    )
     # Publish ros message
-    publisherRL = rospy.Publisher(Topics.RISK_ESTIMATION_RL.value, Risk, queue_size=10, latch=True)
+    publisherRL = rospy.Publisher(
+        Topics.RISK_ESTIMATION_RL.value, Risk, queue_size=10, latch=True
+    )
+    rospy.loginfo(
+        f"[Risk Estimator] Finished global risk estimation.\nRisk collision: {np.average(riskCollision)}\nRisk collision&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
+    )
     try:
         publisherRL.publish(riskMsg)
     except Exception as e:
         rospy.logwarn(f"[Risk Estimator] Couldn't publish message. Exception: {e}")
-
-
-def setUseBrute(enabled: Bool):
-    global useBrute
-    useBrute = enabled.data
 
 
 def riskEstimator():
@@ -227,22 +288,17 @@ def riskEstimator():
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.RISK_ESTIMATOR.value}")
 
+    # Risk estimators
     rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateRisk, queue_size=1)
+    rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
+    # Selecting which additional estimator to use (beside the risk estimation used by prototype)
     rospy.Subscriber(Topics.BRUTEFORCE_ENABLED.value, Bool, setUseBrute, queue_size=10)
+    rospy.Subscriber(Topics.SOTA_ENABLED.value, Bool, setUseSOTA, queue_size=10)
 
-    sotaSub = rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
-    sotaSub.unregister()
+    rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacle, queue_size=10)
+
     while not rospy.is_shutdown():
         visualizeCommonTraj()
-        useBaseline = rospy.wait_for_message(Topics.SOTA_ENABLED.value, Bool)
-        if not useBaseline.data:
-            try:
-                sotaSub.unregister()
-            except:
-                # No Subscriber registered
-                pass
-        else:
-            sotaSub = rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
         rospy.Rate(1).sleep()
 
     # Prevents python from exiting until this node is stopped
