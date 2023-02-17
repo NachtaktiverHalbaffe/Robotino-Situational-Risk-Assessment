@@ -18,7 +18,7 @@ register(
 
 register(
     id="robo_navigation-single_dimension-v0",
-    entry_point="env_gym.envs.robo_navigation:RoboEnv_gym_2",
+    entry_point="risk_estimation.env_gym.envs.robo_navigation:RoboEnv_gym_2",
     kwargs=kwargs_robo,
     max_episode_steps=1000,
     reward_threshold=2000000,

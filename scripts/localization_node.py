@@ -3,11 +3,16 @@ from threading import Thread
 import time
 import rospy
 import numpy as np
+import os
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
-from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
+from tf.transformations import (
+    quaternion_from_euler,
+    euler_from_quaternion,
+    quaternion_multiply,
+)
 from copy import deepcopy
 from cv_bridge import CvBridge
 from decimal import Decimal
@@ -26,7 +31,9 @@ from utils.cv_utils import (
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 PRECISION = 3
 
-locPublisher = rospy.Publisher(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
+locPublisher = rospy.Publisher(
+    Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
+)
 last_known_loc = ["init_data", 0, 0, 0]
 last_update = time.time()
 img_glob = []
@@ -59,7 +66,9 @@ def localiseCam():
     last_known_odom = odom
     dc_obstacles_ws = deepcopy(config["obstacles_ws"])
 
-    publisher = rospy.Publisher(Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10)
+    publisher = rospy.Publisher(
+        Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
+    )
     while not rospy.is_shutdown():
         loc_detec = [0, 0]
         detected_rotation = 0
@@ -73,7 +82,10 @@ def localiseCam():
             continue
 
         # Use last known location as location assumption if at least it located once with camera-based localization, otherwise use amcl data as initial pose
-        if not "init_data" in last_known_loc[0].lower() and not "cv_data" in last_known_loc[0].lower():
+        if (
+            not "init_data" in last_known_loc[0].lower()
+            and not "cv_data" in last_known_loc[0].lower()
+        ):
             location_assumption = deepcopy(last_known_loc)
             if not "interpolated_data" in location_assumption[0].lower():
                 location_assumption = offset_to_robo(last_known_loc)
@@ -88,7 +100,9 @@ def localiseCam():
         corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
 
         # getting the detection based on the newest image
-        localise_dict = loaded_detect(img_local, *config["conf_network"], node="localization")
+        localise_dict = loaded_detect(
+            img_local, *config["conf_network"], node="localization"
+        )
         # if there was a detection
         if localise_dict:
             detected_workstation_dist, rotation_detected = (
@@ -115,7 +129,12 @@ def localiseCam():
 
             # calculating rotation from detected and cord transforms
             detected_rotation = (
-                -(rots_ws[index_smallest_dist_ws] - rotation_detected + np.pi - config["map_config"]["rot"])
+                -(
+                    rots_ws[index_smallest_dist_ws]
+                    - rotation_detected
+                    + np.pi
+                    - config["map_config"]["rot"]
+                )
                 + 2 * np.pi
             )
             # basicly just transpose for the list
@@ -124,7 +143,9 @@ def localiseCam():
             # NOTE The -3 means we only go through once, all should be the same, useful for debug
             for i in range(len(corners_detec_2) - 3):
                 # change cords so we have the distance from the ws on the map
-                corner = convert_cam_to_robo(corners_detec_2[i][1], -corners_detec_2[i][0], detected_rotation)
+                corner = convert_cam_to_robo(
+                    corners_detec_2[i][1], -corners_detec_2[i][0], detected_rotation
+                )
                 # change cords
                 ws_map = get_amcl_from_pixel_location(
                     *corners_map_all[index_smallest_dist_ws][i], *config["base_info"]
@@ -139,22 +160,42 @@ def localiseCam():
                 round(float(loc_detec[1]), PRECISION),
                 round(float(detected_rotation), PRECISION),
             ]
-        elif "cv_data" in last_known_loc[0].lower() or "interpolated_data" in last_known_loc[0].lower():
+        elif (
+            "cv_data" in last_known_loc[0].lower()
+            or "interpolated_data" in last_known_loc[0].lower()
+        ):
             # Calculate position => add difference between last odom and currentodom to last known location
             loc_detec[0] = odom.pose.pose.position.x
             loc_detec[1] = odom.pose.pose.position.y
-            loc_detec[0] = round(last_known_loc[1] + (loc_detec[0] - last_known_odom.pose.pose.position.x), PRECISION)
-            loc_detec[1] = round(last_known_loc[2] + (loc_detec[1] - last_known_odom.pose.pose.position.y), PRECISION)
+            loc_detec[0] = round(
+                last_known_loc[1]
+                + (loc_detec[0] - last_known_odom.pose.pose.position.x),
+                PRECISION,
+            )
+            loc_detec[1] = round(
+                last_known_loc[2]
+                + (loc_detec[1] - last_known_odom.pose.pose.position.y),
+                PRECISION,
+            )
             # Calculate orientation=> add difference between last odom and currentodom to last known rotation
             quat = odom.pose.pose.orientation
             quatLastknown = last_known_odom.pose.pose.orientation
-            _, _, detected_rotation = euler_from_quaternion([quat.x, quat.y, quat.z, quat.w])
+            _, _, detected_rotation = euler_from_quaternion(
+                [quat.x, quat.y, quat.z, quat.w]
+            )
             _, _, last_known_rotation = euler_from_quaternion(
                 [quatLastknown.x, quatLastknown.y, quatLastknown.z, quatLastknown.w]
             )
-            detected_rotation = round(last_known_loc[3] + (detected_rotation - last_known_rotation), PRECISION)
+            detected_rotation = round(
+                last_known_loc[3] + (detected_rotation - last_known_rotation), PRECISION
+            )
 
-            last_known_loc = ["interpolated_data", loc_detec[0], loc_detec[1], detected_rotation]
+            last_known_loc = [
+                "interpolated_data",
+                loc_detec[0],
+                loc_detec[1],
+                detected_rotation,
+            ]
 
         last_known_odom = odom
         # Create message to publish
@@ -178,7 +219,9 @@ def localiseCam():
             )
             publisher.publish(locMsg)
         except:
-            rospy.logerr(f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}")
+            rospy.logerr(
+                f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}"
+            )
             break
         last_update = time.time()
 
@@ -246,11 +289,15 @@ def localization():
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.LOCALIZATION.value}")
     config = initCV(
-        rospy.get_param("~weights_path", default=f"{PATH}/src/yolov7/weights/statedict_ws_tiny5.pt"),
+        rospy.get_param(
+            "~weights_path", default=f"{PATH}/src/yolov7/weights/statedict_ws_tiny5.pt"
+        ),
         rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"),
     )
     # Saves the acml data to a global variable so the localization can use them
-    rospy.Subscriber(Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
+    rospy.Subscriber(
+        Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25
+    )
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
     # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
@@ -273,9 +320,13 @@ def localization():
         try:
             # ------ Take the right localization value -------
             if locMode.lower() == "camera":
-                msg = rospy.wait_for_message(Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1)
+                msg = rospy.wait_for_message(
+                    Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
+                )
             elif locMode.lower() == "lidar":
-                msg = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped, timeout=1)
+                msg = rospy.wait_for_message(
+                    Topics.ACML.value, PoseWithCovarianceStamped, timeout=1
+                )
             else:
                 rospy.logwarn(
                     f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'

@@ -5,7 +5,13 @@ import os
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
 
-from autonomous_operation.PRM import Edge, Node, apply_PRM, apply_PRM_init, get_traj_edges
+from autonomous_operation.PRM import (
+    Edge,
+    Node,
+    apply_PRM,
+    apply_PRM_init,
+    get_traj_edges,
+)
 from autonomous_operation.object_detection import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
@@ -20,14 +26,16 @@ from real_robot_navigation.move_utils_cords import (
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 THRESHOLD_EDGE = 6
 
-pathPublisher = rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10, latch=True)
+pathPublisher = rospy.Publisher(
+    Topics.GLOBAL_PATH.value, Path, queue_size=10, latch=True
+)
 
-global obstacles
 obstacles = None
-global PRMNodes
 PRMNodes = []
-global newObstacles
 newObstacles = False
+currentPoint = PoseWithCovarianceStamped()
+currentPoint.pose.pose.position.x = -3.2
+currentPoint.pose.pose.position.y = 1.2
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
@@ -106,7 +114,6 @@ def runPRM(targetMessage: PoseStamped):
             goal=goal,
         )
         newObstacles = False
-    rospy.loginfo(f"[Path Planner] PRM finished running")
 
     # Construct path message
     edges = get_traj_edges(traj)
@@ -121,13 +128,15 @@ def runPRM(targetMessage: PoseStamped):
             rospy.logdebug(f"[Path Planner] Skipped edge with length {edges[i]}")
         i += 1
     path = trajToPath(trajectory)
-
+    rospy.loginfo(f"[Path Planner] PRM finished running")
     # Publish path
     try:
         rospy.logdebug(f"[Path Planner] Publishing path to {Topics.GLOBAL_PATH.value}")
         pathPublisher.publish(path)
     except:
-        rospy.logwarn(f"[Path Planner] Error, cant publish path to topic {Topics.GLOBAL_PATH.value}")
+        rospy.logwarn(
+            f"[Path Planner] Error, cant publish path to topic {Topics.GLOBAL_PATH.value}"
+        )
 
 
 def planner():
@@ -140,7 +149,9 @@ def planner():
     set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.PATH_PLANNER.value}")
 
-    pathPlannerConfig = createMapRef(rospy.get_param("~map_ref", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"))
+    pathPlannerConfig = createMapRef(
+        rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png")
+    )
 
     # Starts the global PRM
     plannerSub = rospy.Subscriber(

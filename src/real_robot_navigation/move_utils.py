@@ -9,6 +9,7 @@ import cv2
 import rospy
 from geometry_msgs.msg import Twist
 from copy import deepcopy
+from PIL import ImageOps
 import matplotlib.pylab as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -62,9 +63,13 @@ def initialize_traj(
     if not nodes:
         if env:
             # env.map_ref, env.obstacles = create_random_map()
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(env.map_ref, env.obstacles)
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(
+                env.map_ref, env.obstacles
+            )
         else:
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(map_ref, obstacles, start=start, goal=end)
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(
+                map_ref, obstacles, start=start, goal=end
+            )
 
         # pickle dump ~~~
         # print('dumping nodes...')
@@ -72,7 +77,9 @@ def initialize_traj(
         # pickle.dump(nodes, open_file)
         # open_file.close()
     elif start_node and goal_node:
-        traj, _, nodes, _ = apply_PRM(map_ref, nodes, start_node=start_node, goal_node=goal_node)
+        traj, _, nodes, _ = apply_PRM(
+            map_ref, nodes, start_node=start_node, goal_node=goal_node
+        )
 
     else:
         # for specific start / goal location: ------------------
@@ -112,7 +119,6 @@ def initialize_map(map_path):
 
 
 def realCallback(data):
-
     global real_data
     real_data = [
         "real_data",
@@ -163,7 +169,6 @@ def calc_command(position, current_angle, target):
 
 
 def move(dist):
-
     speed = 0.10
 
     msg_test_forward = Twist()
@@ -194,7 +199,6 @@ def move(dist):
 
 
 def rotate(angle):  # in this function I work with angle e[0, 2pi] !!!
-
     rot_speed = 10 / (360) * (2 * np.pi)  # 10 degrees/sec ???
 
     msg_test_stop = Twist()
@@ -382,7 +386,14 @@ def obstacle_adversary(obstacles, action_index):
     return obstacles_disturbed
 
 
-def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert_back_to_grey=True, savePath=None):
+def modify_map(
+    map_ref,
+    obstacles_org,
+    obstacles,
+    color=(255, 255, 255),
+    convert_back_to_grey=True,
+    savePath=None,
+):
     """This is takes a set of obstacles to remove from the image and a set to place in the image, often used for shifting obstacles in
     the map by passing the same obstacles at the old and new different locations
     @param takes: the image we want to modify
@@ -400,7 +411,10 @@ def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert
     for obstacle in obstacles_org:
         # cv2.fillConvexPoly(self.map_ref_adv,obstacle.corners, color='black')
         # increase the size of the obstacle by one pixel
-        corners = [tuple(map(lambda i, j: i + j, obstacle.corners[i], add[i])) for i in range(4)]
+        corners = [
+            tuple(map(lambda i, j: i + j, obstacle.corners[i], add[i]))
+            for i in range(4)
+        ]
         map_ref_adv_draw.polygon(corners, fill=(0, 0, 0), outline=(0, 0, 0))
     add = [(1, 1), (1, -1), (-1, -1), (-1, 1)]
     for obstacle in obstacles:
@@ -411,7 +425,9 @@ def modify_map(map_ref, obstacles_org, obstacles, color=(255, 255, 255), convert
         map_ref_adv = map_ref_adv.convert("L")
 
     if savePath != None:
+        map_ref_adv = ImageOps.invert(map_ref_adv)
         map_ref_adv.save(savePath)
+        rospy.logdebug(f"[Move Utils] Saved map_ref to {savePath}")
     return map_ref_adv
 
 

@@ -31,12 +31,18 @@ def visualizeObstacles():
         polygon = PolygonStamped()
         polygon.header.frame_id = "map"
         for corner in obstacle.corners:
-            transformedCor = get_amcl_from_pixel_location(corner[0], corner[1], *config["base_info"])
-            polygon.polygon.points.append(Point(transformedCor[0], transformedCor[1], 0.2))
+            transformedCor = get_amcl_from_pixel_location(
+                corner[0], corner[1], *config["base_info"]
+            )
+            polygon.polygon.points.append(
+                Point(transformedCor[0], transformedCor[1], 0.2)
+            )
 
         msg.polygons.append(polygon)
 
-    rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(msg)
+    rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(
+        msg
+    )
 
 
 def detect(log_detection_error=True):
@@ -50,7 +56,8 @@ def detect(log_detection_error=True):
     global detectedObstacles
 
     PATH_ERROR_DIST = rospy.get_param(
-        "~path_error_dist", default=f"{PATH}/logs/error_dist_csvs/error_dist_detec_22_12.csv"
+        "~path_error_dist",
+        default=f"{PATH}/logs/error_dist_csvs/error_dist_detec_22_12.csv",
     )
     PATH_ERROR_DIST_DOOR_CLOSED = rospy.get_param(
         "~path_error_dist_doorclosed",
@@ -67,7 +74,9 @@ def detect(log_detection_error=True):
         currentLocation = offset_to_robo(currentLocation)
         # ------------------------- Detection itself -----------------------------
         img_local = deepcopy(img_glob)
-        detec_movables = loaded_detect(img_local, *config["conf_network"], False, node="object_detection")
+        detec_movables = loaded_detect(
+            img_local, *config["conf_network"], False, node="object_detection"
+        )
         detec_movables_obstacles = []
         rotations_detected = []
         index_names = []
@@ -86,8 +95,9 @@ def detect(log_detection_error=True):
                 map_ref,
                 [],
                 detec_movables_obstacles,
-                color=(0, 255, 255),
+                color=(255, 255, 255),
                 convert_back_to_grey=True,
+                savePath=f"{PATH}/maps/map_obstacles.png",
             )
 
         # ----------- Determine error distribution and write it to a CSV ------------
@@ -99,7 +109,9 @@ def detect(log_detection_error=True):
                 g_truth = np.array(ground_truth.corners)
                 detec_assum = np.array(detection_assumption.corners)
                 # summing over the corners and then subtracting before deviding by number of corners gives the distances of centers
-                differences = np.sum(g_truth, axis=0) / 4 - np.sum(detec_assum, axis=0) / 4
+                differences = (
+                    np.sum(g_truth, axis=0) / 4 - np.sum(detec_assum, axis=0) / 4
+                )
                 differences_pyt = np.sqrt(np.sum(np.power(differences, 2)))
                 with open(
                     PATH_ERROR_DIST,
@@ -113,7 +125,15 @@ def detect(log_detection_error=True):
                 ) as f1:
                     write = csv.writer(f1)
                     old_rot_assumption = 2 * np.arcsin(currentLocation[3])
-                    rot = -(0 - rotation_detected.numpy() + np.pi - config["map_config"]["rot"]) + 2 * np.pi
+                    rot = (
+                        -(
+                            0
+                            - rotation_detected.numpy()
+                            + np.pi
+                            - config["map_config"]["rot"]
+                        )
+                        + 2 * np.pi
+                    )
                     rot_shift = float(
                         min(
                             abs(rot + np.pi - (old_rot_assumption + np.pi)),
@@ -130,14 +150,6 @@ def detect(log_detection_error=True):
                     write.writerow([error])
 
         # Create message
-        modify_map(
-            map_ref,
-            [],
-            detec_movables_obstacles,
-            color=(0, 255, 255),
-            convert_back_to_grey=True,
-            savePath=f"{PATH}/maps/map_obstacles.png",
-        )
         msg = ObstacleList()
         for obstacle in detec_movables_obstacles:
             corners = []
@@ -154,7 +166,9 @@ def detect(log_detection_error=True):
             rospy.logdebug(f"[Object Detection] Publishing detected obstacles: {msg}")
             publisher.publish(msg)
         except:
-            rospy.logwarn(f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} ")
+            rospy.logwarn(
+                f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
+            )
 
         detectedObstacles = detec_movables_obstacles
         visualizeObstacles()
@@ -206,11 +220,25 @@ def objectDetection():
     rospy.loginfo(f"Starting node {Nodes.OBJECT_DETECTION.value}")
 
     config = initCV(
-        rospy.get_param("~weights_path", default=f"{PATH}/src/yolov7/weights/statedict_tiny10_hocker.pt"),
+        rospy.get_param(
+            "~weights_path",
+            default=f"{PATH}/src/yolov7/weights/statedict_tiny10_hocker.pt",
+        ),
         rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"),
     )
+    # Save one empty map at start for risk estimator with no obstacles in it
+    modify_map(
+        config["map_ref"],
+        [],
+        [],
+        color=(255, 255, 255),
+        convert_back_to_grey=True,
+        savePath=f"{PATH}/maps/map_obstacles.png",
+    )
     # Save the localization data to a global variable so the detection can use them
-    rospy.Subscriber(Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setRealData, queue_size=25)
+    rospy.Subscriber(
+        Topics.LOCALIZATION.value, PoseWithCovarianceStamped, setRealData, queue_size=25
+    )
     # Triggers to run the object detection
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     detect()

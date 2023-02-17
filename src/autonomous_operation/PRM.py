@@ -51,7 +51,7 @@ class Node:
         y (int): y-coordinate of the node
     """
 
-    def __init__(self, x, y):
+    def __init__(self, x: int, y: int):
         self.x = x
         """x-coordinate of the node"""
         self.y = y
@@ -105,7 +105,13 @@ class Edge:
         node1_str = str(self.node1)
         node2_str = str(self.node2)
         return str(
-            node1_str + "<--->" + node2_str + "  length: " + "%.2f" % self.length + " cost: " + "%.2f" % self.cost
+            node1_str
+            + "<--->"
+            + node2_str
+            + "  length: "
+            + "%.2f" % self.length
+            + " cost: "
+            + "%.2f" % self.cost
         )
 
     __repr__ = __str__  # X kind of a bad practice
@@ -218,7 +224,11 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
 
                 # Check if an obstacle is near the edge so the robotino would collide if it drives along the edge
                 if obstacles:
-                    if (i % 2 == 0) and (not close_object) and (edge_cost < COST_WHITE_PIXEL):
+                    if (
+                        (i % 2 == 0)
+                        and (not close_object)
+                        and (edge_cost < COST_WHITE_PIXEL)
+                    ):
                         for obstacle in obstacles:
                             distances.append(obstacle.distance_to_point(edge_point))
                         if np.min(np.array(distances)) < RADIUS_ROBOT:
@@ -267,7 +277,9 @@ def interpolate_segment(segment):
         step_y = (p2[1] - p1[1]) / n_interpol_steps
 
         for i in range(0, n_interpol_steps + 1):
-            segment_interpolated.append((np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y)))
+            segment_interpolated.append(
+                (np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y))
+            )
     else:
         segment_interpolated.append((p1[0], p1[1]))
         segment_interpolated.append((p2[0], p2[1]))
@@ -371,7 +383,10 @@ def add_neighbours(map_ref, nodes, N):
                 t3 = time.perf_counter()
                 closest_neighbour = None
                 for available_node_j in range(0, len(available_nodes)):
-                    dist = np.linalg.norm(nodes[node_i].coordinates - available_nodes[available_node_j].coordinates)
+                    dist = np.linalg.norm(
+                        nodes[node_i].coordinates
+                        - available_nodes[available_node_j].coordinates
+                    )
                     if dist < shortest_dist:
                         shortest_dist = dist
                         closest_neighbour = available_nodes[available_node_j]
@@ -409,7 +424,9 @@ def add_neighbours(map_ref, nodes, N):
                     )
                     draw_line_total_time += time.perf_counter() - t2
                     t1 = time.perf_counter()
-                    cost = calc_cost(map_ref_copy_2, map_visu, nodes[node_i].coordinates)
+                    cost = calc_cost(
+                        map_ref_copy_2, map_visu, nodes[node_i].coordinates
+                    )
                     calc_cost_total_time += time.perf_counter() - t1
                     # create new edge
                     edge = Edge(
@@ -454,9 +471,13 @@ def add_neighbours(map_ref, nodes, N):
 
         edge_points = [p1]
         for i in range(0, int(length) + 1):
-            point = np.array([np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y)])
+            point = np.array(
+                [np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y)]
+            )
             if not (point == edge_points[-1]).all():
-                edge.edge_points.append((np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y)))
+                edge.edge_points.append(
+                    (np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y))
+                )
 
     return map_ref_copy_1, nodes, edges_all
 
@@ -489,7 +510,10 @@ def deijkstra(nodes, start, goal):
     while not done:
         for neighbour in current_node.neighbours:
             if not neighbour.visited:
-                pos_new_tentative = find_common_edge(current_node, neighbour).cost + current_node.tentative_dist
+                pos_new_tentative = (
+                    find_common_edge(current_node, neighbour).cost
+                    + current_node.tentative_dist
+                )
                 if pos_new_tentative < neighbour.tentative_dist:
                     neighbour.tentative_dist = pos_new_tentative
                     neighbour.predecessor = current_node
@@ -549,7 +573,11 @@ def calc_cost(ref_map, colored_map, coordinates):
     im_width = colored_map.size[0]
     im_height = colored_map.size[1]
 
-    if im_width - 1 < coordinates[0] or im_height - 1 < coordinates[1] or (coordinates < 0).any():
+    if (
+        im_width - 1 < coordinates[0]
+        or im_height - 1 < coordinates[1]
+        or (coordinates < 0).any()
+    ):
         return 0
 
     if colored_map.getpixel((int(coordinates[0]), int(coordinates[1]))) == EDGE_COLOR:
@@ -560,21 +588,37 @@ def calc_cost(ref_map, colored_map, coordinates):
         edge_cost = grayscale_to_cost(grayscale_val)
 
         # below
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0], coordinates[1] + 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0], coordinates[1] + 1])
+        )
         # above
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0], coordinates[1] - 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0], coordinates[1] - 1])
+        )
         # right
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1]]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1]])
+        )
         # left
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1]]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1]])
+        )
         # right below
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1] + 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1] + 1])
+        )
         # right above
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1] - 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] + 1, coordinates[1] - 1])
+        )
         # left below
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1] + 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1] + 1])
+        )
         # left above
-        edge_cost += calc_cost(ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1] - 1]))
+        edge_cost += calc_cost(
+            ref_map, colored_map, np.array([coordinates[0] - 1, coordinates[1] - 1])
+        )
 
         return edge_cost
 
@@ -613,7 +657,9 @@ def grayscale_to_cost(grayscale):
     elif grayscale == 154:
         cost = 5000
     else:
-        rospy.logwarn("[PRM] Graph leads over a pixel color that should not exist in the reference-map !!!!!!")
+        rospy.logwarn(
+            "[PRM] Graph leads over a pixel color that should not exist in the reference-map !!!!!!"
+        )
 
     return cost
 
@@ -754,7 +800,9 @@ def draw_traj(map_visu, traj, forAgent, color=None):
                 fill=GOAL_COLOR,
             )
     else:
-        im_draw.point([(traj[0].coordinates[0], traj[0].coordinates[1])], fill=START_COLOR)
+        im_draw.point(
+            [(traj[0].coordinates[0], traj[0].coordinates[1])], fill=START_COLOR
+        )
         points_off_x = [-1, 1, -1, 1, -1, 1, 0, 0, 0]
         points_off_y = [-1, -1, 1, 1, 0, 0, 1, -1, 0]
         for i in range(0, 9):
@@ -800,8 +848,12 @@ def _loadMarkersFromJson():
             target_identified = json.load(jsonfile)
 
         for key in target_identified.keys():
-            x = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["x"]
-            y = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"]["y"]
+            x = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"][
+                "x"
+            ]
+            y = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"][
+                "y"
+            ]
             node = get_pixel_location_from_acml(x, y, *base_info)
             wsNodes.append((int(node[0]), int(node[1])))
     return wsNodes
@@ -910,7 +962,9 @@ def findNearestNode(nodes, xCor, yCor):
     return nearestNode
 
 
-def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=None, goal=None):
+def apply_PRM_init(
+    map_ref, obstacles, start_node=None, goal_node=None, start=None, goal=None
+):
     """
     Applies the whole PRM process which includes all steps like sampling nodes, building a graph and\
     calculating the trajectory
@@ -940,9 +994,13 @@ def apply_PRM_init(map_ref, obstacles, start_node=None, goal_node=None, start=No
             nodes[i] = Node(nodes[i].coordinates[0], nodes[i].coordinates[1])
     else:
         if None in [start, goal]:
-            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles)  # , starts, ends
+            map_visu, nodes = add_nodes(
+                map_ref_copy, N_NODES, obstacles
+            )  # , starts, ends
         else:
-            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, goal)  # , starts, ends
+            map_visu, nodes = add_nodes(
+                map_ref_copy, N_NODES, obstacles, start, goal
+            )  # , starts, ends
         map_visu.save(f"{PATH}/maps/map_nodes.png")
 
     t0 = time.perf_counter()

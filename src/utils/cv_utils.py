@@ -12,6 +12,7 @@ from yolov7.detect_online import get_conf_and_model
 
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
+from utils.navigation_utils import createMapRef
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
@@ -306,14 +307,10 @@ def initCV(pathWeights, map_path):
     base_info, map_config = get_base_info()
     # the gridmap is the locations of the workstations alligned with the 'grid' of the floortiles
     obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
-    # # the movable obstacles that need to be placed in the robots way
+    # the movable obstacles that need to be placed in the robots way
     obstacles_movable, names_movables = get_obstacles_in_pixel_map(base_info, "movable")
-    # # loading the png of the map and running the old detection system on it also configures the map to the right type
-    map_ref, obstacles = initialize_map(map_path)
-    # # removing the obstacles from the map, adding the workstations, removing old should not be needed if we have a new map, TODO new map add new obstacles such as klappbox, chair and box
-    map_ref = modify_map(map_ref, obstacles, obstacles_ws, color=(255, 0, 255), convert_back_to_grey=True)
-    # # adding the movable objects
-    map_ref = modify_map(map_ref, [], obstacles_movable, color=(255, 0, 0), convert_back_to_grey=True)
+    # generating a map reference where the detected obstacles can be drawn on
+    map_ref, _ = createMapRef(map_path)
 
     return {
         "conf_network": conf_network,
