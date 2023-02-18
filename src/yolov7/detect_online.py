@@ -127,6 +127,7 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
             "klappbox_a",
             "sbox_c",
             "sbox_a",
+            "robotino",
             "hocker_a",
         ]
 
@@ -267,9 +268,11 @@ def loaded_detect(
         highest_conf_box = 0
         highest_conf_klapp = 0
         highest_conf_hocker = 0
+        highest_conf_robotino = 0
         index_highest_conf_box = -1
         index_highest_conf_klapp = -1
         index_highest_conf_hocker = -1
+        index_highest_conf_robotino = -1
         for i, detection in enumerate(detected_3d_boxes):
             if detection["label"][0:-2] in ["box", "sbox"]:
                 # TODO here we could be checking if the object we are detection is the large face and give it for example a 0.1 improvement in conf
@@ -284,6 +287,10 @@ def loaded_detect(
                 if highest_conf_hocker < detection["conf"]:
                     highest_conf_hocker = detection["conf"]
                     index_highest_conf_hocker = i
+            if detection["label"][0:-2] in ["robotino"]:
+                if highest_conf_robotino < detection["conf"]:
+                    highest_conf_robotino = detection["conf"]
+                    index_highest_conf_robotino = i
         # if a box or klapp was detected, add the best one to detections
         if index_highest_conf_box != -1:
             box_detection = detected_3d_boxes[index_highest_conf_box]
@@ -298,6 +305,11 @@ def loaded_detect(
             hocker_detection["label"] = "hocker"
             # TODO uncomment this when using the hocker
             best_in_class_detection.append(hocker_detection)
+        if index_highest_conf_robotino != -1:
+            robotino_detection = detected_3d_boxes[index_highest_conf_robotino]
+            robotino_detection["label"] = "robotino"
+            # TODO uncomment this when using the hocker
+            best_in_class_detection.append(robotino_detection)
         return best_in_class_detection
 
     # if detected_3d_boxes

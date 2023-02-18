@@ -1,0 +1,9 @@
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: ./data/fused_without_table_copy/train  # 118287 images
+val: ./data/fused_without_table_copy/val  # 5000 images
+
+# number of classes
+nc: 11
+
+# class names
+names: ['workstation_c','workstation_a','box_c','box_a','chair','klappbox_c','klappbox_a','sbox_c','sbox_a','sklappbox_c','sklappbox_a']

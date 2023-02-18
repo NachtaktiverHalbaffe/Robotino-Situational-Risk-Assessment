@@ -3,18 +3,18 @@ from models.yolo import Model
 import torch
 
 # load full model, give to the model you want to strip here
-model_normal = torch.load("/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/tiny10_hocker.pt")
+model_normal = torch.load("/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/tiny_robotino.pt")
 # save state dict
 torch.save(
     model_normal["model"].state_dict(),
-    "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/statedict_tiny10_hocker.pt",
+    "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/statedict_tiny_robotino.pt",
 )
 
 
 # # as test and demo (the same code has been placed in detect online):
 # # load state dict
 loaded_state_dict = torch.load(
-    "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/tiny10_hocker.pt"
+    "/home/nachtaktiverhalbaffe/dev/catkin_ws/src/robotino/src/yolov7/weights/tiny_robotino.pt"
 )
 # get hyperparamters, these are the same for both models
 hyp_loc = "./yolov7/data/hyp.scratch.custom.yaml"

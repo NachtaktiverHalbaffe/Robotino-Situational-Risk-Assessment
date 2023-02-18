@@ -163,6 +163,7 @@ def convert_2d_3d(xyxy, im0, label):
         "sbox_a",
         "hocker_c",
         "hocker_a",
+        "robotino",
     ]
     boundry = False
     corners_3D = []
@@ -211,6 +212,15 @@ def convert_2d_3d(xyxy, im0, label):
             h_real = 1.04
             w_real = 0.7
             d_real = 0.7
+            # TODO expand to cirle version
+            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
+                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
+            )
+        if label == "robotino":
+            # TODO get real measurments
+            h_real = 0.33
+            w_real = 0.45
+            d_real = 0.45
             # TODO expand to cirle version
             depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
                 xyxy, label, corners_3D, boundry, h_real, w_real, d_real
