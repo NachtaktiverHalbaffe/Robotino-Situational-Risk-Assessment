@@ -7,28 +7,42 @@ import os, sys
 from pathlib import Path
 import pickle
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
-
 from yolov7.detect_online import get_conf_and_model
-
 from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 from utils.navigation_utils import createMapRef
+from prototype.msg import ObstacleList
+
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 PATH_ERRORDIST_LOC_X1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_x1.csv"
 PATH_ERRORDIST_LOC_Y1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_y1.csv"
-PATH_ERRORDIST_LOC_ROT = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv"
+PATH_ERRORDIST_LOC_ROT = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair1.csv"
+)
 PATH_ERRORDIST_LOC_DIST = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist1.csv"
 PATH_ERRORDIST_LOC = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc1.csv"
-PATH_ERRORDIST_LOC_FILTERED = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv"
+PATH_ERRORDIST_LOC_FILTERED = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered1.csv"
+)
 
-PATH_ERRORDIST_PRM_LOC_X1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_Y1 = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_ROT = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_DIST = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_X1 = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_x_PRM_end.csv"
+)
+PATH_ERRORDIST_PRM_LOC_Y1 = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_y_PRM_end.csv"
+)
+PATH_ERRORDIST_PRM_LOC_ROT = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_rot_abs_chair_PRM_end.csv"
+)
+PATH_ERRORDIST_PRM_LOC_DIST = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_PRM_end.csv"
+)
 PATH_ERRORDIST_PRM_LOC = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_PRM_end.csv"
-PATH_ERRORDIST_PRM_LOC_FILTERED = f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv"
+PATH_ERRORDIST_PRM_LOC_FILTERED = (
+    f"{PATH}/logs/error_dist_csvs/loc/error_dist_loc_dist_filtered_PRM_end.csv"
+)
 
 
 def get_dists_workstation(corners_map_all, obstacle):
@@ -93,7 +107,10 @@ def best_match_workstation_index(
         old_rot_assumption = local_acml_location[3]
     # calculating rotation from detected and cord transforms
     # detected_rotations = -(np.array(rots_ws)-rotation_detected.numpy()+np.pi-1.204)
-    detected_rotations = -(np.array(rots_ws) - rotation_detected.numpy() + np.pi - map_config["rot"]) + 2 * np.pi
+    detected_rotations = (
+        -(np.array(rots_ws) - rotation_detected.numpy() + np.pi - map_config["rot"])
+        + 2 * np.pi
+    )
     dists_rot = deepcopy(detected_rotations)
     for rot, i in zip(detected_rotations, range(len(detected_rotations))):
         rot_shift = float(
@@ -107,9 +124,8 @@ def best_match_workstation_index(
     # we get the detected localisation be subtracting the detected distances of a workstation from its location
     dists_loc = []
     for j in range(len(corners_map_all)):
-        for i in range(
-            len(detection_corners) - 3
-        ):  # NOTE The -3 means we only go through once, all should be the same, useful for debug
+        for i in range(len(detection_corners) - 3):
+            # NOTE The -3 means we only go through once, all should be the same, useful for debug
             # change cords so we have the distance from the ws on the map
             detection_corner = convert_cam_to_robo(
                 detection_corners[i][1], -detection_corners[i][0], detected_rotations[j]
@@ -136,7 +152,9 @@ def best_match_workstation_index(
     return arg_smallest_dist
 
 
-def get_obstacles_from_detection(detected_workstation_dist, local_acml_location, base_info):
+def get_obstacles_from_detection(
+    detected_workstation_dist, local_acml_location, base_info, label="generic"
+):
     """
     Rurns the info provided by the object detection into an obstacle
 
@@ -144,6 +162,7 @@ def get_obstacles_from_detection(detected_workstation_dist, local_acml_location,
         detected_workstation_dist: the distance from cam to each corner of the object
         local_acml_location: This is the current position in acml coordinate system
         base_info: this is the set of calibration data needed to correctly transform from acml to pixel cords
+        label (str, optional): Label of the detected object
 
     Returns:
         detected_obst: the detected object as an Obstacle
@@ -158,7 +177,7 @@ def get_obstacles_from_detection(detected_workstation_dist, local_acml_location,
         )
         corner = get_pixel_location_from_acml(*corner, *base_info)
         corners_detec[i] = corner
-    detected_obst = Obstacle(corners_detec)
+    detected_obst = Obstacle(corners_detec, label=label)
     return detected_obst
 
 
@@ -282,6 +301,19 @@ def draw_map_location_acml(
     )
 
     return acml_x, acml_y, acml_rot
+
+
+def obstaclesMsgToObstacles(obstaclesMsg: ObstacleList):
+    obstacles = []
+    for obstacle in obstaclesMsg.obstacles:
+        # Create corners
+        tmpCorners = []
+        for corner in obstacle.corners:
+            tmpCorners.append((corner.x, corner.y))
+        # Create Obstacle
+        obstacles.append(Obstacle(tmpCorners, label=obstacle.label))
+
+    return obstacles
 
 
 def initCV(pathWeights, map_path):

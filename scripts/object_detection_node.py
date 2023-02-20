@@ -3,7 +3,7 @@ import csv
 import rospy
 import os
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped, Point, PolygonStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Point32, PolygonStamped
 from sensor_msgs.msg import Image
 from jsk_recognition_msgs.msg import PolygonArray
 from copy import deepcopy
@@ -17,7 +17,51 @@ from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
 img_glob = []
+geofencedObs = Obstacle([], label="geofenced")
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
+
+
+def setGeofencedObj(obstacleMsg: ObstacleMsg):
+    global geofencedObs
+    global detectedObstacles
+    corners = []
+    for corner in obstacleMsg.corners:
+        corners.append((corner.x, corner.y))
+
+    geofencedObs = Obstacle(corners, label="geofenced")
+
+
+def setImage(rawImage: Image):
+    global img_glob
+    global Image_data
+    bridge = CvBridge()
+    cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
+
+    # Resize Image to 640 * 480 - YOLO was trained in this size
+    width = int(rawImage.width * 0.80)
+    height = int(rawImage.height * 0.80)
+    dim = (width, height)
+    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
+
+    # The unmodified image
+    img_glob = deepcopy(cv_image)
+    Image_data = [
+        "Image_Data",
+        dim,  # dimensions of resized image
+        img_resized,  # image data
+        rawImage.header.stamp,
+    ]
+
+
+def setRealData(acmlData: PoseWithCovarianceStamped):
+    global real_data
+    real_data = [
+        "real_data",
+        acmlData.pose.pose.position.x,
+        acmlData.pose.pose.position.y,
+        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
+        acmlData.header.stamp,
+    ]
 
 
 def visualizeObstacles():
@@ -35,11 +79,10 @@ def visualizeObstacles():
                 corner[0], corner[1], *config["base_info"]
             )
             polygon.polygon.points.append(
-                Point(transformedCor[0], transformedCor[1], 0.2)
+                Point32(transformedCor[0], transformedCor[1], 0.2)
             )
 
         msg.polygons.append(polygon)
-        msg.labels.append(obstacle.label)
 
     rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(
         msg
@@ -55,6 +98,7 @@ def detect(log_detection_error=True):
     global real_data
     global config
     global detectedObstacles
+    global geofencedObs
 
     PATH_ERROR_DIST = rospy.get_param(
         "~path_error_dist",
@@ -177,43 +221,11 @@ def detect(log_detection_error=True):
                 f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
             )
 
+        detec_movables_obstacles.append(geofencedObs)
         detectedObstacles = detec_movables_obstacles
         visualizeObstacles()
 
         rospy.Rate(25).sleep()
-
-
-def setImage(rawImage: Image):
-    global img_glob
-    global Image_data
-    bridge = CvBridge()
-    cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
-
-    # Resize Image to 640 * 480 - YOLO was trained in this size
-    width = int(rawImage.width * 0.80)
-    height = int(rawImage.height * 0.80)
-    dim = (width, height)
-    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
-
-    # The unmodified image
-    img_glob = deepcopy(cv_image)
-    Image_data = [
-        "Image_Data",
-        dim,  # dimensions of resized image
-        img_resized,  # image data
-        rawImage.header.stamp,
-    ]
-
-
-def setRealData(acmlData: PoseWithCovarianceStamped):
-    global real_data
-    real_data = [
-        "real_data",
-        acmlData.pose.pose.position.x,
-        acmlData.pose.pose.position.y,
-        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
-        acmlData.header.stamp,
-    ]
 
 
 def objectDetection():
@@ -248,6 +260,10 @@ def objectDetection():
     )
     # Triggers to run the object detection
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
+    # Save geofenced obstacles so they can be appended to list
+    rospy.Subscriber(
+        Topics.OBSTACLES_GEOFENCED.value, ObstacleMsg, setGeofencedObj, queue_size=10
+    )
     detect()
 
     # Prevents python from exiting until this node is stopped

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtCore import QThread, Signal, QProcess
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int16, Bool
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import Path
 from threading import Thread
 
@@ -32,12 +32,12 @@ sys.path.insert(1, "../thesis")
 from gui.ui_form import Ui_MainWindow
 from scripts.velocity import move, drive_backward, drive_forward, stop_robot, rotate
 from utils.py_ros_launch import ros_launch_without_core
-import src.risk_estimation.config as config
+from risk_estimation.config import configs
 from risk_estimation.eval import mains as evaluation
 from src.risk_estimation.AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
 from utils.constants import Topics, Nodes
 from utils.navigation_utils import pathToTraj
-from prototype.msg import Risk
+from prototype.msg import Risk, ObstacleMsg, ObstacleList
 
 
 class MainWindow(QMainWindow):
@@ -84,7 +84,9 @@ class MainWindow(QMainWindow):
         self.ui.Test_btn.setEnabled(False)
 
         # ----------Set callback function for button presse/ value changes of inputs in UI -----------------
-        self.ui.shape_selector.currentIndexChanged.connect(self.onshape_selector_changed)
+        self.ui.shape_selector.currentIndexChanged.connect(
+            self.onshape_selector_changed
+        )
         self.ui.tree_selector.currentIndexChanged.connect(self.treeselector_changed)
         self.ui.ml_algo_selector.currentIndexChanged.connect(self.select_algo)
 
@@ -92,20 +94,32 @@ class MainWindow(QMainWindow):
             lambda: self.file_open(map=True),
         )
         self.ui.actionInfo.triggered.connect(self.showDialog)
-        self.ui.save_map_btn.clicked.connect(lambda: self.show_info(self.ui.path_to_map.text(), new_line=True))
+        self.ui.save_map_btn.clicked.connect(
+            lambda: self.show_info(self.ui.path_to_map.text(), new_line=True)
+        )
         self.ui.speed_dial.valueChanged.connect(self.show_speed)
 
-        self.ui.traj_btn.clicked.connect(lambda: self.show_map(self.ui.path_to_map.text()))
+        self.ui.traj_btn.clicked.connect(
+            lambda: self.show_map(self.ui.path_to_map.text())
+        )
         self.ui.start_rob_btn.clicked.connect(lambda: self.start_robot())
 
         self.ui.Train.clicked.connect(lambda: self.start_worker(mode=False))
         self.ui.stop_train_test.clicked.connect(lambda: self.stop_worker())
         self.ui.Test_btn.clicked.connect(lambda: self.start_worker(mode=True))
 
-        self.ui.btn_start_generateMap.clicked.connect(lambda: self.clicklaunch_("generate_map.launch"))
-        self.ui.btn_start_prototype.clicked.connect(lambda: self.clicklaunch_("prototype.launch"))
-        self.ui.btn_start_identifyAndMap.clicked.connect(lambda: self.clicklaunch_("identifyAndMap.launch"))
-        self.ui.btn_start_autonomous.clicked.connect(lambda: self.clicklaunch_("autonomousOperation.launch"))
+        self.ui.btn_start_generateMap.clicked.connect(
+            lambda: self.clicklaunch_("generate_map.launch")
+        )
+        self.ui.btn_start_prototype.clicked.connect(
+            lambda: self.clicklaunch_("prototype.launch")
+        )
+        self.ui.btn_start_identifyAndMap.clicked.connect(
+            lambda: self.clicklaunch_("identifyAndMap.launch")
+        )
+        self.ui.btn_start_autonomous.clicked.connect(
+            lambda: self.clicklaunch_("autonomousOperation.launch")
+        )
         self.ui.Foward.clicked.connect(lambda: self.driveForward())
         self.ui.Backward.clicked.connect(lambda: self.driveBackward())
         self.ui.Left.clicked.connect(lambda: self.rotateLeft())
@@ -120,13 +134,22 @@ class MainWindow(QMainWindow):
 
         self.ui.pushButton_driveToWS.clicked.connect(lambda: self.driveToWS())
         self.ui.pushButton_driveToCor.clicked.connect(lambda: self.driveToCor())
-        self.ui.checkBox_LIDAR.stateChanged.connect(lambda: self.activateFeature("lidar"))
+        self.ui.pushButton.clicked.connect(lambda: self.runObstacleEstimation())
+        self.ui.checkBox_LIDAR.stateChanged.connect(
+            lambda: self.activateFeature("lidar")
+        )
         self.ui.checkBox_LIDAR.setChecked(True)
-        self.ui.checkBox_qrScanner.stateChanged.connect(lambda: self.activateFeature("qr"))
+        self.ui.checkBox_qrScanner.stateChanged.connect(
+            lambda: self.activateFeature("qr")
+        )
         self.ui.checkBox_qrScanner.setChecked(True)
-        self.ui.checkBox_bruteforce.stateChanged.connect(lambda: self.activateFeature("bruteforce"))
+        self.ui.checkBox_bruteforce.stateChanged.connect(
+            lambda: self.activateFeature("bruteforce")
+        )
         self.ui.checkBox_bruteforce.setChecked(False)
-        self.ui.checkBox_baselineRisk.stateChanged.connect(lambda: self.activateFeature("baseline"))
+        self.ui.checkBox_baselineRisk.stateChanged.connect(
+            lambda: self.activateFeature("baseline")
+        )
         self.ui.checkBox_baselineRisk.setChecked(False)
 
         # Make shure roscore is running before starting gui node
@@ -137,8 +160,18 @@ class MainWindow(QMainWindow):
         finally:
             rospy.init_node(Nodes.GUI.value)
             self.listener()
-            self.corPublisher = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
-            self.wsPublisher = rospy.Publisher(Topics.TARGET_ID.value, Int16, queue_size=10)
+            self.corPublisher = rospy.Publisher(
+                Topics.TARGET.value, PoseStamped, queue_size=10
+            )
+            self.wsPublisher = rospy.Publisher(
+                Topics.TARGET_ID.value, Int16, queue_size=10
+            )
+            self.geofencePublisher = rospy.Publisher(
+                Topics.OBSTACLES_GEOFENCED.value, ObstacleMsg, queue_size=10
+            )
+            self.obsRiskEstPublisher = rospy.Publisher(
+                Topics.NR_OF_RUNS.value, Int16, queue_size=10
+            )
 
     def start_robot(self):
         """
@@ -247,7 +280,9 @@ class MainWindow(QMainWindow):
         ROS_PROGRAM = QProcess(self)
         print("Launching...")
         # location of launch file
-        launch_files_v = os.path.abspath(os.path.join(os.path.dirname(__file__), "launch/", ""))
+        launch_files_v = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "launch/", "")
+        )
         launch_file = f"{launch_files_v}/{path}"
         # create CLI command
         program = f"roslaunch {launch_file}"
@@ -282,7 +317,8 @@ class MainWindow(QMainWindow):
         else:
             self.ui.info_box_rl.setText(tree_type)
             self.print_rl(
-                "Combined evaluation: " + str(self.ui.combined_ida_and_brute.isChecked()),
+                "Combined evaluation: "
+                + str(self.ui.combined_ida_and_brute.isChecked()),
                 append=True,
             )
             self.combined_eval = self.ui.combined_ida_and_brute.isChecked()
@@ -351,7 +387,9 @@ class MainWindow(QMainWindow):
                 color=self.WARNING,
             )
         elif self.filename.split(".")[-1] != "csv":
-            self.print_ml("Please select the appropriate file", append=True, color=self.WARNING)
+            self.print_ml(
+                "Please select the appropriate file", append=True, color=self.WARNING
+            )
 
         # Start autolabeling
         else:
@@ -382,7 +420,9 @@ class MainWindow(QMainWindow):
                 color=self.WARNING,
             )
         elif self.filename.split(".")[-1] != "csv":
-            self.print_ml("Please select the appropriate file", append=True, color=self.WARNING)
+            self.print_ml(
+                "Please select the appropriate file", append=True, color=self.WARNING
+            )
 
         # Start autolabeling
         else:
@@ -478,13 +518,17 @@ class MainWindow(QMainWindow):
             except:
                 pass
         elif "qr" in feature.lower():
-            publisher = rospy.Publisher(Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10)
+            publisher = rospy.Publisher(
+                Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10
+            )
             try:
                 publisher.publish(self.ui.checkBox_qrScanner.isChecked())
             except:
                 pass
         elif "bruteforce" in feature.lower():
-            publisher = rospy.Publisher(Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10)
+            publisher = rospy.Publisher(
+                Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10
+            )
             try:
                 publisher.publish(self.ui.checkBox_bruteforce.isChecked())
             except:
@@ -495,6 +539,12 @@ class MainWindow(QMainWindow):
                 publisher.publish(self.ui.checkBox_baselineRisk.isChecked())
             except:
                 pass
+
+    def runObstacleEstimation(self):
+        """
+        Starts a risk estimation
+        """
+        self.obsRiskEstPublisher.publish(self.ui.spinBox_nrOfRuns.value())
 
     def stop_worker(self):
         """
@@ -565,7 +615,6 @@ class MainWindow(QMainWindow):
         name = QFileDialog.getOpenFileName(self)
 
         if self.ui.tabWidget.tabText(0) == "Mapper":
-
             self.show_map(name[0])
 
         self.filename = name[0]
@@ -711,23 +760,51 @@ class MainWindow(QMainWindow):
             Takes the shape from the shape dropdown menu in the RL section of the localization adversary tab
         """
         object_type = self.ui.shape_selector.currentText()
-        configs = config.cfgs[0]
-        map = cv2.imread(configs["map_path"])  # , cv2.IMREAD_GRAYSCALE)
+        cfgs = configs[0]
+        map = cv2.imread(cfgs["map_path"])  # , cv2.IMREAD_GRAYSCALE)
 
         scale_percent = 200  # percent of original size
+        fracScale = scale_percent / 100
         width = int(map.shape[1] * scale_percent / 100)
         height = int(map.shape[0] * scale_percent / 100)
         dim = (width, height)
 
         # resize image
         resized = cv2.resize(map, dim, interpolation=cv2.INTER_AREA)
-
+        geofencedObstacle = ObstacleMsg()
+        geofencedObstacle.label = "geofenced"
         if object_type == "polygon":
             image = self.create_polygon(resized)
+
+            for corner in self.corners:
+                point = Point()
+                point.x = corner[0] / fracScale
+                point.y = corner[1] / fracScale
+                geofencedObstacle.corners.append(point)
         else:
             rect = cv2.selectROI(resized)
-
             image = self.draw_geofence(resized, rect, object=object_type)
+
+            x1 = rect[0] / fracScale
+            y1 = rect[1] / fracScale
+            width = rect[2] / fracScale
+            height = rect[3] / fracScale
+            # Create corners of obstacle
+            p = Point()
+            p.x = x1
+            p.y = y1
+            geofencedObstacle.corners.append(p)
+            p.x = x1 + width
+            p.y = y1
+            geofencedObstacle.corners.append(p)
+            p.y = y1 - width
+            geofencedObstacle.corners.append(p)
+            p.x = x1
+            geofencedObstacle.corners.append(p)
+        try:
+            self.geofencePublisher.publish(geofencedObstacle)
+        except Exception as e:
+            print(f"Couldn't publish geofenced published. Excpetion: {e}")
 
         # scale_percent = 50 # percent of original size
         # width = int(image.shape[1] * scale_percent / 100)
@@ -735,7 +812,7 @@ class MainWindow(QMainWindow):
         dim = (map.shape[1], map.shape[0])
 
         resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-        cv2.imwrite(configs["geo_path"], resized)
+        cv2.imwrite(cfgs["geo_path"], resized)
         # cv2.imshow("Original", map)
         cv2.imshow("Geo Image", image)
         # cv2.imshow("resized", resized)
@@ -762,7 +839,9 @@ class ThreadClass(QThread):
 
     any_signal = Signal(float)
 
-    def __init__(self, parent=None, mode=False, mcts_eval="IDA", index=0, combined_eval=False):
+    def __init__(
+        self, parent=None, mode=False, mcts_eval="IDA", index=0, combined_eval=False
+    ):
         super(ThreadClass, self).__init__(parent)
         self.mode = mode
         self.is_running = True
@@ -779,9 +858,10 @@ class ThreadClass(QThread):
         """
         print("Starting Thread...", self.mode)
         # cnt=0
-        path = rospy.wait_for_message(Topics.GLOBAL_PATH.value, Path)
         done, risk = evaluation(
-            mode=self.mode, mcts_eval=self.mcts, combined_eval=self.combined_eval, initTraj=pathToTraj(path)
+            mode=self.mode,
+            mcts_eval=self.mcts,
+            combined_eval=self.combined_eval,
         )
         self.is_running = False
         if done:
@@ -789,13 +869,11 @@ class ThreadClass(QThread):
         # while (True):
         #     self.any_signal.emit(done)
 
-        publisher = rospy.Publisher(Topics.RISK_ESTIMATION_SOTA.value, Risk, queue_size=10)
+        publisher = rospy.Publisher(
+            Topics.RISK_ESTIMATION_SOTA.value, Risk, queue_size=10
+        )
         msg = Risk()
-        msg.probs.append(risk)
-        msg.trajectories.append(path)
-        msg.nr_nodes.append(len(path.poses))
-        msg.length_traj.append(0)
-        msg.wall_discards.append(0)
+        msg.probs_brute.append(risk)
         try:
             publisher.publish(msg)
         except:

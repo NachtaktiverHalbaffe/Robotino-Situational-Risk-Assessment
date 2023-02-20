@@ -11,6 +11,7 @@ class Topics(Enum):
     LOCALIZATION_MODE = "/localization_mode"
     LOCALIZATION = "/pose"
     OBSTACLES = "/obstacles"
+    OBSTACLES_GEOFENCED = "/obstacles_geofenced"
     OBSTACLES_VISU = "/obstacles_visu"
     IMAGE_RAW = "/image_raw"
     IMAGE_BB_WS = "/image_bb_ws"
@@ -31,6 +32,7 @@ class Topics(Enum):
     SOTA_ENABLED = "/sota_enabled"
     MOVE_BASE_FEEDBACK = "/move_base/feedback"
     MOVE_BASE_RESULT = "/move_base/result"
+    NR_OF_RUNS = "/nr_of_runs"
 
 
 class Nodes(Enum):
