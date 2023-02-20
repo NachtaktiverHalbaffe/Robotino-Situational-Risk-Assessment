@@ -41,13 +41,22 @@ odom = Odometry()
 
 
 def createOdom(currentPose: PoseWithCovarianceStamped):
-    """"""
+    """
+    It creates a odometry message where the pose is taken from the localization (either amcl or computer vision bases localization
+    """
     odomMsg = Odometry()
+    odomMsg.header.frame_id = "map"
     odomMsg.pose.pose.position = currentPose.pose.pose.position
     odomMsg.pose.pose.orientation = currentPose.pose.pose.orientation
 
-    twistMsg = rospy.wait_for_message(Topics.ODOM.value, Twist)
-    odomMsg.twist = twistMsg
+    # twistMsg = rospy.wait_for_message(Topics.ODOM.value, Twist)
+    odomMsg.twist = odom.twist
+
+    publisher = rospy.Publisher(Topics.ODOM.value, Odometry, queue_size=10)
+    try:
+        publisher.publish(odomMsg)
+    except Exception as e:
+        rospy.logwarn(f"[Localization] Couldn't publish odometry: {e}")
 
 
 def localiseCam():
@@ -304,12 +313,11 @@ def localization():
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
     # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
-    rospy.Subscriber(Topics.ODOM.value, Odometry, setOdom, queue_size=25)
+    rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
 
     # For determining localization mode
     locMode = "lidar"
     # Publish localization
-    rate = rospy.Rate(25)
     msg = PoseWithCovarianceStamped()
     Thread(target=localiseCam).start()
     while not rospy.is_shutdown():
@@ -319,7 +327,6 @@ def localization():
         else:
             # Lidar-process wasn't found
             locMode = "camera"
-
         try:
             # ------ Take the right localization value -------
             if locMode.lower() == "camera":
@@ -336,6 +343,7 @@ def localization():
                 )
                 break
             # ------ Publish the localization used by the Robotino ------
+            createOdom(msg)
             locPublisher.publish(msg)
 
         except rospy.ROSInterruptException:
@@ -344,8 +352,6 @@ def localization():
             rospy.logdebug(
                 f"Could publish localization message to topic {Topics.LOCALIZATION.value}: Error occured.\nException: {e} "
             )
-
-    rate.sleep()
 
 
 if __name__ == "__main__":
