@@ -39,6 +39,7 @@ def visualizeObstacles():
             )
 
         msg.polygons.append(polygon)
+        msg.labels.append(obstacle.label)
 
     rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(
         msg
@@ -84,7 +85,10 @@ def detect(log_detection_error=True):
         for detec_m in detec_movables:
             index_names.append(config["names_movables"].index(detec_m["label"]))
             detec_movables_obstacle = get_obstacles_from_detection(
-                detec_m["birds_eye"], currentLocation, config["base_info"]
+                detec_m["birds_eye"],
+                currentLocation,
+                config["base_info"],
+                label=detec_m["label"],
             )
             detec_movables_obstacles.append(detec_movables_obstacle)
             rotations_detected.append(detec_m["rotation"])
@@ -160,7 +164,10 @@ def detect(log_detection_error=True):
                 cornerItem.y = corner[1]
                 corners.append(cornerItem)
             #  Append Obstacle to message
-            msg.obstacles.append(ObstacleMsg(corners))
+            obstacleMsg = ObstacleMsg
+            obstacleMsg.corners = corners
+            obstacleMsg.label = obstacle.label
+            msg.obstacles.append(obstacleMsg)
         # Publish message
         try:
             rospy.logdebug(f"[Object Detection] Publishing detected obstacles: {msg}")

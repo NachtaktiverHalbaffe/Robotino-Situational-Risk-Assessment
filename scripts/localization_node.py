@@ -112,7 +112,10 @@ def localiseCam():
 
             # turning the detected corners into an obstacle
             detected_obst = get_obstacles_from_detection(
-                detected_workstation_dist, location_assumption, config["base_info"]
+                detected_workstation_dist,
+                location_assumption,
+                config["base_info"],
+                label=localise_dict["label"],
             )
             # comparing detected obstacles with workstations on map to find correct one
             detection_corners = list(map(tuple, zip(*detected_workstation_dist)))

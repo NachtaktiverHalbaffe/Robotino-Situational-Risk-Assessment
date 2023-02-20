@@ -107,7 +107,7 @@ def initialize_map(map_path):
     # add = [(1,1),(1,-1),(-1,-1),(-1,1)]
     corners_hand = [(102, 123), (103, 117), (94, 115), (92, 120)]
     # corners_hand = [tuple(map(lambda i,j:i+j,corners_hand[i],add[i])) for i in range(4)]
-    obst_hand = Obstacle(corners_hand)
+    obst_hand = Obstacle(corners_hand, label="table")
     obstacles.append(obst_hand)
     # --- only for test we use the already processed map ---
     # obstacles = None

@@ -2,18 +2,18 @@ import json
 import math
 import time
 import numpy as np
+import rospy
+import copy
+import time
+import sys, os
+import pickle
 from PIL import Image, ImageDraw
+
 from real_robot_navigation.move_utils_cords import (
     get_amcl_from_pixel_location,
     get_base_info,
     get_pixel_location_from_acml,
 )
-import rospy
-import copy
-import time
-import sys, os
-
-import pickle
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
@@ -146,7 +146,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
     if start and goal:
         nodes.append(Node(start[0], start[1]))
         nodes.append(Node(goal[0], goal[1]))
-    for node in _loadMarkersFromJson():
+    for node in loadWSMarkers():
         if get_node_with_coordinates(nodes, node) == None:
             nodes.append(Node(node[0], node[1]))
 
@@ -826,39 +826,6 @@ def draw_traj(map_visu, traj, forAgent, color=None):
         return map_visu
 
 
-# def visualize_adv_traj(map_visu, traj):
-#
-#     im_draw = ImageDraw.Draw(map_visu)
-#     for i in range(0, len(traj)-1):
-#         im_draw.line([(traj[i].coordinates[0], traj[i].coordinates[1]), (traj[i+1].coordinates[0], traj[i+1].coordinates[1])], fill=ADV_TRAJ_COLOR)
-#     for traj_node in traj:
-#         im_draw.point([(traj_node.coordinates[0], traj_node.coordinates[1])], fill=ADV_TRAJ_NODE_COLOR)
-
-
-def _loadMarkersFromJson():
-    """
-    Loads the workstation markers from the corresponding JSON file so it can be appended to the Nodes in the PRM
-    """
-    wsNodes = []
-    file = f"{PATH}/maps/markers.json"
-    base_info, _ = get_base_info()
-
-    if os.path.isfile(file):
-        with open(file) as jsonfile:
-            target_identified = json.load(jsonfile)
-
-        for key in target_identified.keys():
-            x = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"][
-                "x"
-            ]
-            y = target_identified[key]["NavPosed"]["posedstamped"]["pose"]["position"][
-                "y"
-            ]
-            node = get_pixel_location_from_acml(x, y, *base_info)
-            wsNodes.append((int(node[0]), int(node[1])))
-    return wsNodes
-
-
 def get_node_with_coordinates(nodes, xycoords):
     """
     Searches for a node with the passed coordinates in the passed list
@@ -945,6 +912,29 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
     return nodes, edges, obstacles_to_remove
 
 
+def loadWSMarkers():
+    """
+    Loads the workstation markers from the corresponding JSON file
+    """
+    wsNodes = []
+    base_info, _ = get_base_info()
+    file = rospy.get_param("~json_path", default=f"{PATH}/maps/markers.json")
+    if os.path.isfile(file):
+        with open(file) as jsonfile:
+            target_identified = json.load(jsonfile)
+
+            for key in target_identified.keys():
+                x = target_identified[key]["NavPosed"]["posedstamped"]["pose"][
+                    "position"
+                ]["x"]
+                y = target_identified[key]["NavPosed"]["posedstamped"]["pose"][
+                    "position"
+                ]["y"]
+                node = get_pixel_location_from_acml(x, y, *base_info)
+                wsNodes.append((int(node[0]), int(node[1])))
+            return wsNodes
+
+
 def findNearestNode(nodes, xCor, yCor):
     minDist = math.inf
     nearestNode = None
@@ -994,13 +984,9 @@ def apply_PRM_init(
             nodes[i] = Node(nodes[i].coordinates[0], nodes[i].coordinates[1])
     else:
         if None in [start, goal]:
-            map_visu, nodes = add_nodes(
-                map_ref_copy, N_NODES, obstacles
-            )  # , starts, ends
+            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles)
         else:
-            map_visu, nodes = add_nodes(
-                map_ref_copy, N_NODES, obstacles, start, goal
-            )  # , starts, ends
+            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, goal)
         map_visu.save(f"{PATH}/maps/map_nodes.png")
 
     t0 = time.perf_counter()

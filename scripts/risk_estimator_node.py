@@ -4,7 +4,7 @@ import rospy
 import logging
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Bool, Float32
+from std_msgs.msg import Bool, Float32, Int16
 
 from risk_estimation import config
 from risk_estimation.eval import mains
@@ -15,8 +15,10 @@ from utils.risk_estimation_utils import (
     visualizeCommonTraj,
     getCommonTraj,
 )
+from utils.cv_utils import obstaclesMsgToObstacles
 from utils.ros_logger import set_rospy_log_lvl
 from utils.navigation_utils import pathToTraj
+from autonomous_operation.PRM import loadWSMarkers
 from risk_estimation.crash_and_remove import (
     calculate_collosion_order,
     run_crash_and_remove,
@@ -29,14 +31,11 @@ from prototype.msg import (
     CriticalSectors,
     ObstacleList,
 )
-from autonomous_operation.object_detection import Obstacle
 
 logger = logging.getLogger(__name__)
 
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
-ATTEMPTS = 3
-AMOUNT_OF_EXPLORATION = 1
 
 useBrute = False
 useSOTA = False
@@ -58,6 +57,101 @@ def setObstacle(obstacleList: ObstacleList):
     obstacleMsg = obstacleList
 
 
+def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
+    """
+    It estimates how often the known obstacles are involved in collisions in the simulation. For this, multiple risk estimations are 
+    run and the results are analysed in a matter how often a obstacle collidied relative to the number of total runs.
+
+    Args:
+        nrOfRuns (Int16): The number of risk estimations that should be run to get the risk of the obstacles.\
+                          IMPORTANT: When operationMode "commonTasks" is used, it specifies the number of runs\
+                          PER task, so each of the 6 tasks is run nrOfRuns times
+        operationMode (str, optional): How the risk estimation should be run. With "commonTasks" (default), it\
+                                       runs a estimation with each common used navigation task between workstation.\
+                                       With "random" it generates random start & goal points each time
+                          
+    Returns:
+    """
+    global obstacleMsg
+    # Parameters for probability estimator&fault injector
+    ATTEMPTS = 3
+    AMOUNT_OF_EXPLORATION = 1
+
+    ###################################################
+    # --------------- Run probability estimator ------------------
+    ###################################################
+    # Get obstacles
+    obstacles = obstaclesMsgToObstacles(obstacleMsg)
+    nrTotalRuns = 0
+    runs = []
+    rospy.loginfo(
+        "[Risk Estimator] Starting Probability Estimator&Fault Injector without brute force"
+    )
+    if "commontasks" in operationMode.lower():
+        wsNodes = loadWSMarkers()
+        commonTasks = [
+            [wsNodes[0], wsNodes[1]],
+            [wsNodes[0], wsNodes[2]],
+            [wsNodes[0], wsNodes[3]],
+            [wsNodes[1], wsNodes[2]],
+            [wsNodes[1], wsNodes[3]],
+            [wsNodes[2], wsNodes[3]],
+        ]
+        nrTotalRuns = nrOfRuns.data * len(commonTasks) * AMOUNT_OF_EXPLORATION
+
+        for task in commonTasks:
+            for _ in range(nrOfRuns.data):
+                estimation = run_crash_and_remove(
+                    configs=CONFIG,
+                    env_name=ENV_NAME,
+                    use_brute_force_baseline=False,
+                    replay_on=False,
+                    attempts=ATTEMPTS,
+                    amount_of_exploration=AMOUNT_OF_EXPLORATION,
+                    obstacles=obstacles,
+                    start=task[0],
+                    goal=task[1],
+                )
+                runs.append(estimation)
+    else:
+        nrTotalRuns = nrOfRuns.data * AMOUNT_OF_EXPLORATION
+        for _ in range(nrOfRuns.data):
+            estimation = run_crash_and_remove(
+                configs=CONFIG,
+                env_name=ENV_NAME,
+                use_brute_force_baseline=False,
+                replay_on=False,
+                attempts=ATTEMPTS,
+                amount_of_exploration=AMOUNT_OF_EXPLORATION,
+                obstacles=obstacles,
+            )
+            runs.append(estimation)
+    rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
+
+    #######################################################
+    # ----- Get how often the obstacles collided ----------
+    #######################################################
+    criticalObstacles = {"box": 0, "klapp": 0, "hocker": 0, "robotino": 0, "generic": 0}
+    for run in runs:
+        print(run["collided_obs"])
+        for obstacles in run["collided_obs"]:
+            for obstacle in obstacles:
+                print(obstacle)
+                criticalObstacles[obstacle.label] = (
+                    criticalObstacles[obstacle.label] + 1
+                )
+
+    for obstacle in obstacles:
+        obstacle.collisionPotential = criticalObstacles[obstacle.label] / nrTotalRuns
+
+    estimationObstacles = sorted(criticalObstacles.items(), key=lambda t: t[1])[-1][0]
+    rospy.loginfo(
+        f"[Risk Estimator] Analyzed obstacles and their potential to leading to a collison:{estimationObstacles} in {nrTotalRuns} simulations"
+    )
+
+    return criticalObstacles
+
+
 def estimateBaseline(globalPath: Path):
     """
     Runs the risk estimation itself.
@@ -75,14 +169,7 @@ def estimateBaseline(globalPath: Path):
         return
     rospy.loginfo("[Risk Estimator] Started risk estimation with SOTA")
     # Get obstacles
-    obstacles = []
-    for obstacle in obstacleMsg.obstacles:
-        # Create corners
-        tmpCorners = []
-        for corner in obstacle.corners:
-            tmpCorners.append((corner.x, corner.y))
-        # Create Obstacle
-        obstacles.append(Obstacle(tmpCorners))
+    obstacles = obstaclesMsgToObstacles(obstacleMsg)
 
     done, risk = mains(
         mode=False,
@@ -117,6 +204,10 @@ def estimateRisk(globalPath: Path):
         Publishes a risk message to the topic "/risk_estimation"
     """
     global useBrute
+    # Parameters for probability estimator&fault injector
+    ATTEMPTS = 3
+    AMOUNT_OF_EXPLORATION = 1
+    # Parameters for risk calculation
     COST_COLLISION = 200
     COST_PRODUCTION_STOP = 100
     COST_COLLISIONSTOP = COST_COLLISION + COST_PRODUCTION_STOP
@@ -126,14 +217,7 @@ def estimateRisk(globalPath: Path):
     ###################################################
     traj = pathToTraj(globalPath)
     # Get obstacles
-    obstacles = []
-    for obstacle in obstacleMsg.obstacles:
-        # Create corners
-        tmpCorners = []
-        for corner in obstacle.corners:
-            tmpCorners.append((corner.x, corner.y))
-        # Create Obstacle
-        obstacles.append(Obstacle(tmpCorners))
+    obstacles = obstaclesMsgToObstacles(obstacleMsg)
 
     if useBrute:
         rospy.loginfo(
@@ -291,6 +375,9 @@ def riskEstimator():
     # Risk estimators
     rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateRisk, queue_size=1)
     rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, estimateBaseline, queue_size=1)
+    rospy.Subscriber(
+        Topics.NR_OF_RUNS.value, Int16, estimateRiskOfObjects, queue_size=1
+    )
     # Selecting which additional estimator to use (beside the risk estimation used by prototype)
     rospy.Subscriber(Topics.BRUTEFORCE_ENABLED.value, Bool, setUseBrute, queue_size=10)
     rospy.Subscriber(Topics.SOTA_ENABLED.value, Bool, setUseSOTA, queue_size=10)

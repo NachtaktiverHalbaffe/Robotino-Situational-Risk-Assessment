@@ -19,16 +19,21 @@ class Obstacle:
     coordinates, not some class-objects)
     """
 
-    def __init__(self, corners):
+    def __init__(self, corners, label="generic"):
         # Corners is a list of tuples (coordinates)
         self.corners = corners
         # borders are represented as a list of lists, each containing two points (tuples)
         self.borders = self.find_outer_borders()
+        # name of the obstacle
+        self.label = label
+        # A simulation can be run in risk estimator and there can be stochastically determined how often the object was involved in a collision.
+        # This value is then stored in here
+        self.collisionPotential = 0
 
     def __str__(self):
         corners_str = f"corners: {str(self.corners)}"
         borders = f"borders: {str(self.borders)}"
-        return f"{corners_str}\n{borders}"
+        return f"{self.label}: {corners_str}\n{borders}"
 
     __repr__ = __str__  # X kind of a bad practice
 
@@ -279,7 +284,9 @@ def generate_map_ref(map_ref):
     """
 
     pixels = map_ref
-    obs = np.array(np.zeros(len(map_ref) * len(map_ref[0]))).reshape(len(map_ref), len(map_ref[0]))
+    obs = np.array(np.zeros(len(map_ref) * len(map_ref[0]))).reshape(
+        len(map_ref), len(map_ref[0])
+    )
 
     for y in range(0, len(pixels)):
         for x in range(0, len(pixels[0])):
@@ -287,7 +294,9 @@ def generate_map_ref(map_ref):
                 obs[y][x] = 255
             elif pixels[y][x] == 254 or pixels[y][x] == 255:
                 obs[y][x] = 0
-            elif pixels[y][x] == 40:  # unknown area - for now treated like walls / in PRM it is still set as 40
+            elif (
+                pixels[y][x] == 40
+            ):  # unknown area - for now treated like walls / in PRM it is still set as 40
                 obs[y][x] = 255
             elif pixels[y][x] == 205:  # also unknown area (if we didn't crop)
                 obs[y][x] = 255
@@ -298,7 +307,9 @@ def generate_map_ref(map_ref):
 
 
 # it can still always happen that two tables stand in a way so that it is impossible to know how to place the representation perfectly
-def replace_object(threshold, map_gray, template, representation, mask, corner_coordinates=None):
+def replace_object(
+    threshold, map_gray, template, representation, mask, corner_coordinates=None
+):
     """
     Applies template matching and wherever the correlation threshold is at maximum and exceeding the threshold, the
     obstacle-representation is put into the map (colored white)
@@ -395,7 +406,11 @@ def apply_object_detection(map_path):
     map_grey = map_grey.convert("L")
     map_grey.save(f"{PATH}/maps/map_cropped.png")
     # map_grey = Image.open(map_path)
-    map_grey = np.array(map_grey.getdata()).reshape((map_grey.size[1], map_grey.size[0])).astype("uint8")
+    map_grey = (
+        np.array(map_grey.getdata())
+        .reshape((map_grey.size[1], map_grey.size[0]))
+        .astype("uint8")
+    )
 
     # handcrafted map:
     # all of these lists need to have the right order of elements (same order)
@@ -420,7 +435,9 @@ def apply_object_detection(map_path):
     ]
     representations = [
         cv.imread(f"{PATH}/representations/scanner/representation_H_table.png", 0),
-        cv.imread(f"{PATH}/representations/scanner/representation_trapezoid_table4.png", 0),
+        cv.imread(
+            f"{PATH}/representations/scanner/representation_trapezoid_table4.png", 0
+        ),
     ]
     masks = [
         cv.imread(f"{PATH}/masks/mask_H_table.png", 0),
@@ -447,7 +464,9 @@ def apply_object_detection(map_path):
         for angle in range(0, int(360 / a)):  # 4    #360
             angle = a * angle
             template = ndimage.rotate(templates[i], angle=angle, cval=255, order=5)
-            representation = ndimage.rotate(representations[i], angle=angle, cval=255, order=5)
+            representation = ndimage.rotate(
+                representations[i], angle=angle, cval=255, order=5
+            )
             mask = ndimage.rotate(masks[i], angle=angle, cval=0, order=5)
             threshold = thresholds[i]
             # h, w = template.shape
@@ -458,10 +477,14 @@ def apply_object_detection(map_path):
             if replaced:
                 angles_over_threshold[angle] = conf
 
-        angles_sorted = sorted(angles_over_threshold, key=angles_over_threshold.get, reverse=True)
+        angles_sorted = sorted(
+            angles_over_threshold, key=angles_over_threshold.get, reverse=True
+        )
         for angle in angles_sorted:
             template = ndimage.rotate(templates[i], angle=angle, cval=255, order=0)
-            representation = ndimage.rotate(representations[i], angle=angle, cval=255, order=0)
+            representation = ndimage.rotate(
+                representations[i], angle=angle, cval=255, order=0
+            )
             mask = ndimage.rotate(masks[i], angle=angle, cval=0, order=0)
             corner_points_i = ndimage.rotate(
                 corner_points[i], angle=angle, cval=255, order=1
@@ -530,7 +553,11 @@ def create_random_map():
 
     map_size = map_empty.size
 
-    map_empty = np.array(map_empty.getdata()).reshape((map_size[1], map_size[0])).astype("uint8")
+    map_empty = (
+        np.array(map_empty.getdata())
+        .reshape((map_size[1], map_size[0]))
+        .astype("uint8")
+    )
     n_objects = np.random.randint(8, 12)
 
     positions = []
@@ -576,16 +603,25 @@ def create_random_map():
     obstacles = []
     for i in range(0, n_objects):
         template = ndimage.rotate(templates[i], angle=rotations[i], cval=255, order=0)
-        representation = ndimage.rotate(representations[i], angle=rotations[i], cval=255, order=0)
-        corner_points_i = ndimage.rotate(corner_points[i], angle=rotations[i], cval=255, order=2)
+        representation = ndimage.rotate(
+            representations[i], angle=rotations[i], cval=255, order=0
+        )
+        corner_points_i = ndimage.rotate(
+            corner_points[i], angle=rotations[i], cval=255, order=2
+        )
         _, corner_coordinates = extract_corners(corner_points_i)
 
         w, h = template.shape[::-1]
         for x in range(0, w):
             for y in range(0, h):
-                if positions[i][1] + y < map_size[1] and positions[i][0] + x < map_size[0]:
+                if (
+                    positions[i][1] + y < map_size[1]
+                    and positions[i][0] + x < map_size[0]
+                ):
                     if template[y, x] != 255 and representation[y, x] != 255:
-                        map_empty[positions[i][1] + y, positions[i][0] + x] = representation[y, x]
+                        map_empty[
+                            positions[i][1] + y, positions[i][0] + x
+                        ] = representation[y, x]
         corners = []
         for j in range(0, len(corner_coordinates[0])):
             corners.append(
@@ -606,6 +642,7 @@ def test_detection():
     """
     Just for debugging...
     """
+
     # I want to have this function as part of the environment class or so, not here in obj_detection
     def interpolate_segment(segment):
         p1 = segment[0]
@@ -621,7 +658,9 @@ def test_detection():
 
         segment_interpolated = []
         for i in range(0, n_interpol_steps + 1):
-            segment_interpolated.append((np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y)))
+            segment_interpolated.append(
+                (np.round(p1[0] + i * step_x), np.round(p1[1] + i * step_y))
+            )
 
         return segment_interpolated
 

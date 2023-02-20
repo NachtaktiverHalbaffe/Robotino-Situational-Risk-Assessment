@@ -36,13 +36,17 @@ def get_box_and_klapp():
     klapp = {
         "name": "klapp",
         "size": np.array([0.465, 0.48, 0.35]),
-        "location": np.array([-1.20 + 0.35 / 2 + x_shift_klapp, 0.0, 1.20 - 0.48 / 2 + y_shift_klapp]),
+        "location": np.array(
+            [-1.20 + 0.35 / 2 + x_shift_klapp, 0.0, 1.20 - 0.48 / 2 + y_shift_klapp]
+        ),
         "angle": 0,
     }
     box = {
         "name": "box",
         "size": np.array([0.482, 0.353, 0.238]),
-        "location": np.array([-1.20 + 0.238 / 2 + x_shift_box, 0.0, 2.40 - 0.353 / 2 + y_shift_box]),
+        "location": np.array(
+            [-1.20 + 0.238 / 2 + x_shift_box, 0.0, 2.40 - 0.353 / 2 + y_shift_box]
+        ),
         "angle": 0,
     }
     hocker = {
@@ -104,7 +108,7 @@ def get_objects():
         "angle": 2.22,
     }
     wm_6 = {
-        "name": "wm5",
+        "name": "wm6",
         "size": np.array([0.96 * 2, 1.15, 0.80]),
         "location": np.array([1.98, 0.0, 3.30]),
         "angle": 2.22,
@@ -183,7 +187,9 @@ def object_grid_to_pixel(pixel_map_info, object):
     pixel_corners = []
     for corner in corners:
         pixel_corners.append(
-            get_pixel_location_from_acml(*convert_grid_to_robo(corner[2], corner[0]), *pixel_map_info)
+            get_pixel_location_from_acml(
+                *convert_grid_to_robo(corner[2], corner[0]), *pixel_map_info
+            )
         )
 
     return pixel_corners
@@ -211,7 +217,7 @@ def get_obstacles_in_pixel_map(pixel_map_info, objects="ws"):
         pixel_corners_all.append(object_grid_to_pixel(pixel_map_info, object))
     # have the objects be obstacles
     obstacles = []
-    for corners in pixel_corners_all:
-        obstacles.append(Obstacle(corners))
+    for i in range(len(pixel_corners_all)):
+        obstacles.append(Obstacle(pixel_corners_all[i], label=names[i]))
 
     return obstacles, names

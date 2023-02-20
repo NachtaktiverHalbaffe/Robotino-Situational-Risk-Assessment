@@ -153,6 +153,8 @@ def run_crash_and_remove(
     expand_length=3,
     amount_of_exploration=10,
     initialTraj=None,
+    start=None,
+    goal=None,
     obstacles=None,
 ):
     """
@@ -183,6 +185,7 @@ def run_crash_and_remove(
         len_traj_list_in_m  (list()): Actual length of the trajectory
         rl_actions_to_crash_lists (list of list(int)): A list the adversary has done to provoke a collision
         wall_discards (list(int)): Number of discarded RL runs due to wall collision
+        collided_obs (list(Obstacle)): A list of the obstacles with which the roboter collided in the fault injector
     """
 
     #  -------------------------- loading the agent and the environment ----------------------------------------
@@ -196,16 +199,16 @@ def run_crash_and_remove(
         env = gym.make(env_name, config=configs)
 
     policy_kwargs = dict(features_extractor_class=SameExtractor)
-    model = PPO(
-        ActorCriticCnnPolicy,
-        env,
-        policy_kwargs=policy_kwargs,
-        verbose=1,
-        tensorboard_log=f"{PATH}/logs/",
-        n_steps=64,
-        learning_rate=0.1,
-        device="cuda",
-    )
+    # model = PPO(
+    #     ActorCriticCnnPolicy,
+    #     env,
+    #     policy_kwargs=policy_kwargs,
+    #     verbose=1,
+    #     tensorboard_log=f"{PATH}/logs/",
+    #     n_steps=64,
+    #     learning_rate=0.1,
+    #     device="cuda",
+    # )
     obs = env.reset()
     adv1 = Sb3_as_adv(env, load_dir=configs["model_location"])
 
@@ -216,6 +219,7 @@ def run_crash_and_remove(
     len_traj_list = []
     len_traj_list_in_m = []
     rl_actions_to_crash_lists = []
+    collided_obs_list = []
 
     # Info how often the exception hit wall needs to be handeled  # TODO find better handeling than discarding the run
     wall_discards = 0
@@ -277,11 +281,14 @@ def run_crash_and_remove(
                 new_traj=True,
                 forced_traj=initialTraj,
             )
+        # Generate a trajectory with a given start and endpoint
+        elif start != None and goal != None:
+            _, traj_vanilla = env.env_real.reset(
+                "adv1", start=start, goal=goal, new_traj=True
+            )
         # Randomly generate new trajectory
         else:
-            _, traj_vanilla = env.env_real.reset(
-                "adv1", start=[93, 122], goal=configs["goal"], new_traj=True
-            )
+            _, traj_vanilla = env.env_real.reset("adv1", new_traj=True)
         traj_vanilla_org = deepcopy(traj_vanilla)
         prob_collision_brute = 0
         if use_brute_force_baseline:
@@ -308,6 +315,7 @@ def run_crash_and_remove(
         # --------------------------------- Run the RL loop --------------------------------------
         prob_collision_with_Node = []
         successful_actions = []
+        collided_obstacles = []
         env.set_persisten_map(True)
         break_out = False
         temp_disable_replay = False
@@ -388,6 +396,7 @@ def run_crash_and_remove(
                     if "obstables_to_remove" in info:
                         obsts = info["obstables_to_remove"]
                         for obst in obsts:
+                            collided_obstacles.append(obst)
                             env.env_real.map_ref = modify_map_out(
                                 env.env_real.map_ref,
                                 [obst[0]],
@@ -454,6 +463,7 @@ def run_crash_and_remove(
             len_traj_list.append(len(traj_vanilla))
             len_traj_list_in_m.append(traj_length(traj_vanilla))
             rl_actions_to_crash_lists.append(successful_actions)
+            collided_obs_list.append(collided_obstacles)
 
             "every 500 runs we save the current state"
             if len(rl_actions_to_crash_lists) % 500 == 0 and not replay_on:
@@ -466,6 +476,7 @@ def run_crash_and_remove(
                         "len_traj_list_in_m": len_traj_list_in_m,
                         "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
                         "wall_discards": wall_discards,
+                        "collided_obs": collided_obs_list,
                     }
                 )
                 filehandler = open(save_location, "wb")
@@ -481,6 +492,7 @@ def run_crash_and_remove(
         "len_traj_list_in_m": len_traj_list_in_m,
         "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
         "wall_discards": wall_discards,
+        "collided_obs": collided_obs_list,
     }
     if not replay_on:
         df_save = pd.DataFrame(data)
