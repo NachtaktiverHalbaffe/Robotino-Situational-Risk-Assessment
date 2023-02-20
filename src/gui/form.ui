@@ -43,7 +43,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -638,6 +638,16 @@ background-image: url(src/gui/ml_rl_background.jpeg)
           </item>
           <item>
            <layout class="QGridLayout" name="gridLayout_2">
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_11">
+              <property name="text">
+               <string>### Risk estimation</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::MarkdownText</enum>
+              </property>
+             </widget>
+            </item>
             <item row="1" column="2">
              <widget class="QPushButton" name="pushButton_driveToWS">
               <property name="text">
@@ -645,30 +655,10 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="1" column="3">
-             <widget class="QLabel" name="label_7">
+            <item row="1" column="5">
+             <widget class="QPushButton" name="pushButton_driveToCor">
               <property name="text">
-               <string>Coordinate</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_5">
-              <property name="text">
-               <string>### Drive to </string>
-              </property>
-              <property name="textFormat">
-               <enum>Qt::MarkdownText</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QSpinBox" name="spinBox_wsId"/>
-            </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>Workstation:</string>
+               <string>Send Command</string>
               </property>
              </widget>
             </item>
@@ -696,10 +686,47 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </item>
              </layout>
             </item>
-            <item row="1" column="5">
-             <widget class="QPushButton" name="pushButton_driveToCor">
+            <item row="1" column="1">
+             <widget class="QSpinBox" name="spinBox_wsId"/>
+            </item>
+            <item row="1" column="3">
+             <widget class="QLabel" name="label_7">
               <property name="text">
-               <string>Send Command</string>
+               <string>Coordinate</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>Workstation:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>### Drive to </string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::MarkdownText</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>Number of runs:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QSpinBox" name="spinBox_nrOfRuns"/>
+            </item>
+            <item row="3" column="2">
+             <widget class="QPushButton" name="pushButton">
+              <property name="text">
+               <string>Estimate obstacle risk</string>
               </property>
              </widget>
             </item>
