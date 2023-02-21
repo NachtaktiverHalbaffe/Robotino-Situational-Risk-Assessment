@@ -3,12 +3,14 @@
 # https://github.com/vwxyzjn/PPO-Implementation-Deep-Dive
 
 import numpy as np
+import os
 import torch
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.categorical import Categorical
 
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -538,6 +540,7 @@ class Agent:
         print("... loading models ...")
         self.actor.load_checkpoint(path, name)
         self.critic.load_checkpoint(path, name)
+        print("... loaded models ...")
 
     def choose_action(self, observation, test_mode=False):
         """
@@ -636,7 +639,6 @@ class Agent:
 
             # For all items in memory
             for i in range(0, len(state_arr_list)):
-
                 values = np.array(vals_arr_list[i])
                 reward_arr = np.array(reward_arr_list[i])
                 dones_arr = np.array(dones_arr_list[i])
@@ -742,8 +744,16 @@ class Agent:
                 T.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
-                
-        plot_density_new(np.array((all_advantages + all_vals).cpu()), np.array(all_vals.cpu()),
-                evaluated=['', "swapnil/training_plots/q_values_return_density", "/return_estimated_q_lower_agent_train_"], episode_number=999999)
+
+        plot_density_new(
+            np.array((all_advantages + all_vals).cpu()),
+            np.array(all_vals.cpu()),
+            evaluated=[
+                "",
+                "swapnil/training_plots/q_values_return_density",
+                "/return_estimated_q_lower_agent_train_",
+            ],
+            episode_number=999999,
+        )
 
         self.memory.clear_memory()

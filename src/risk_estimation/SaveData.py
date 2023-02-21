@@ -12,18 +12,21 @@ def traj_length(traj_vanilla):
     Returns:
         length (float): Length of the trajectory. Is rounded to 4 decimal places
     """
-    prev = traj_vanilla[0].coordinates
-    length = 0
+    if len(traj_vanilla) != 0:
+        prev = traj_vanilla[0].coordinates
+        length = 0
 
-    for i in range(1, len(traj_vanilla)):
-        # Coordinate of current node
-        curr = traj_vanilla[i].coordinates
-        # Simple vector calculation: linear distance between prev-node and curr-node
-        length += np.linalg.norm(np.array(curr) - np.array(prev))
-        # Set current node as last node
-        prev = curr
+        for i in range(1, len(traj_vanilla)):
+            # Coordinate of current node
+            curr = traj_vanilla[i].coordinates
+            # Simple vector calculation: linear distance between prev-node and curr-node
+            length += np.linalg.norm(np.array(curr) - np.array(prev))
+            # Set current node as last node
+            prev = curr
 
-    length = np.round(length, 4)
+        length = np.round(length, 4)
+    else:
+        length = 0
     return length
 
 

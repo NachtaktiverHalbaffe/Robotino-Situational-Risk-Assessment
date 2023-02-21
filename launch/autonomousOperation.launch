@@ -8,10 +8,9 @@
 
     <!-- Remap topics -->
     <remap from="cmd_vel_real" to="/my_cmd_vel" /> 
-     <include file="$(find robotino_node)/launch/robotino_node.launch">
+    <include file="$(find robotino_node)/launch/robotino_node.launch">
         <arg name="hostname" value="$(arg hostname)"/>
-        <remap from="odom" to="/odom_robotino" /> 
-     </include> 
+    </include> 
 
     <!-- Global parameters which can be used inside nodes -->
     <param name="robot_description" textfile="$(find robotino_description)/robotino.urdf" />
@@ -45,6 +44,7 @@
     </node>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" >
         <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny10_hocker.pt"/>
+        <!-- <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny_robotino.pt"/> -->
         <param name="path_error_dist" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12.csv"/>
         <param name="path_error_dist_doorclosed" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv" />
     </node>

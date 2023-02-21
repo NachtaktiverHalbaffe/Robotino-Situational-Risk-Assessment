@@ -29,7 +29,7 @@ except:
 class RoboEnv_gym(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config, obstacles=None):
+    def __init__(self, config, obstacles=None, invertMap=False, isTraining=True):
         self.actions_per_dimension = 5
         self.onesided = False
         self.config = config
@@ -44,6 +44,8 @@ class RoboEnv_gym(gym.Env):
                 visualize=visualize,
                 start=config["start"],
                 goal=config["goal"],
+                invertMap=invertMap,
+                isTraining=isTraining,
             )
         else:
             self.env_real = Environment(
@@ -55,6 +57,8 @@ class RoboEnv_gym(gym.Env):
                 start=config["start"],
                 goal=config["goal"],
                 obstacles=obstacles,
+                invertMap=invertMap,
+                isTraining=isTraining,
             )
 
         "some extra settings"
@@ -66,7 +70,9 @@ class RoboEnv_gym(gym.Env):
         self.done = False
 
         "defining the action and observation space"
-        self.action_space = spaces.MultiDiscrete([self.actions_per_dimension, self.actions_per_dimension])
+        self.action_space = spaces.MultiDiscrete(
+            [self.actions_per_dimension, self.actions_per_dimension]
+        )
         self.observation_space = spaces.Box(0, 255, shape=(1, 200, 200), dtype=np.uint8)
 
         "Here we are defining the actions and probabilites"  # TODO move this into the config file
@@ -122,8 +128,15 @@ class RoboEnv_gym(gym.Env):
 
         "Every n_reset_nodes episodes we want to generate new nodes to not overfit to the current ones"
         self.episode_counter = self.episode_counter + 1
-        if (self.episode_counter % self.n_reset_nodes == 0) or self.episode_counter == 1:
-            out = self.env_real.reset("adv1", new_nodes=True, start=self.config["start"], goal=self.config["goal"])
+        if (
+            self.episode_counter % self.n_reset_nodes == 0
+        ) or self.episode_counter == 1:
+            out = self.env_real.reset(
+                "adv1",
+                new_nodes=True,
+                start=self.config["start"],
+                goal=self.config["goal"],
+            )
             observation, traj_vanilla = out
         else:
             observation, traj_vanilla = self.env_real.reset(
@@ -151,20 +164,34 @@ class RoboEnv_gym(gym.Env):
             print("expanding single dimensional action into two")
 
         "adding the actions to a dict that we are using to make sure that the Env stays compatible with the main file"
-        actions_sb3 = {"angle_loc": self.angles[action_index_rot], "dist_loc": self.dists[action_index_dist]}
+        actions_sb3 = {
+            "angle_loc": self.angles[action_index_rot],
+            "dist_loc": self.dists[action_index_dist],
+        }
         probs_action_sb3 = {
             "angle_loc": self.angle_probs[action_index_rot],
             "dist_loc": self.dist_probs[action_index_dist],
-            "combined": self.angle_probs[action_index_rot] * self.dist_probs[action_index_dist],
+            "combined": self.angle_probs[action_index_rot]
+            * self.dist_probs[action_index_dist],
         }
 
         "calling the step function of the underlying Environment file, the passed actions are not used instead the passed action dict is"
-        obs, reward, done, collision_status, adv1_node2, old_position, obstables_to_remove = self.env_real.step_adv1(
-            0, 0, actions_sb3, probs_action_sb3
-        )
+        (
+            obs,
+            reward,
+            done,
+            collision_status,
+            adv1_node2,
+            old_position,
+            obstables_to_remove,
+        ) = self.env_real.step_adv1(0, 0, actions_sb3, probs_action_sb3)
 
         "packing the additonal info passes into the info dict required by gym standards"
-        info = {"collision_status": collision_status, "old_position": old_position, "adv1_node2": adv1_node2}
+        info = {
+            "collision_status": collision_status,
+            "old_position": old_position,
+            "adv1_node2": adv1_node2,
+        }
         if done:
             info["final_state"] = collision_status
         if len(obstables_to_remove) > 0:
@@ -182,5 +209,7 @@ class RoboEnv_gym(gym.Env):
 
 
 if __name__ == "__main__":
-    print("this wraps the real env into gym format so that it can be passed to SB3 or other rl libs")
+    print(
+        "this wraps the real env into gym format so that it can be passed to SB3 or other rl libs"
+    )
     pass

@@ -16,6 +16,7 @@ from move_base_msgs.msg import (
 )
 from std_msgs.msg import Bool
 from nav_msgs.msg import Path
+from threading import Event
 
 from prototype.msg import (
     Risk,
@@ -39,6 +40,7 @@ feedbackValue = []
 doneFeedback = -1
 trajectory = []
 evalManagerClient = EvalManagerClient()
+emergencyStop = Event()
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -58,6 +60,15 @@ def _moveBaseActionDoneCallback(data: MoveBaseActionResult):
     global doneFeedback
     doneFeedback = int(data.status.status)
     print(data)
+
+
+def setEmergencyStop(lidarEnabled: Bool):
+    global emergencyStop
+    if not lidarEnabled.data:
+        rospy.logwarn("[Strategy Planner] EMERGENCY-STOP:LIDAR has failed")
+        emergencyStop.set()
+    else:
+        emergencyStop.clear()
 
 
 def reconfigureMovebase(lidarEnabled: Bool):
@@ -136,6 +147,7 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
     """
     global feedbackValue
     global doneFeedback
+    global emergencyStop
 
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
     for node in path.poses[1:]:
@@ -154,6 +166,11 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
         client.send_goal(goal, feedback_cb=_moveBaseCallback)
         while not rospy.is_shutdown():
             doneFeedback = -1
+
+            if emergencyStop.is_set():
+                client.cancel_all_goals()
+                return 4
+
             if feedbackValue:
                 if (
                     (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
@@ -181,6 +198,7 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
         path (nav_msgs.Path): The path to drive
     """
     global feedbackValue
+    global emergencyStop
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
 
     client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
@@ -198,6 +216,9 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
     client.send_goal(goal, feedback_cb=_moveBaseCallback)
 
     while not rospy.is_shutdown():
+        if emergencyStop.is_set():
+            client.cancel_all_goals()
+            return 4
         if feedbackValue:
             if (
                 (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
@@ -309,7 +330,7 @@ def chooseStrategy(riskEstimation: Risk):
                     y=trajectory.poses[i].pose.position.y,
                 )
                 result = moveBaseClient(trajectory.poses[i])
-                if result.status != 3:
+                if result >= 4:
                     # move base failed
                     evalManagerClient.evalLogStop()
                     return
@@ -335,6 +356,7 @@ def strategyPlanner(runWithRiskEstimation=True):
     rospy.Subscriber(
         Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10
     )
+    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setEmergencyStop, queue_size=10)
     rospy.Subscriber(
         Topics.MOVE_BASE_FEEDBACK.value,
         MoveBaseActionFeedback,

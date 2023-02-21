@@ -3,7 +3,7 @@ import csv
 import rospy
 import os
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped, Point32, PolygonStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Point, Point32, PolygonStamped
 from sensor_msgs.msg import Image
 from jsk_recognition_msgs.msg import PolygonArray
 from copy import deepcopy
@@ -224,8 +224,6 @@ def detect(log_detection_error=True):
         detec_movables_obstacles.append(geofencedObs)
         detectedObstacles = detec_movables_obstacles
         visualizeObstacles()
-
-        rospy.Rate(25).sleep()
 
 
 def objectDetection():

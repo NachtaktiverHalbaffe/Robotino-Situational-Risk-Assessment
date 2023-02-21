@@ -32,7 +32,9 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 class RoboEnv_gym_2(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config, env=None, obstacles=None):
+    def __init__(
+        self, config, env=None, obstacles=None, invertMap=False, isTraining=True
+    ):
         self.persisten_map = False
         self.actions_per_dimension = 5
         self.num_action_options = self.actions_per_dimension
@@ -49,6 +51,8 @@ class RoboEnv_gym_2(gym.Env):
                 visualize=visualize,
                 start=config["start"],
                 goal=config["goal"],
+                invertMap=invertMap,
+                isTraining=isTraining,
             )
         else:
             self.env_real = Environment(
@@ -60,6 +64,8 @@ class RoboEnv_gym_2(gym.Env):
                 start=config["start"],
                 goal=config["goal"],
                 obstacles=obstacles,
+                invertMap=invertMap,
+                isTraining=isTraining,
             )
         "some extra settings"
         self.n_reset_nodes = config["n_reset_nodes"]
@@ -70,7 +76,9 @@ class RoboEnv_gym_2(gym.Env):
         self.done = False
 
         "defining the action and observation space"
-        self.action_space = spaces.MultiDiscrete([self.actions_per_dimension, self.actions_per_dimension])
+        self.action_space = spaces.MultiDiscrete(
+            [self.actions_per_dimension, self.actions_per_dimension]
+        )
         self.observation_space = spaces.Box(0, 255, shape=(1, 200, 200), dtype=np.uint8)
 
         "Here we are defining the actions and probabilites"  # TODO move this into the config file
@@ -124,19 +132,27 @@ class RoboEnv_gym_2(gym.Env):
     def set_persisten_map(self, persisten_map=False):
         self.persisten_map = persisten_map
 
-    def reset(self, agent_name="adv1", new_nodes=False, start=[62, 74], goal=[109, 125]):
+    def reset(
+        self, agent_name="adv1", new_nodes=False, start=[62, 74], goal=[109, 125]
+    ):
         """This is the overwritable version of reset that links to the actual version
 
         Returns:
             [Dict of NumpyArrays]: Dictionary of the observation of the part and canvas
         """
         observation, traj_vanilla = self.env_real.reset(
-            agent_name, new_nodes=new_nodes, start=start, goal=goal, persisten_map=self.persisten_map
+            agent_name,
+            new_nodes=new_nodes,
+            start=start,
+            goal=goal,
+            persisten_map=self.persisten_map,
         )
         return observation  # , traj_vanilla
 
     def step(self, network_action, action_prob_placeholder=0):
-        return self.step_adv1(network_action, action_prob_placeholder=action_prob_placeholder)
+        return self.step_adv1(
+            network_action, action_prob_placeholder=action_prob_placeholder
+        )
 
     def step_adv1(self, network_action, action_prob_placeholder=0):
         """This splits the 25 actions into rotation dist pairs
@@ -154,11 +170,15 @@ class RoboEnv_gym_2(gym.Env):
             action_index_dist = int(network_action / self.actions_per_dimension)
 
         "adding the actions to a dict that we are using to make sure that the Env stays compatible with the main file"
-        actions_sb3 = {"angle_loc": self.angles[action_index_rot], "dist_loc": self.dists[action_index_dist]}
+        actions_sb3 = {
+            "angle_loc": self.angles[action_index_rot],
+            "dist_loc": self.dists[action_index_dist],
+        }
         probs_action_sb3 = {
             "angle_loc": self.angle_probs[action_index_rot],
             "dist_loc": self.dist_probs[action_index_dist],
-            "combined": self.angle_probs[action_index_rot] * self.dist_probs[action_index_dist],
+            "combined": self.angle_probs[action_index_rot]
+            * self.dist_probs[action_index_dist],
         }
 
         ################################################################################
@@ -173,12 +193,22 @@ class RoboEnv_gym_2(gym.Env):
         }
 
         "calling the step function of the underlying Environment file, the passed actions are not used instead the passed action dict is"
-        obs, reward, done, collision_status, adv1_node2, old_position, obstables_to_remove = self.env_real.step_adv1(
-            0, 0, actions_sb3, probs_action_sb3
-        )
+        (
+            obs,
+            reward,
+            done,
+            collision_status,
+            adv1_node2,
+            old_position,
+            obstables_to_remove,
+        ) = self.env_real.step_adv1(0, 0, actions_sb3, probs_action_sb3)
 
         "packing the additonal info passes into the info dict required by gym standards"
-        info = {"collision_status": collision_status, "old_position": old_position, "adv1_node2": adv1_node2}
+        info = {
+            "collision_status": collision_status,
+            "old_position": old_position,
+            "adv1_node2": adv1_node2,
+        }
         if done:
             info["final_state"] = collision_status
         if len(obstables_to_remove) > 0:
@@ -218,5 +248,7 @@ class RoboEnv_gym_2(gym.Env):
 
 
 if __name__ == "__main__":
-    print("this wraps the real env into gym format so that it can be passed to SB3 or other rl libs")
+    print(
+        "this wraps the real env into gym format so that it can be passed to SB3 or other rl libs"
+    )
     pass

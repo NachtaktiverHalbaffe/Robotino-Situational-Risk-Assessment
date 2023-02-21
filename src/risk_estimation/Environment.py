@@ -5,7 +5,7 @@ import time
 import rospy
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from autonomous_operation.PRM import (
     apply_PRM,
     apply_PRM_init,
@@ -289,13 +289,20 @@ def initialize_traj(
     if not nodes:
         if env:
             # env.map_ref, env.obstacles = create_random_map()
+            if start != None and goal != None:
+                traj, traj_opt, nodes, edges_all = apply_PRM_init(
+                    env.map_ref, env.obstacles
+                )
+            else:
+                traj, traj_opt, nodes, edges_all = apply_PRM_init(
+                    env.map_ref, env.obstacles, start=start, goal=goal
+                )
+        elif start != None and goal != None:
             traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                env.map_ref, env.obstacles
-            )  # , start=start, goal=goal
+                map_ref, obstacles, start=start, goal=goal
+            )
         else:
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                map_ref, obstacles
-            )  # , start=start, goal=goal
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(map_ref, obstacles)
 
         # pickle dump ~~~
         # open_file = open('nodes_presentation', "wb")
@@ -472,22 +479,27 @@ class Environment:
         visualize=False,
         adversary=None,
         obstacles=None,
+        invertMap=False,
         start=[62, 74],
         goal=[109, 125],
+        isTraining=True,
     ):
         clear_image_files()
         # For now only have angle-offset as action
         # self.action_space = gym.spaces.Discrete(5)          # {-10, -5, 0, 5, 10}
         # self.observation_space = gym.spaces.Box(low=np.full((160, 160), 0), high=np.full((160, 160), 1), shape=(160, 160), dtype=int) # 0: empty, 1: object, 2: trajectory segment (planned), 3: current position
         self.adversary = adversary
+        self.isTraining = isTraining
         self.map_ref, self.obstacles = initialize_map(map_path)
+        if invertMap:
+            self.map_ref = ImageOps.invert(self.map_ref)
         "here we are obtaining all the obstacles as obstacles so that we can work with them for crash and remove"
         base_info, map_config = get_base_info()
         obstacles_ws, _ = get_obstacles_in_pixel_map(base_info)
         if obstacles == None:
             obstacles_movable, _ = get_obstacles_in_pixel_map(base_info, "movable")
             corners_table = [(105, 110), (103, 96), (90, 90), (80, 98)]
-            obst_table = Obstacle(corners_table)
+            obst_table = Obstacle(corners_table, label="table")
             self.obstacles = [obst_table]
             self.obstacles.extend(obstacles_movable)
         else:
@@ -1007,8 +1019,10 @@ class Environment:
         relevant_agent,
         reset_traj=True,
         new_nodes=False,
-        start=[62, 74],
-        goal=[109, 125],
+        # start=[62, 74],
+        # goal=[109, 125],
+        start=None,
+        goal=None,
         forced_traj=None,
         persisten_map=False,
         new_traj=False,
@@ -1035,7 +1049,7 @@ class Environment:
         else:
             self.persistent = False
         self.need_new = True
-        if new_traj:
+        if new_traj or (self.isTraining and reset_traj):
             if not new_nodes:
                 self.trajectory_vanilla, self.nodes_vanilla, _ = initialize_traj(
                     self.map_ref,

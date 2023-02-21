@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import numpy as np
+import pandas as pd
 import rospy
+import os
 import logging
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
@@ -33,6 +35,7 @@ from prototype.msg import (
 )
 
 logger = logging.getLogger(__name__)
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
@@ -74,7 +77,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     """
     global obstacleMsg
     # Parameters for probability estimator&fault injector
-    ATTEMPTS = 3
+    ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
 
     ###################################################
@@ -85,7 +88,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     nrTotalRuns = 0
     runs = []
     rospy.loginfo(
-        "[Risk Estimator] Starting Probability Estimator&Fault Injector without brute force"
+        "[Risk Estimator] Starting Probability Estimator&Fault Injector for determining risk of objects"
     )
     if "commontasks" in operationMode.lower():
         wsNodes = loadWSMarkers()
@@ -98,7 +101,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
             [wsNodes[2], wsNodes[3]],
         ]
         nrTotalRuns = nrOfRuns.data * len(commonTasks) * AMOUNT_OF_EXPLORATION
-
+        # Run probability estimator for each common task
         for task in commonTasks:
             for _ in range(nrOfRuns.data):
                 estimation = run_crash_and_remove(
@@ -111,10 +114,12 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     obstacles=obstacles,
                     start=task[0],
                     goal=task[1],
+                    invertMap=True,
                 )
                 runs.append(estimation)
     else:
         nrTotalRuns = nrOfRuns.data * AMOUNT_OF_EXPLORATION
+        # Run nrOfRuns times a probability estimation with random start- and goalpoints
         for _ in range(nrOfRuns.data):
             estimation = run_crash_and_remove(
                 configs=CONFIG,
@@ -124,31 +129,126 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                 attempts=ATTEMPTS,
                 amount_of_exploration=AMOUNT_OF_EXPLORATION,
                 obstacles=obstacles,
+                expand_length=2,
             )
             runs.append(estimation)
-    rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
+    rospy.loginfo(
+        "[Risk Estimator] Finished Probability Estimator&Fault Injector for determining risk of objects"
+    )
 
     #######################################################
     # ----- Get how often the obstacles collided ----------
     #######################################################
-    criticalObstacles = {"box": 0, "klapp": 0, "hocker": 0, "robotino": 0, "generic": 0}
+    # In this dict the results are saved
+    criticalObstacles = {
+        "box": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "klapp": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "hocker": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "robotino": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "generic": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws1": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws2": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws3": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws4": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws5": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+        "ws6": {
+            "collisions": 0,
+            "risks": [],
+            "relativeOccurence": 0,
+        },
+    }
+
     for run in runs:
-        print(run["collided_obs"])
-        for obstacles in run["collided_obs"]:
-            for obstacle in obstacles:
-                print(obstacle)
-                criticalObstacles[obstacle.label] = (
-                    criticalObstacles[obstacle.label] + 1
-                )
+        print(f"Length of rl_prob:{len(run['rl_prob'])}")
+        print(f"Length of collisions:{len(run['collided_obs'])}")
 
+        # Filter out probabilities where a single collision was detected twice
+        filteredProbs = []
+        filteredObstacles = []
+        # for prob in run["rl_prob"]:
+        for i in range(len(run["rl_prob"])):
+            isAlreadyPresent = False
+            for item in filteredProbs:
+                if item[0] == run["rl_prob"][i][0]:
+                    isAlreadyPresent = True
+                    break
+            if not isAlreadyPresent:
+                filteredProbs.append(run["rl_prob"][i][0])
+                filteredObstacles.append(run["collided_obs"][i])
+
+        print(f"Length of filtered rl_prob:{len(filteredProbs)}")
+        print(f"Length of filtered collisions:{len(filteredObstacles)}")
+
+        if len(filteredProbs) != 0:
+            for i in range(len(filteredProbs)):
+                try:
+                    risk = filteredProbs[i][0]
+                    for obstacle in filteredObstacles[i]:
+                        print(obstacle)
+                        criticalObstacles[obstacle.label]["collisions"] = (
+                            criticalObstacles[obstacle.label]["collisions"] + 1
+                        )
+                        criticalObstacles[obstacle.label]["risks"].append(risk)
+                except:
+                    continue
+    # Set collision potential in all known obstacle objects
     for obstacle in obstacles:
-        obstacle.collisionPotential = criticalObstacles[obstacle.label] / nrTotalRuns
+        obstacle.collisionPotential = (
+            criticalObstacles[obstacle.label]["collisions"] / nrTotalRuns
+        )
 
-    estimationObstacles = sorted(criticalObstacles.items(), key=lambda t: t[1])[-1][0]
+    for key in criticalObstacles.keys():
+        criticalObstacles[key]["relativeOccurence"] = (
+            criticalObstacles[key]["collisions"] / nrTotalRuns
+        )
+
+    # estimationObstacles = sorted(criticalObstacles.items(), key=lambda t: t[1])[-1][0]
     rospy.loginfo(
-        f"[Risk Estimator] Analyzed obstacles and their potential to leading to a collison:{estimationObstacles} in {nrTotalRuns} simulations"
+        f"[Risk Estimator] Analyzed obstacles and their potential to leading to a collison:{criticalObstacles} in {nrTotalRuns} simulations"
     )
-
+    # Save
+    df_save = pd.DataFrame(criticalObstacles)
+    df_save.to_csv(f"{PATH}/logs/risk_estimation_obstacles.csv")
     return criticalObstacles
 
 
@@ -205,7 +305,7 @@ def estimateRisk(globalPath: Path):
     """
     global useBrute
     # Parameters for probability estimator&fault injector
-    ATTEMPTS = 3
+    ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
     # Parameters for risk calculation
     COST_COLLISION = 200
@@ -232,6 +332,8 @@ def estimateRisk(globalPath: Path):
             amount_of_exploration=AMOUNT_OF_EXPLORATION,
             initialTraj=traj,
             obstacles=obstacles,
+            invertMap=True,
+            expand_length=2,
         )
     else:
         rospy.loginfo(
@@ -246,6 +348,8 @@ def estimateRisk(globalPath: Path):
             amount_of_exploration=AMOUNT_OF_EXPLORATION,
             initialTraj=traj,
             obstacles=obstacles,
+            invertMap=True,
+            expand_length=2,
         )
     rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(
@@ -288,7 +392,19 @@ def estimateRisk(globalPath: Path):
         # Critical sector: A sector where the probability estimator estimated a possible collision.
         # The given nodeNr is the end node of the sector
         riskCollisionStopProb = 0
-        for probability in estimation["rl_prob"][i]:
+
+        # Filter out probabilities where a single collision was detected twice
+        filteredProbs = []
+        for prob in estimation["rl_prob"][i]:
+            isAlreadyPresent = False
+            for item in filteredProbs:
+                if item[0] == prob[0]:
+                    isAlreadyPresent = True
+                    break
+            if not isAlreadyPresent:
+                filteredProbs.append(prob)
+
+        for probability in filteredProbs:
             nodeNr = probability[1]
             rawProb = probability[0]
             # Critical sector is a custom ros message, but is always part of the custom ros message CriticalSectors

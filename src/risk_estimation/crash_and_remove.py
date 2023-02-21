@@ -156,6 +156,7 @@ def run_crash_and_remove(
     start=None,
     goal=None,
     obstacles=None,
+    invertMap=False,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -174,8 +175,9 @@ def run_crash_and_remove(
         attempts (int, optional): Number of trajectories to simulation and evaluate. Defaults to 10
         expand_length (int, optional): Length of the brute for search around a collision. Defaults to 3
         amount_of_exploration (int, optional): Number of attemts the agent gets to find a collision. Defaults to 10
-        intialTraj( list of coordinates): Initial trajectory for which the risk estimation should be run. Defaults to None
-        obstacles (list(Obstacle)): Detected obstacles which should be used in probability estimation
+        intialTraj( list of coordinates, optional): Initial trajectory for which the risk estimation should be run. Defaults to None
+        obstacles (list(Obstacle), optional): Detected obstacles which should be used in probability estimation
+        invertMap(bool, optional): If map reference should be inverted. Needed when a PRM is used
 
     Returns (in a dict):
         rl_prob (list(float)): Probabilities calculated by the reinforcement learning agents
@@ -193,10 +195,21 @@ def run_crash_and_remove(
     # env = DummyVecEnv([lambda: Monitor(gym.make(env_name, config=configs))
     #                  for i in range(1)])
     if obstacles != None:
-        env = gym.make(env_name, config=configs, obstacles=obstacles)
+        env = gym.make(
+            env_name,
+            config=configs,
+            obstacles=obstacles,
+            invertMap=invertMap,
+            isTraining=False,
+        )
         # env = gym.make(env_name, config=configs)
     else:
-        env = gym.make(env_name, config=configs)
+        env = gym.make(
+            env_name,
+            config=configs,
+            invertMap=invertMap,
+            isTraining=False,
+        )
 
     policy_kwargs = dict(features_extractor_class=SameExtractor)
     # model = PPO(
@@ -396,7 +409,7 @@ def run_crash_and_remove(
                     if "obstables_to_remove" in info:
                         obsts = info["obstables_to_remove"]
                         for obst in obsts:
-                            collided_obstacles.append(obst)
+                            collided_obstacles.append(obst[0])
                             env.env_real.map_ref = modify_map_out(
                                 env.env_real.map_ref,
                                 [obst[0]],
@@ -530,15 +543,15 @@ if __name__ == "__main__":
         attempts = run["attempts"]
         expand_length = run["expand_length"]
         amount_of_exploration = run["amount_of_exploration"]
-        save_location = f"{PATH}/risk_data_frames/bug_removed_{amount_of_exploration}/df_rl_v_brut_{attempts}_{expand_length}.obj"
+        # save_location = f"{PATH}/risk_data_frames/bug_removed_{amount_of_exploration}/df_rl_v_brut_{attempts}_{expand_length}.obj"
 
         run_crash_and_remove(
             configs=cfgs,
             env_name=env_name,
             use_brute_force_baseline=use_brute_force_baseline,
-            save_location=save_location,
+            # save_location=save_location,
             replay_on=replay_on,
-            load_location=load_location,
+            # load_location=load_location,
             attempts=attempts,
             expand_length=expand_length,
             amount_of_exploration=amount_of_exploration,

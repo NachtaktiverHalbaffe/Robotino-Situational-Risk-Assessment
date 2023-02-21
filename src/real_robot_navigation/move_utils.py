@@ -9,7 +9,6 @@ import cv2
 import rospy
 from geometry_msgs.msg import Twist
 from copy import deepcopy
-from PIL import ImageOps
 import matplotlib.pylab as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -425,7 +424,7 @@ def modify_map(
         map_ref_adv = map_ref_adv.convert("L")
 
     if savePath != None:
-        map_ref_adv = ImageOps.invert(map_ref_adv)
+        # map_ref_adv = ImageOps.invert(map_ref_adv)
         map_ref_adv.save(savePath)
         rospy.logdebug(f"[Move Utils] Saved map_ref to {savePath}")
     return map_ref_adv

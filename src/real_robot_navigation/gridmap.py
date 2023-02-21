@@ -78,37 +78,37 @@ def get_objects():
     objects = []
 
     wm_1 = {
-        "name": "wm1",
+        "name": "ws4",
         "size": np.array([0.96, 1.15, 0.80]),
         "location": np.array([-2.90, 0.0, 1.27]),
         "angle": 0,
     }
     wm_2 = {
-        "name": "wm2",
+        "name": "ws3",
         "size": np.array([0.96, 1.15, 0.80]),
         "location": np.array([-2.90, 0.0, 2.50]),
         "angle": 0,
     }
     wm_3 = {
-        "name": "wm3",
+        "name": "ws6",
         "size": np.array([0.96, 1.15, 0.80]),
         "location": np.array([-2.335, 0.0, 3.75]),
         "angle": 0.80,
     }
     wm_4 = {
-        "name": "wm4",
+        "name": "ws5",
         "size": np.array([0.96, 1.15, 0.80]),
         "location": np.array([-0.42 - 0.08, 0.0, 4.20]),
         "angle": 1.55,
     }
     wm_5 = {
-        "name": "wm5",
+        "name": "ws2",
         "size": np.array([0.96, 1.15, 0.80]),
         "location": np.array([1.03, 0.0, 4.00]),
         "angle": 2.22,
     }
     wm_6 = {
-        "name": "wm6",
+        "name": "ws1",
         "size": np.array([0.96 * 2, 1.15, 0.80]),
         "location": np.array([1.98, 0.0, 3.30]),
         "angle": 2.22,

@@ -18,6 +18,7 @@ class Topics(Enum):
     IMAGE_BB_MOVEABLE = "/image_bb_moveable"
     NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
+    ODOM_ROBOTINO = "/odom_robotino"
     IR_SENSORS = "/distance_sensors"
     EMERGENCY_BRAKE = "/emergency_break"
     MARKERS = "/target_markers"
