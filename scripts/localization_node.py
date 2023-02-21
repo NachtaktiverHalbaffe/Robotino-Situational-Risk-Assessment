@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-from threading import Thread
 import time
 import rospy
 import numpy as np
+import pandas as pd
 import os
+import message_filters
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
@@ -15,7 +16,7 @@ from tf.transformations import (
 )
 from copy import deepcopy
 from cv_bridge import CvBridge
-from decimal import Decimal
+from threading import Thread
 
 from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
@@ -40,6 +41,27 @@ img_glob = []
 odom = Odometry()
 
 
+def setRealData(acmlData: PoseWithCovarianceStamped):
+    global real_data
+    real_data = [
+        "real_data",
+        acmlData.pose.pose.position.x,
+        acmlData.pose.pose.position.y,
+        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
+        acmlData.header.stamp,
+    ]
+
+
+def setUseLidar(isUsed: Bool):
+    global useLidar
+    useLidar = isUsed.data
+
+    if useLidar:
+        rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
+    else:
+        rospy.logdebug_throttle(10, "[Localization] Use camera")
+
+
 def createOdom(currentPose: PoseWithCovarianceStamped):
     """
     It creates a odometry message where the pose is taken from the localization (either amcl or computer vision bases localization
@@ -57,6 +79,44 @@ def createOdom(currentPose: PoseWithCovarianceStamped):
         publisher.publish(odomMsg)
     except Exception as e:
         rospy.logwarn(f"[Localization] Couldn't publish odometry: {e}")
+
+
+def anomalyDetector(savePath: str = "{PATH}/logs/error_dist_csvs/localization_error"):
+    """
+    Tracks/saves the error distribution between localization with LIDAR (amcl) and camera
+
+    Args:
+        acmlPose (PoseWithCovarianceStamped): Position determined by LIDAR
+        imageLoc (PoseWithCovarianceStamped): Position determined by camera based localization
+    """
+    while not rospy.is_shutdown():
+        imageLoc = rospy.wait_for_message(
+            Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+        )
+        amclPose = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
+
+        # Calculating error in localization in x,y and angle
+        xErr = amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x
+        yErr = amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y
+        distError = np.sqrt(np.sum(np.square(xErr), np.square(yErr)))
+        angleErr = amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
+
+        # Dump raw xError into csv file
+        data = pd.read_csv(f"{savePath}_x.csv")
+        data.append(pd.DataFrame(xErr), ignore_index=True)
+        data.to_csv(f"{savePath}_x.csv")
+        # Dump raw yError into csv file
+        data = pd.read_csv(f"{savePath}_y.csv")
+        data.append(pd.DataFrame(yErr), ignore_index=True)
+        data.to_csv(f"{savePath}_y.csv")
+        # Dump raw distError into csv file
+        data = pd.read_csv(f"{savePath}_dist.csv")
+        data.append(pd.DataFrame(distError), ignore_index=True)
+        data.to_csv(f"{savePath}_dist.csv")
+        # Dump raw angleError into csv file
+        data = pd.read_csv(f"{savePath}_angle.csv")
+        data.append(pd.DataFrame(angleErr), ignore_index=True)
+        data.to_csv(f"{savePath}_angle.csv")
 
 
 def localiseCam():
@@ -263,30 +323,6 @@ def setImage(rawImage: Image):
         rawImage.header.stamp,
     ]
 
-    # Run localisation
-    # localiseCam()
-
-
-def setRealData(acmlData: PoseWithCovarianceStamped):
-    global real_data
-    real_data = [
-        "real_data",
-        acmlData.pose.pose.position.x,
-        acmlData.pose.pose.position.y,
-        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
-        acmlData.header.stamp,
-    ]
-
-
-def setUseLidar(isUsed: Bool):
-    global useLidar
-    useLidar = isUsed.data
-
-    if useLidar:
-        rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
-    else:
-        rospy.logdebug_throttle(10, "[Localization] Use camera")
-
 
 def localization():
     """
@@ -320,6 +356,7 @@ def localization():
     # Publish localization
     msg = PoseWithCovarianceStamped()
     Thread(target=localiseCam).start()
+    Thread(target=anomalyDetector).start()
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
         if useLidar:
