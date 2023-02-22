@@ -43,7 +43,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -730,7 +730,14 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="3" column="3">
+            <item row="3" column="5">
+             <widget class="QComboBox" name="comboBox_errDistrANglePath">
+              <property name="placeholderText">
+               <string>Path error distribution angles</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="4">
              <widget class="QComboBox" name="comboBox_errDistrDistPath">
               <property name="currentText">
                <string/>
@@ -743,10 +750,10 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="3" column="4">
-             <widget class="QComboBox" name="comboBox_errDistrANglePath">
-              <property name="placeholderText">
-               <string>Path error distribution angles</string>
+            <item row="3" column="3">
+             <widget class="QCheckBox" name="checkBox_errorDIst">
+              <property name="text">
+               <string>Use own error distribution</string>
               </property>
              </widget>
             </item>
