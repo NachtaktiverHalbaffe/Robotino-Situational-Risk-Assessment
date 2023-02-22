@@ -6,8 +6,6 @@
     <arg name="path" value="$(eval find(arg('package_name')))" />
     <arg name="map_file" default="$(arg path)/maps/FinalGridMapv2cleaned.yaml"/>
 
-    <!-- Remap topics -->
-    <remap from="cmd_vel_real" to="/my_cmd_vel" /> 
     <include file="$(find robotino_node)/launch/robotino_node.launch">
         <arg name="hostname" value="$(arg hostname)"/>
     </include> 
@@ -29,7 +27,7 @@
     </node>
 
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="log">
-        <remap from="cmd_vel" to="/my_cmd_vel" /> 
+        <!-- <remap from="cmd_vel" to="/my_cmd_vel" />  -->
         <rosparam file="$(arg path)/cfg/costmap_common_params.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(arg path)/cfg/costmap_common_params.yaml" command="load" ns="local_costmap" />
         <rosparam file="$(arg path)/cfg/local_costmap_params.yaml" command="load" />
@@ -43,8 +41,8 @@
         <param name="weights_path" value="$(arg path)/src/yolov7/weights/statedict_ws_tiny5.pt"/>
     </node>
     <node pkg="$(arg package_name)" name="object_detection" type="object_detection_node.py" output="screen"  required="true" >
-        <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny10_hocker.pt"/>
-        <!-- <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny_robotino.pt"/> -->
+        <!-- <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny10_hocker.pt"/> -->
+        <param name="weights_path" value ="$(arg path)/src/yolov7/weights/statedict_tiny_robotino.pt"/>
         <param name="path_error_dist" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12.csv"/>
         <param name="path_error_dist_doorclosed" value="$(arg path)/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv" />
     </node>

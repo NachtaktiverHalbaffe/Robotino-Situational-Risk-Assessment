@@ -21,15 +21,25 @@ import numpy as np
 try:
     # Import when running from  roslaunch
     from risk_estimation.Environment import *
+    from utils.risk_estimation_utils import loadErrorDistribution
 except:
     # Import when running as python script
     from Environment import *
+    from utils.risk_estimation_utils import loadErrorDistribution
 
 
 class RoboEnv_gym(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config, obstacles=None, invertMap=False, isTraining=True):
+    def __init__(
+        self,
+        config,
+        obstacles=None,
+        invertMap=False,
+        isTraining=True,
+        errorDistrDistPath=None,
+        errorDistrAnglePath=None,
+    ):
         self.actions_per_dimension = 5
         self.onesided = False
         self.config = config
@@ -75,7 +85,8 @@ class RoboEnv_gym(gym.Env):
         )
         self.observation_space = spaces.Box(0, 255, shape=(1, 200, 200), dtype=np.uint8)
 
-        "Here we are defining the actions and probabilites"  # TODO move this into the config file
+        "Here we are defining the actions and probabilites"
+        # Use hard-coded/experimental data
         if self.actions_per_dimension == 9:
             self.angles = [-0.28, -0.21, -0.14, -0.07, 0.0, 0.07, 0.14, 0.21, 0.28]
             self.angle_probs = [
@@ -118,6 +129,15 @@ class RoboEnv_gym(gym.Env):
                 0.23108108 / 2 + 0.30135135 / 2,
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
+        # load dynamically from CSV file
+        if errorDistrDistPath != None:
+            self.dists, self.dist_probs = loadErrorDistribution(
+                errorDistrDistPath, bins=self.actions_per_dimension
+            )
+        if errorDistrAnglePath != None:
+            self.dists, self.dist_probs = loadErrorDistribution(
+                errorDistrAnglePath, bins=self.actions_per_dimension
+            )
 
     def reset(self):
         """This is the overwritable version of reset that links to the actual version

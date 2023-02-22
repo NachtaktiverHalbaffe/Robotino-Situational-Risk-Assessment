@@ -1,5 +1,8 @@
 import numpy as np
+import pandas as pd
 import rospy
+import rostopic
+from pathlib import Path
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -105,13 +108,21 @@ def getIntersection(a1, a2, b1, b2):
          x,y-tuple: Intersection point of two edges or infinite if lines are parallel
          bool: If line is intersecting
     """
+    THRES = 0.3
+    THRES_UPPER = 1 - THRES
     a = np.array([a1, a2])
     b = np.array([b1, b2])
 
+    # t is scalar for a, s for b
     t, s = np.linalg.solve(np.array([a[1] - a[0], b[0] - b[1]]).T, b[0] - a[0])
 
     # print(f"t: {t} s:{s}")
-    if (s <= 1 and s >= 0) and (t <= 1 and t >= 0):
+    # s and t must be between 0 and 1 in general, otherwise the intersection is outside the edges
+    # s is the sclaing factor for the vector of common edge onto which the proprietary robotinos drive
+    # t is from the trajectory driven by the ego-robotino. So it must be between 0<= t <= THRES and
+    # 1-THRES (=THRES_UPPER) <= t <=1 so only intersections in a certain range to the start and goal nodes,
+    # where the robotino would collide or stop and lead to a production stop, are considered
+    if (s <= 1 and s >= 0) and (t <= 1 and t >= 0 and (t >= THRES_UPPER or t <= THRES)):
         return (1 - t) * a[0] + t * a[1], True
     else:
         return np.inf, False
@@ -132,3 +143,43 @@ def closestNode(node, nodes):
     nodes = np.asarray(nodes)
     dist_2 = np.sum((nodes - node) ** 2, axis=1)
     return np.argmin(dist_2)
+
+
+def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
+    """
+    Loads error values from a CSV file and creates a error distribution from them
+
+    Args:
+        path (str): The path to the CSV file
+        bins (int, optional): Number of segments into which the error distribution should be divided
+        precision (int, optional): The number of decimal places to which the probabilities are rounded
+
+    Returns:
+        segments (list of float): The segments from the error distribution
+        probabilities (list of float): The corresponding probability of each segment
+    """
+    file = Path(str(path).strip().replace("'", ""))
+    if file.exists():
+        data = pd.read_csv(path, header=None)
+        probabilities, segments = np.histogram(data, bins=bins)
+        probabilities = np.divide(probabilities, len(data))
+        probabilities = np.round(probabilities, precision)
+        try:
+            rostopic.get_topic_class("/rosout")
+            rospy.logdebug(
+                f"[Crash and Remove] Loaded error distribution from {path}.\nSegments: {segments}\nProbabilities of segments: {probabilities}"
+            )
+        except:
+            print(
+                f"[Crash and Remove] Loaded error distribution from {path}.\nSegments: {segments}\nProbabilities of segments: {probabilities}"
+            )
+
+        return segments, probabilities
+    else:
+        raise FileExistsError("Error distribution doesn't exist")
+
+
+if __name__ == "__main__":
+    loadErrorDistribution(
+        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/localization_error_dist.csv"
+    )

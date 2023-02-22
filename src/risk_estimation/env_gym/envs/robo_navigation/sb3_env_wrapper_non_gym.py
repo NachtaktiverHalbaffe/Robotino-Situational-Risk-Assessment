@@ -22,9 +22,11 @@ from PIL import Image
 try:
     # Import when running from  roslaunch
     from risk_estimation.Environment import *
+    from utils.risk_estimation_utils import loadErrorDistribution
 except:
     # Import when running as python script
     from Environment import *
+    from utils.risk_estimation_utils import loadErrorDistribution
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
@@ -33,7 +35,14 @@ class RoboEnv_gym_2(gym.Env):
     metadata = {"render.modes": ["human"]}
 
     def __init__(
-        self, config, env=None, obstacles=None, invertMap=False, isTraining=True
+        self,
+        config,
+        env=None,
+        obstacles=None,
+        invertMap=False,
+        isTraining=True,
+        errorDistrDistPath=None,
+        errorDistrAnglePath=None,
     ):
         self.persisten_map = False
         self.actions_per_dimension = 5
@@ -81,7 +90,8 @@ class RoboEnv_gym_2(gym.Env):
         )
         self.observation_space = spaces.Box(0, 255, shape=(1, 200, 200), dtype=np.uint8)
 
-        "Here we are defining the actions and probabilites"  # TODO move this into the config file
+        "Here we are defining the actions and probabilites"
+        # Use hard-coded/experimental data
         if self.actions_per_dimension == 9:
             self.angles = [-0.28, -0.21, -0.14, -0.07, 0.0, 0.07, 0.14, 0.21, 0.28]
             self.angle_probs = [
@@ -124,6 +134,15 @@ class RoboEnv_gym_2(gym.Env):
                 0.23108108 / 2 + 0.30135135 / 2,
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
+        # load dynamically from CSV file
+        if errorDistrDistPath != None:
+            self.dists, self.dist_probs = loadErrorDistribution(
+                errorDistrDistPath, bins=self.actions_per_dimension
+            )
+        if errorDistrAnglePath != None:
+            self.dists, self.dist_probs = loadErrorDistribution(
+                errorDistrAnglePath, bins=self.actions_per_dimension
+            )
 
     def set_test(self) -> None:
         """Sets the environment to a test env"""

@@ -157,6 +157,8 @@ def run_crash_and_remove(
     goal=None,
     obstacles=None,
     invertMap=False,
+    errorDistrDistPath=None,
+    errorDistrAnglePath=None,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -201,6 +203,8 @@ def run_crash_and_remove(
             obstacles=obstacles,
             invertMap=invertMap,
             isTraining=False,
+            errorDistrAnglePath=errorDistrAnglePath,
+            errorDistrDistPath=errorDistrDistPath,
         )
         # env = gym.make(env_name, config=configs)
     else:
@@ -209,6 +213,8 @@ def run_crash_and_remove(
             config=configs,
             invertMap=invertMap,
             isTraining=False,
+            errorDistrAnglePath=errorDistrAnglePath,
+            errorDistrDistPath=errorDistrDistPath,
         )
 
     policy_kwargs = dict(features_extractor_class=SameExtractor)
@@ -424,7 +430,7 @@ def run_crash_and_remove(
                         rospy.logdebug(
                             "[Crash and Remove] There was a crash without an obstacle"
                         )
-                        break_out = True
+                        # break_out = True
                         if replay_on:
                             rospy.logdebug(
                                 "[Crash and Remove] \U0001F4C0 obstacles not remove"

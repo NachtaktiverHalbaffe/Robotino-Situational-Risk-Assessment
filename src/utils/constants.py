@@ -34,6 +34,9 @@ class Topics(Enum):
     MOVE_BASE_FEEDBACK = "/move_base/feedback"
     MOVE_BASE_RESULT = "/move_base/result"
     NR_OF_RUNS = "/nr_of_runs"
+    PATH_ERRORDISTR_DIST = "/path_errordistr_dist"
+    PATH_ERRORDISTR_ANGLE = "/path_errordistr_angle"
+    USE_ERRORDIST = "/custom_errordist_enabled"
 
 
 class Nodes(Enum):

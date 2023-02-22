@@ -16,7 +16,7 @@ from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtCore import QThread, Signal, QProcess
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Int16, Bool
+from std_msgs.msg import Int16, Bool, String
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import Path
 from threading import Thread
@@ -38,6 +38,8 @@ from src.risk_estimation.AutoLabel import AutoLabel, read_data, evaluate_virtual
 from utils.constants import Topics, Nodes
 from utils.navigation_utils import pathToTraj
 from prototype.msg import Risk, ObstacleMsg, ObstacleList
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "", ""))
 
 
 class MainWindow(QMainWindow):
@@ -76,6 +78,32 @@ class MainWindow(QMainWindow):
         self.ui.ml_algo_selector.addItem("mixture of gaussian")
         self.ui.ml_algo_selector.addItem("Agglomerative")
         self.ui.ml_algo_selector.addItem("Mini batch Kmeans")
+
+        PATH_ERRORDISTS = f"{PATH}logs/error_dist_csvs"
+        self.ui.comboBox_errDistrANglePath.addItems(
+            [
+                "Set path for angle error CSV",
+                f"{PATH_ERRORDISTS}/localization_error_angle.csv",
+                f"{PATH_ERRORDISTS}/localization_error_badlight_angle.csv",
+                f"{PATH_ERRORDISTS}/localization_error_faulty_initialpose_angle.csv",
+            ]
+        )
+        self.ui.comboBox_errDistrANglePath.setCurrentIndex(0)
+        self.ui.comboBox_errDistrANglePath.currentIndexChanged.connect(
+            self.setPathErrorAngleDist
+        )
+        self.ui.comboBox_errDistrDistPath.addItems(
+            [
+                "Set path for distance error CSV",
+                f"{PATH_ERRORDISTS}/localization_error_dist.csv",
+                f"{PATH_ERRORDISTS}/localization_error_badlight_dist.csv",
+                f"{PATH_ERRORDISTS}/localization_error_faulty_initialpose_dist.csv",
+            ]
+        )
+        self.ui.comboBox_errDistrDistPath.setCurrentIndex(0)
+        self.ui.comboBox_errDistrDistPath.currentIndexChanged.connect(
+            self.setPathErrorDistrDist
+        )
 
         # -------------------- Enable buttons which are pressable at starttime ------------------------------
         self.ui.virtual_obj_btn.setEnabled(False)
@@ -151,6 +179,10 @@ class MainWindow(QMainWindow):
             lambda: self.activateFeature("baseline")
         )
         self.ui.checkBox_baselineRisk.setChecked(False)
+        self.ui.checkBox_errorDIst.setChecked(False)
+        self.ui.checkBox_errorDIst.stateChanged.connect(
+            lambda: self.activateFeature("error_dist")
+        )
 
         # Make shure roscore is running before starting gui node
         try:
@@ -171,6 +203,12 @@ class MainWindow(QMainWindow):
             )
             self.obsRiskEstPublisher = rospy.Publisher(
                 Topics.NR_OF_RUNS.value, Int16, queue_size=10
+            )
+            self.errorDistrDistPathPub = rospy.Publisher(
+                Topics.PATH_ERRORDISTR_DIST.value, String, queue_size=10, latch=True
+            )
+            self.errorDistrAnglePathpub = rospy.Publisher(
+                Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10, latch=True
             )
 
     def start_robot(self):
@@ -512,14 +550,16 @@ class MainWindow(QMainWindow):
 
     def activateFeature(self, feature: str):
         if "lidar" in feature.lower():
-            publisher = rospy.Publisher(Topics.LIDAR_ENABLED.value, Bool, queue_size=10)
+            publisher = rospy.Publisher(
+                Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
+            )
             try:
                 publisher.publish(self.ui.checkBox_LIDAR.isChecked())
             except:
                 pass
         elif "qr" in feature.lower():
             publisher = rospy.Publisher(
-                Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10
+                Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10, latch=True
             )
             try:
                 publisher.publish(self.ui.checkBox_qrScanner.isChecked())
@@ -527,16 +567,26 @@ class MainWindow(QMainWindow):
                 pass
         elif "bruteforce" in feature.lower():
             publisher = rospy.Publisher(
-                Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10
+                Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10, latch=True
             )
             try:
                 publisher.publish(self.ui.checkBox_bruteforce.isChecked())
             except:
                 pass
         elif "baseline" in feature.lower():
-            publisher = rospy.Publisher(Topics.SOTA_ENABLED.value, Bool, queue_size=10)
+            publisher = rospy.Publisher(
+                Topics.SOTA_ENABLED.value, Bool, queue_size=10, latch=True
+            )
             try:
                 publisher.publish(self.ui.checkBox_baselineRisk.isChecked())
+            except:
+                pass
+        elif "error_dist" in feature.lower():
+            publisher = rospy.Publisher(
+                Topics.USE_ERRORDIST.value, Bool, queue_size=10, latch=True
+            )
+            try:
+                publisher.publish(self.ui.checkBox_errorDIst.isChecked())
             except:
                 pass
 
@@ -545,6 +595,20 @@ class MainWindow(QMainWindow):
         Starts a risk estimation
         """
         self.obsRiskEstPublisher.publish(self.ui.spinBox_nrOfRuns.value())
+
+    def setPathErrorDistrDist(self):
+        path = self.ui.comboBox_errDistrDistPath.currentText()
+        try:
+            self.errorDistrDistPathPub.publish(path)
+        except:
+            print("Error: COuldnt publish path of error distribution for distance")
+
+    def setPathErrorAngleDist(self):
+        path = self.ui.comboBox_errDistrANglePath.currentText()
+        try:
+            self.errorDistrAnglePathpub.publish(path)
+        except:
+            print("Error: COuldnt publish path of error distribution for distance")
 
     def stop_worker(self):
         """

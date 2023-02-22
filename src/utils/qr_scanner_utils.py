@@ -7,7 +7,7 @@ from sensor_msgs.msg import LaserScan
 
 from .conversions import euler2Quaternions
 
-TARGET_OFFSET_VALUE = 0.6
+TARGET_OFFSET_VALUE = 0.8
 
 
 def laser2mapConv(x, y, z, roll, pitch, yaw):
@@ -26,7 +26,9 @@ def laser2mapConv(x, y, z, roll, pitch, yaw):
         poseStamped (geometry_msgs.PoseStamped): A position in the map frame
     """
     transform_listener = tf.TransformListener()
-    transform_listener.waitForTransform("/laser_link", "/map", rospy.Time(), rospy.Duration(4.0))
+    transform_listener.waitForTransform(
+        "/laser_link", "/map", rospy.Time(), rospy.Duration(4.0)
+    )
 
     i = 0
     while i < 1:
@@ -98,7 +100,6 @@ def getDistAngle(theta):
     objectDist = laserMsg.ranges[index]
 
     if objectDist > 0:
-
         if theta < 0:
             theta_rad = math.radians(-1 * theta)
 
@@ -108,7 +109,6 @@ def getDistAngle(theta):
             navDist = math.sqrt(B**2 + P**2)
             alpha_deg = -1 * (90 - math.degrees(math.asin(P / navDist)))
         else:
-
             theta_rad = math.radians(theta)
 
             P = (objectDist * math.sin((math.pi / 2) - theta_rad)) - TARGET_OFFSET_VALUE

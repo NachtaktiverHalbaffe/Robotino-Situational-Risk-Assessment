@@ -565,6 +565,21 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.pushButton, 3, 2, 1, 1)
 
+        self.comboBox_errDistrANglePath = QComboBox(self.tab_7)
+        self.comboBox_errDistrANglePath.setObjectName(u"comboBox_errDistrANglePath")
+
+        self.gridLayout_2.addWidget(self.comboBox_errDistrANglePath, 3, 5, 1, 1)
+
+        self.comboBox_errDistrDistPath = QComboBox(self.tab_7)
+        self.comboBox_errDistrDistPath.setObjectName(u"comboBox_errDistrDistPath")
+
+        self.gridLayout_2.addWidget(self.comboBox_errDistrDistPath, 3, 4, 1, 1)
+
+        self.checkBox_errorDIst = QCheckBox(self.tab_7)
+        self.checkBox_errorDIst.setObjectName(u"checkBox_errorDIst")
+
+        self.gridLayout_2.addWidget(self.checkBox_errorDIst, 3, 3, 1, 1)
+
 
         self.verticalLayout_9.addLayout(self.gridLayout_2)
 
@@ -645,6 +660,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.tabWidget.setCurrentIndex(0)
+        self.comboBox_errDistrDistPath.setCurrentIndex(-1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -720,6 +736,10 @@ class Ui_MainWindow(object):
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"### Drive to ", None))
         self.label_12.setText(QCoreApplication.translate("MainWindow", u"Number of runs:", None))
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"Estimate obstacle risk", None))
+        self.comboBox_errDistrANglePath.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Path error distribution angles", None))
+        self.comboBox_errDistrDistPath.setCurrentText("")
+        self.comboBox_errDistrDistPath.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Path error distribution distance", None))
+        self.checkBox_errorDIst.setText(QCoreApplication.translate("MainWindow", u"Use own error distribution", None))
         self.label_10.setText(QCoreApplication.translate("MainWindow", u"### Enable features", None))
         self.checkBox_LIDAR.setText(QCoreApplication.translate("MainWindow", u"LIDAR", None))
         self.checkBox_qrScanner.setText(QCoreApplication.translate("MainWindow", u"Scan QR Codes", None))

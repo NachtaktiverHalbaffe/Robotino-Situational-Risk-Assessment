@@ -6,7 +6,7 @@ import os
 import logging
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Bool, Float32, Int16
+from std_msgs.msg import Bool, Float32, Int16, String
 
 from risk_estimation import config
 from risk_estimation.eval import mains
@@ -40,9 +40,16 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
 
+# If to use bruteforce risk estimation
 useBrute = False
+# If to use the baseline risk estimation implemented by abdul rehman
 useSOTA = False
+# Known obstacles detected by obstacle detection
 obstacleMsg = ObstacleList()
+# The path to custom error distribution data
+useCustomErrorDist = False
+errorDistrDistPath = None
+errorDistrAnglePath = None
 
 
 def setUseBrute(enabled: Bool):
@@ -58,6 +65,27 @@ def setUseSOTA(enabled: Bool):
 def setObstacle(obstacleList: ObstacleList):
     global obstacleMsg
     obstacleMsg = obstacleList
+
+
+def setPathErrorDist(path: String):
+    global errorDistrDistPath
+    global useCustomErrorDist
+
+    if useCustomErrorDist:
+        errorDistrDistPath = path.data
+
+
+def setPathErrorAngle(path: String):
+    global errorDistrAnglePath
+    global useCustomErrorDist
+
+    if useCustomErrorDist:
+        errorDistrAnglePath = path.data
+
+
+def setUseCustomErroDist(isUsed: Bool):
+    global useCustomErrorDist
+    useCustomErrorDist = isUsed.data
 
 
 def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
@@ -76,6 +104,8 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     Returns:
     """
     global obstacleMsg
+    global errorDistrDistPath
+    global errorDistrAnglePath
     # Parameters for probability estimator&fault injector
     ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
@@ -115,6 +145,8 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     start=task[0],
                     goal=task[1],
                     invertMap=True,
+                    errorDistrDistPath=errorDistrDistPath,
+                    errorDistrAnglePath=errorDistrAnglePath,
                 )
                 runs.append(estimation)
     else:
@@ -213,7 +245,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     isAlreadyPresent = True
                     break
             if not isAlreadyPresent:
-                filteredProbs.append(run["rl_prob"][i][0])
+                filteredProbs.append(run["rl_prob"][i])
                 filteredObstacles.append(run["collided_obs"][i])
 
         print(f"Length of filtered rl_prob:{len(filteredProbs)}")
@@ -304,6 +336,9 @@ def estimateRisk(globalPath: Path):
         Publishes a risk message to the topic "/risk_estimation"
     """
     global useBrute
+    global obstacleMsg
+    global errorDistrDistPath
+    global errorDistrAnglePath
     # Parameters for probability estimator&fault injector
     ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
@@ -334,6 +369,8 @@ def estimateRisk(globalPath: Path):
             obstacles=obstacles,
             invertMap=True,
             expand_length=2,
+            errorDistrDistPath=errorDistrDistPath,
+            errorDistrAnglePath=errorDistrAnglePath,
         )
     else:
         rospy.loginfo(
@@ -350,6 +387,8 @@ def estimateRisk(globalPath: Path):
             obstacles=obstacles,
             invertMap=True,
             expand_length=2,
+            errorDistrDistPath=errorDistrDistPath,
+            errorDistrAnglePath=errorDistrAnglePath,
         )
     rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(
@@ -371,28 +410,6 @@ def estimateRisk(globalPath: Path):
         ###########################################
         # ---------------- Process one run ------------------
         ###########################################
-        # The raw collision probabilities of the probability estimator are also send with the risk message if needed
-        # by receiver of message
-        probabilitiesMsg = ProbabilitiesRL()
-        criticalSectorsMsg = CriticalSectors()
-        if useBrute:
-            riskMsg.probs_brute.append(estimation["brute_prob"][i])
-
-        # Calculate risk of collision => given by probability estimator
-        riskCollision.append(
-            np.multiply(
-                calculate_collosion_order(estimation["rl_prob"][i]), COST_COLLISION
-            )
-        )
-
-        ###########################################
-        # ------------ Process critical sectors --------------
-        ###########################################
-        # Sector: A sector is a edge inside a path => sector consists of start and end node
-        # Critical sector: A sector where the probability estimator estimated a possible collision.
-        # The given nodeNr is the end node of the sector
-        riskCollisionStopProb = 0
-
         # Filter out probabilities where a single collision was detected twice
         filteredProbs = []
         for prob in estimation["rl_prob"][i]:
@@ -403,7 +420,26 @@ def estimateRisk(globalPath: Path):
                     break
             if not isAlreadyPresent:
                 filteredProbs.append(prob)
+        print(f"Filtered Probs: {filteredProbs}")
+        # The raw collision probabilities of the probability estimator are also send with the risk message if needed
+        # by receiver of message
+        probabilitiesMsg = ProbabilitiesRL()
+        criticalSectorsMsg = CriticalSectors()
+        if useBrute:
+            riskMsg.probs_brute.append(estimation["brute_prob"][i])
 
+        # Calculate risk of collision => given by probability estimator
+        riskCollision.append(
+            np.multiply(calculate_collosion_order(filteredProbs), COST_COLLISION)
+        )
+
+        ###########################################
+        # ------------ Process critical sectors --------------
+        ###########################################
+        # Sector: A sector is a edge inside a path => sector consists of start and end node
+        # Critical sector: A sector where the probability estimator estimated a possible collision.
+        # The given nodeNr is the end node of the sector
+        riskCollisionStopProb = 0
         for probability in filteredProbs:
             nodeNr = probability[1]
             rawProb = probability[0]
@@ -430,13 +466,14 @@ def estimateRisk(globalPath: Path):
                     float(globalPath.poses[nodeNr].pose.position.x),
                     float(globalPath.poses[nodeNr].pose.position.y),
                 ]
-                _, isIntersected = getIntersection(
+                point, isIntersected = getIntersection(
                     startTraj,
                     endTraj,
                     edge[0],
                     edge[1],
                 )
                 if isIntersected:
+                    print(f"Intersected at {point}")
                     risk = np.multiply(COST_COLLISIONSTOP, rawProb)
                     criticalSector.isIntersected = True
                     criticalSector.risk_collisionStop = risk
@@ -497,8 +534,17 @@ def riskEstimator():
     # Selecting which additional estimator to use (beside the risk estimation used by prototype)
     rospy.Subscriber(Topics.BRUTEFORCE_ENABLED.value, Bool, setUseBrute, queue_size=10)
     rospy.Subscriber(Topics.SOTA_ENABLED.value, Bool, setUseSOTA, queue_size=10)
-
+    # ROS "setter"
     rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacle, queue_size=10)
+    rospy.Subscriber(
+        Topics.PATH_ERRORDISTR_ANGLE.value, String, setPathErrorAngle, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.PATH_ERRORDISTR_DIST.value, String, setPathErrorDist, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.USE_ERRORDIST.value, Bool, setUseCustomErroDist, queue_size=10
+    )
 
     while not rospy.is_shutdown():
         visualizeCommonTraj()

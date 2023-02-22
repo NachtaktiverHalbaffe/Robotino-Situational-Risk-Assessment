@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
+import collections
+import csv
 import time
 import rospy
-import numpy as np
-import pandas as pd
 import os
-import message_filters
+import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from tf.transformations import (
     quaternion_from_euler,
     euler_from_quaternion,
@@ -38,7 +38,21 @@ locPublisher = rospy.Publisher(
 last_known_loc = ["init_data", 0, 0, 0]
 last_update = time.time()
 img_glob = []
+# the odometry message which will be published
 odom = Odometry()
+# The path to custom error distribution data
+errorDistrDistPath = f"{PATH}/logs/error_dist_csvs/localization_error_dist.csv"
+errorDistrAnglePath = f"{PATH}/logs/error_dist_csvs/localization_error_angle.csv"
+
+
+def setPathErrorDist(path: String):
+    global errorDistrDistPath
+    errorDistrDistPath = path
+
+
+def setPathErrorAngle(path: String):
+    global errorDistrAnglePath
+    errorDistrAnglePath = path
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -81,7 +95,16 @@ def createOdom(currentPose: PoseWithCovarianceStamped):
         rospy.logwarn(f"[Localization] Couldn't publish odometry: {e}")
 
 
-def anomalyDetector(savePath: str = "{PATH}/logs/error_dist_csvs/localization_error"):
+def _dumpErrorToCSV(savePath, value):
+    with open(
+        savePath,
+        "a",
+    ) as f1:
+        write = csv.writer(f1)
+        write.writerow([value])
+
+
+def anomalyDetector(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_error"):
     """
     Tracks/saves the error distribution between localization with LIDAR (amcl) and camera
 
@@ -89,6 +112,18 @@ def anomalyDetector(savePath: str = "{PATH}/logs/error_dist_csvs/localization_er
         acmlPose (PoseWithCovarianceStamped): Position determined by LIDAR
         imageLoc (PoseWithCovarianceStamped): Position determined by camera based localization
     """
+    global errorDistrDistPath
+    global errorDistrAnglePath
+    FIFO_LENGTH = 4
+    THRES_X = 9
+    THRES_Y = 9
+    THRES_DIST = 9
+    THRES_ANGLE = 3
+
+    xErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    yErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    distErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    angleErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     while not rospy.is_shutdown():
         imageLoc = rospy.wait_for_message(
             Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
@@ -96,27 +131,40 @@ def anomalyDetector(savePath: str = "{PATH}/logs/error_dist_csvs/localization_er
         amclPose = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
 
         # Calculating error in localization in x,y and angle
-        xErr = amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x
-        yErr = amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y
-        distError = np.sqrt(np.sum(np.square(xErr), np.square(yErr)))
-        angleErr = amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
+        xErr = float(amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x)
+        yErr = float(amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y)
+        distErr = float(np.sqrt(np.square(xErr) + np.square(yErr)))
+        angleErr = float(
+            amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
+        )
 
-        # Dump raw xError into csv file
-        data = pd.read_csv(f"{savePath}_x.csv")
-        data.append(pd.DataFrame(xErr), ignore_index=True)
-        data.to_csv(f"{savePath}_x.csv")
-        # Dump raw yError into csv file
-        data = pd.read_csv(f"{savePath}_y.csv")
-        data.append(pd.DataFrame(yErr), ignore_index=True)
-        data.to_csv(f"{savePath}_y.csv")
-        # Dump raw distError into csv file
-        data = pd.read_csv(f"{savePath}_dist.csv")
-        data.append(pd.DataFrame(distError), ignore_index=True)
-        data.to_csv(f"{savePath}_dist.csv")
-        # Dump raw angleError into csv file
-        data = pd.read_csv(f"{savePath}_angle.csv")
-        data.append(pd.DataFrame(angleErr), ignore_index=True)
-        data.to_csv(f"{savePath}_angle.csv")
+        # Dump raw error values to a csv file
+        _dumpErrorToCSV(f"{savePath}_x.csv", xErr)
+        _dumpErrorToCSV(f"{savePath}_y.csv", yErr)
+        _dumpErrorToCSV(errorDistrDistPath, distErr)
+        _dumpErrorToCSV(errorDistrAnglePath, angleErr)
+
+        # Update fifo queue
+        xErrFIFO.appendleft(xErr)
+        yErrFIFO.appendleft(yErr)
+        distErrFIFO.appendleft(distErr)
+        angleErrFIFO.appendleft(angleErr)
+        # Get median of these que's to determine anomaly
+        xErrMedian = np.median(xErrFIFO)
+        yErrMedian = np.median(yErrFIFO)
+        distErrMedian = np.median(distErrFIFO)
+        angleErrMedian = np.median(angleErrFIFO)
+
+        if xErrMedian > THRES_X:
+            rospy.loginfo(f"[Localization] Anomaly detected with error {xErrMedian}")
+        if yErrMedian > THRES_Y:
+            rospy.loginfo(f"[Localization] Anomaly detected with error {yErrMedian}")
+        if distErrMedian > THRES_DIST:
+            rospy.loginfo(f"[Localization] Anomaly detected with error {distErrMedian}")
+        if angleErrMedian > THRES_ANGLE:
+            rospy.loginfo(
+                f"[Localization] Anomaly detected with error {angleErrMedian}"
+            )
 
 
 def localiseCam():
@@ -346,11 +394,16 @@ def localization():
     rospy.Subscriber(
         Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25
     )
+    # ROS "setter"
     rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
-    # Saves the image to a global variable so localization can use the image in its own thread
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
-
+    rospy.Subscriber(
+        Topics.PATH_ERRORDISTR_ANGLE.value, String, setPathErrorAngle, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.PATH_ERRORDISTR_DIST.value, String, setPathErrorDist, queue_size=10
+    )
     # For determining localization mode
     locMode = "lidar"
     # Publish localization
