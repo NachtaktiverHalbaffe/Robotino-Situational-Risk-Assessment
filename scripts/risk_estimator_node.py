@@ -286,7 +286,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     # Save
     df_currentRun = pd.DataFrame(criticalObstacles)
     df_oldRuns = pd.read_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
-    df_save = pd.concat([df_oldRuns, df_currentRun], ignore_index=True)
+    df_save = pd.concat([df_oldRuns, df_currentRun])
     df_save.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
     return criticalObstacles
 

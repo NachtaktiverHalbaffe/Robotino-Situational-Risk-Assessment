@@ -51,6 +51,7 @@ class RoboEnv_gym_2(gym.Env):
         self.config = config
         # create Environment
         visualize = True
+
         if obstacles == None:
             self.env_real = Environment(
                 map_path=config["map_path"],
@@ -140,7 +141,7 @@ class RoboEnv_gym_2(gym.Env):
                 errorDistrDistPath, bins=self.actions_per_dimension
             )
         if errorDistrAnglePath != None:
-            self.dists, self.dist_probs = loadErrorDistribution(
+            self.angles, self.angle_probs = loadErrorDistribution(
                 errorDistrAnglePath, bins=self.actions_per_dimension
             )
 

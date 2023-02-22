@@ -88,6 +88,11 @@ class Obstacle:
             # (i.e. remove the sqrt) to gain a little performance
             dist = (dx * dx + dy * dy) ** 0.5
 
+            # Little correction so prm tends to plan nearer free space/obstacles than workstations
+            if "ws" in self.label.lower():
+                dist = dist - 2
+            else:
+                dist = dist + 2
             distances.append(dist)
 
         if len(distances) != 0:
