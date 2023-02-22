@@ -11,7 +11,7 @@ from std_msgs.msg import Bool, Float32, Int16, String
 from risk_estimation import config
 from risk_estimation.eval import mains
 from utils.evalmanager_client import EvalManagerClient
-from utils.constants import Topics, Nodes
+from utils.constants import Topics, Nodes, Paths
 from utils.risk_estimation_utils import (
     getIntersection,
     visualizeCommonTraj,
@@ -48,8 +48,8 @@ useSOTA = False
 obstacleMsg = ObstacleList()
 # The path to custom error distribution data
 useCustomErrorDist = False
-errorDistrDistPath = None
-errorDistrAnglePath = None
+errorDistrDistPath = Paths.ERRORDIST_DIST.value
+errorDistrAnglePath = Paths.ERRORDIST_ANGLE.value
 
 
 def setUseBrute(enabled: Bool):
@@ -69,23 +69,30 @@ def setObstacle(obstacleList: ObstacleList):
 
 def setPathErrorDist(path: String):
     global errorDistrDistPath
-    global useCustomErrorDist
-
-    if useCustomErrorDist:
-        errorDistrDistPath = path.data
+    print(f"Set path: {path.data}")
+    errorDistrDistPath = path.data
 
 
 def setPathErrorAngle(path: String):
     global errorDistrAnglePath
-    global useCustomErrorDist
-
-    if useCustomErrorDist:
-        errorDistrAnglePath = path.data
+    print(f"Set path: {path.data}")
+    errorDistrAnglePath = path.data
 
 
 def setUseCustomErroDist(isUsed: Bool):
     global useCustomErrorDist
     useCustomErrorDist = isUsed.data
+
+
+def __getErrorDistPaths():
+    global useCustomErrorDist
+    global errorDistrDistPath
+    global errorDistrAnglePath
+
+    if useCustomErrorDist:
+        return errorDistrDistPath, errorDistrAnglePath
+    else:
+        return None, None
 
 
 def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
@@ -104,8 +111,6 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     Returns:
     """
     global obstacleMsg
-    global errorDistrDistPath
-    global errorDistrAnglePath
     # Parameters for probability estimator&fault injector
     ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
@@ -115,13 +120,20 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     ###################################################
     # Get obstacles
     obstacles = obstaclesMsgToObstacles(obstacleMsg)
+
+    errDistDistPath, errDistAnglePath = __getErrorDistPaths()
     nrTotalRuns = 0
     runs = []
     rospy.loginfo(
         "[Risk Estimator] Starting Probability Estimator&Fault Injector for determining risk of objects"
     )
     if "commontasks" in operationMode.lower():
-        wsNodes = loadWSMarkers()
+        # Dirty fix: Sometimes loading markers fails randomly => retry loading
+        try:
+            wsNodes = loadWSMarkers()
+        except:
+            wsNodes = loadWSMarkers()
+
         commonTasks = [
             [wsNodes[0], wsNodes[1]],
             [wsNodes[0], wsNodes[2]],
@@ -145,8 +157,8 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     start=task[0],
                     goal=task[1],
                     invertMap=True,
-                    errorDistrDistPath=errorDistrDistPath,
-                    errorDistrAnglePath=errorDistrAnglePath,
+                    errorDistrDistPath=errDistDistPath,
+                    errorDistrAnglePath=errDistAnglePath,
                 )
                 runs.append(estimation)
     else:
@@ -231,13 +243,10 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     }
 
     for run in runs:
-        print(f"Length of rl_prob:{len(run['rl_prob'])}")
-        print(f"Length of collisions:{len(run['collided_obs'])}")
-
         # Filter out probabilities where a single collision was detected twice
         filteredProbs = []
         filteredObstacles = []
-        # for prob in run["rl_prob"]:
+
         for i in range(len(run["rl_prob"])):
             isAlreadyPresent = False
             for item in filteredProbs:
@@ -248,15 +257,11 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                 filteredProbs.append(run["rl_prob"][i])
                 filteredObstacles.append(run["collided_obs"][i])
 
-        print(f"Length of filtered rl_prob:{len(filteredProbs)}")
-        print(f"Length of filtered collisions:{len(filteredObstacles)}")
-
         if len(filteredProbs) != 0:
             for i in range(len(filteredProbs)):
                 try:
                     risk = filteredProbs[i][0]
                     for obstacle in filteredObstacles[i]:
-                        print(obstacle)
                         criticalObstacles[obstacle.label]["collisions"] = (
                             criticalObstacles[obstacle.label]["collisions"] + 1
                         )
@@ -279,8 +284,10 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
         f"[Risk Estimator] Analyzed obstacles and their potential to leading to a collison:{criticalObstacles} in {nrTotalRuns} simulations"
     )
     # Save
-    df_save = pd.DataFrame(criticalObstacles)
-    df_save.to_csv(f"{PATH}/logs/risk_estimation_obstacles.csv")
+    df_currentRun = pd.DataFrame(criticalObstacles)
+    df_oldRuns = pd.read_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
+    df_save = pd.concat([df_oldRuns, df_currentRun], ignore_index=True)
+    df_save.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
     return criticalObstacles
 
 
@@ -337,8 +344,6 @@ def estimateRisk(globalPath: Path):
     """
     global useBrute
     global obstacleMsg
-    global errorDistrDistPath
-    global errorDistrAnglePath
     # Parameters for probability estimator&fault injector
     ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
@@ -353,7 +358,7 @@ def estimateRisk(globalPath: Path):
     traj = pathToTraj(globalPath)
     # Get obstacles
     obstacles = obstaclesMsgToObstacles(obstacleMsg)
-
+    errDistDistPath, errDistAnglePath = __getErrorDistPaths()
     if useBrute:
         rospy.loginfo(
             "[Risk Estimator] Starting Probability Estimator&Fault Injector with brute force"
@@ -369,8 +374,8 @@ def estimateRisk(globalPath: Path):
             obstacles=obstacles,
             invertMap=True,
             expand_length=2,
-            errorDistrDistPath=errorDistrDistPath,
-            errorDistrAnglePath=errorDistrAnglePath,
+            errorDistrDistPath=errDistDistPath,
+            errorDistrAnglePath=errDistAnglePath,
         )
     else:
         rospy.loginfo(
@@ -387,8 +392,8 @@ def estimateRisk(globalPath: Path):
             obstacles=obstacles,
             invertMap=True,
             expand_length=2,
-            errorDistrDistPath=errorDistrDistPath,
-            errorDistrAnglePath=errorDistrAnglePath,
+            errorDistrDistPath=errDistDistPath,
+            errorDistrAnglePath=errDistAnglePath,
         )
     rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(
@@ -540,7 +545,7 @@ def riskEstimator():
         Topics.PATH_ERRORDISTR_ANGLE.value, String, setPathErrorAngle, queue_size=10
     )
     rospy.Subscriber(
-        Topics.PATH_ERRORDISTR_DIST.value, String, setPathErrorDist, queue_size=10
+        Topics.PATH_ERRORDIST_DIST.value, String, setPathErrorDist, queue_size=10
     )
     rospy.Subscriber(
         Topics.USE_ERRORDIST.value, Bool, setUseCustomErroDist, queue_size=10

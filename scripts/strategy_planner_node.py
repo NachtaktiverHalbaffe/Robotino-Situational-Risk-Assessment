@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import time
-import yaml
 import rospy
 import actionlib
-import dynamic_reconfigure.client
 import numpy as np
-from geometry_msgs.msg import Point, PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import PointCloud
 from move_base_msgs.msg import (
     MoveBaseAction,
@@ -18,29 +16,20 @@ from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 from threading import Event
 
-from prototype.msg import (
-    Risk,
-    ProbabilityRL,
-    ProbabilitiesRL,
-    CriticalSector,
-    CriticalSectors,
-)
-from utils.constants import Topics, Nodes
+from prototype.msg import Risk
+from utils.constants import Topics, Nodes, CommonPositions
 from utils.ros_logger import set_rospy_log_lvl
-from utils.navigation_utils import trajToPath, pathToTraj
-from utils.risk_estimation_utils import closestNode, getIntersection
 from utils.evalmanager_client import EvalManagerClient
-from risk_estimation.crash_and_remove import calculate_collosion_order
-from real_robot_navigation.move_utils_cords import (
-    get_base_info,
-    get_pixel_location_from_acml,
-)
+
 
 feedbackValue = []
 doneFeedback = -1
 trajectory = []
 evalManagerClient = EvalManagerClient()
 emergencyStop = Event()
+fallbackMode = False
+useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
+safeSpotPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -59,16 +48,6 @@ def _moveBaseActionCallback(data: MoveBaseActionFeedback):
 def _moveBaseActionDoneCallback(data: MoveBaseActionResult):
     global doneFeedback
     doneFeedback = int(data.status.status)
-    print(data)
-
-
-def setEmergencyStop(lidarEnabled: Bool):
-    global emergencyStop
-    if not lidarEnabled.data:
-        rospy.logwarn("[Strategy Planner] EMERGENCY-STOP:LIDAR has failed")
-        emergencyStop.set()
-    else:
-        emergencyStop.clear()
 
 
 def reconfigureMovebase(lidarEnabled: Bool):
@@ -99,7 +78,6 @@ def reconfigureMovebase(lidarEnabled: Bool):
 def _setTrajectory(traj: Path):
     """Setter for trajectory"""
     global trajectory
-    trajectory = []
     trajectory = traj
 
 
@@ -145,48 +123,16 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
     Args:
         path (nav_msgs.Path): The path to drive
     """
-    global feedbackValue
-    global doneFeedback
-    global emergencyStop
 
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
     for node in path.poses[1:]:
-        client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        # Creates a new goal with the MoveBaseGoal constructor
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = "map"
-        goal.target_pose.header.stamp = rospy.Time.now()
-        goal.target_pose.pose.position.x = node.pose.position.x
-        goal.target_pose.pose.position.y = node.pose.position.y
-        goal.target_pose.pose.position.z = 0
-        goal.target_pose.pose.orientation.w = 1.0
-
-        client.wait_for_server()
-        # Sends the goal to the action server.
-        client.send_goal(goal, feedback_cb=_moveBaseCallback)
-        while not rospy.is_shutdown():
-            doneFeedback = -1
-
-            if emergencyStop.is_set():
-                client.cancel_all_goals()
-                return 4
-
-            if feedbackValue:
-                if (
-                    (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
-                    and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1)
-                    or doneFeedback >= 2
-                ):
-                    client.cancel_goal()
-                    break
-
-        time.sleep(0.5)
-        if doneFeedback != 3 and doneFeedback != 2:
+        response = moveBaseClient(node)
+        if response >= 4:
             # Error behaviour if move base didnt reach node
             print("[Strategy Planner] Error")
-            continue
+            break
 
-    return doneFeedback
+    return response
 
 
 def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
@@ -216,9 +162,12 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
     client.send_goal(goal, feedback_cb=_moveBaseCallback)
 
     while not rospy.is_shutdown():
+        doneFeedback = -1
+
         if emergencyStop.is_set():
             client.cancel_all_goals()
             return 4
+
         if feedbackValue:
             if (
                 (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
@@ -257,6 +206,54 @@ def detectHazard():
             return
 
 
+def activateFallbackBehaviour(enabled: Bool):
+    """
+    It activates/ deactives fallback behaviour and starts fallback Behaviour strategies
+
+    Args:
+        lidarEnabled:
+    """
+    global emergencyStop
+    global fallbackMode
+
+    if enabled.data:
+        rospy.logwarn("[Strategy Planner] EMERGENCY-STOP: LIDAR has breakdown")
+        # Set event flag so currently exectuing startegies are aborted
+        emergencyStop.set()
+        # Tell strategy planner that its in fallbackMode
+        fallbackMode = True
+        # Start fallback behaviour after a short time to let all nodes set the necessary parameters
+        time.sleep(3)
+        executeAnomalyStrategy()
+    else:
+        rospy.loginfo("[Strategy Planner] EMERGENCY-STOP has been reset")
+        # Clear event flag so strategy planner can run under normal behaviour
+        emergencyStop.clear()
+        # Tell strategy planner that it is can run under normal behaviour again
+        fallbackMode = False
+
+
+def executeAnomalyStrategy():
+    """
+    Executes the behaviour when detecting a lidar anomaly or breakdown.
+    The strategy is to drive to a safe place when the risk is high enough.
+    """
+    global emergencyStop
+    # Release emergency stop flag so strategy planner can run again if risk values come in
+    emergencyStop.clear()
+    try:
+        # Activate usage of own error distribution so it uses the last known error values for risk estimation
+        useErrorDistPub.publish(True)
+    except Exception as e:
+        rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
+
+    # Start the path planning process to navigate to safe spot
+    try:
+        safeSpotPub.publish(CommonPositions.SAFE_SPOT.value)
+    except Exception as e:
+        rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
+
+
 def chooseStrategy(riskEstimation: Risk):
     """ 
     Plans the behaviour of the robot depending on the given parameters
@@ -266,6 +263,7 @@ def chooseStrategy(riskEstimation: Risk):
                                                                           calls this function as a callback function
     """
     global trajectory
+    global emergencyStop
     riskGlobal = riskEstimation.globalRisks
     criticalSectors = riskEstimation.criticalSectors
     # risk is simply the cost of a stop because probability is assumed to be 1
@@ -277,26 +275,17 @@ def chooseStrategy(riskEstimation: Risk):
             criticalNodes.add(node.node)
 
     if np.average(riskGlobal) < riskStop:
-        for i in range(len(trajectory.poses)):
+        for i in range(len(trajectory.poses[1:])):
             if i in criticalNodes:
-                # Critical sector => Executing  under safety constraints
+                # Critical sector => Executing under safety constraints
                 rospy.logdebug("[Strategy Planner] Entering critical sector")
                 localRisk = []
 
                 for sectors in criticalSectors:
-                    for node in sectors:
+                    for node in sectors.sectors:
                         if node.node == i:
                             localRisk.append(node.risk)
                             break
-                # Choosing the trajectory which fits the best to the current localization and using this risk for decision making
-                currentPose = rospy.wait_for_message(
-                    Topics.LOCALIZATION.value, PoseWithCovarianceStamped
-                )
-                currentPose = get_pixel_location_from_acml(
-                    currentPose.pose.pose.position.x,
-                    currentPose.pose.pose.position.y,
-                    *get_base_info(),
-                )
 
                 # Logging in Evaluationmanager
                 evalManagerClient.evalLogCriticalSector(
@@ -308,6 +297,9 @@ def chooseStrategy(riskEstimation: Risk):
                 ############################################################
                 #  ------------------------- Behaviour execution -------------------------
                 ############################################################
+                if emergencyStop.is_set():
+                    return
+
                 if np.average(localRisk) < riskStop:
                     # Risk is reasonable low enough => Navigate
                     result = moveBaseClient(trajectory.poses[i])
@@ -323,6 +315,8 @@ def chooseStrategy(riskEstimation: Risk):
                     break
             else:
                 # Uncritical sector => Just executing navigation
+                if emergencyStop.is_set():
+                    return
                 rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
                 # Logging in Evaluationmanager
                 evalManagerClient.evalLogUncriticalSector(
@@ -335,9 +329,13 @@ def chooseStrategy(riskEstimation: Risk):
                     evalManagerClient.evalLogStop()
                     return
     else:
+        rospy.loginfo(
+            f"[Strategy Planner] Risk too high. Restarting risk estimation. Risk: {np.average(riskGlobal)}"
+        )
         # Retry risk estimation
-        rospy.Publisher(Topics.GLOBAL_PATH.value, Path, queue_size=10).publish(
-            trajectory
+        goalPose = trajectory.poses[len(trajectory.poses) - 1]
+        rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10).publish(
+            goalPose
         )
 
 
@@ -353,10 +351,27 @@ def strategyPlanner(runWithRiskEstimation=True):
     set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.STRATEGY_PLANNER.value}")
 
-    rospy.Subscriber(
-        Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10
-    )
-    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setEmergencyStop, queue_size=10)
+    if not runWithRiskEstimation:
+        # Just drive the trajectory
+        rospy.Subscriber(
+            Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1
+        )
+    else:
+        # ROS setter for trajectory, its executet when risk values come in
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=1)
+        # Start driving when the risk values come in
+        rospy.Subscriber(
+            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1
+        )
+        # Start fallback behaviour
+        rospy.Subscriber(
+            Topics.EMERGENCY_BRAKE.value, Bool, activateFallbackBehaviour, queue_size=10
+        )
+
+    # rospy.Subscriber(
+    #     Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10
+    # )
+    # Callbacks of move_base client
     rospy.Subscriber(
         Topics.MOVE_BASE_FEEDBACK.value,
         MoveBaseActionFeedback,
@@ -369,24 +384,14 @@ def strategyPlanner(runWithRiskEstimation=True):
         _moveBaseActionDoneCallback,
         queue_size=10,
     )
-    if not runWithRiskEstimation:
-        # Just drive the trajectory
-        rospy.Subscriber(
-            Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1
-        )
-    else:
-        # Start driving when the risk values come in
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=1)
-        rospy.Subscriber(
-            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1
-        )
 
-    # detectHazard()
+    detectHazard()
     rospy.spin()
 
 
 if __name__ == "__main__":
     try:
-        strategyPlanner()
-    except:
+        strategyPlanner(runWithRiskEstimation=True)
+    except Exception as e:
+        print(e)
         rospy.loginfo(f"Shutting down node {Nodes.STRATEGY_PLANNER.value}")

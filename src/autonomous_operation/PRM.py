@@ -163,7 +163,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
         dist = np.min(np.array(distances))
 
         if (
-            (dist > RADIUS_ROBOT + 4)
+            (dist > RADIUS_ROBOT)
             and pixels[random_y][random_x] != 255
             and pixels[random_y][random_x] != NODE_COLOR
         ):

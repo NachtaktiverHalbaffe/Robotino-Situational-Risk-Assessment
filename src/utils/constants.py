@@ -1,42 +1,44 @@
+import os
 from enum import Enum
+from geometry_msgs.msg import PoseStamped
 
 
 class Topics(Enum):
-    GLOBAL_PATH = "/path_global"
-    TARGET = "/target"
-    TARGET_ID = "/target_id"
-    NAV_POINT = "/nav_point"
     ACML = "/amcl_pose"
+    BRUTEFORCE_ENABLED = "/bruteforce_enabled"
+    EMERGENCY_BRAKE = "/emergency_break"
+    GLOBAL_PATH = "/path_global"
+    IMAGE_BB_MOVEABLE = "/image_bb_moveable"
+    IMAGE_BB_WS = "/image_bb_ws"
+    IMAGE_RAW = "/image_raw"
     IMG_LOCALIZATION = "/camera_pose"
-    LOCALIZATION_MODE = "/localization_mode"
+    IR_SENSORS = "/distance_sensors"
+    LIDAR_ENABLED = "/lidar_enabled"
     LOCALIZATION = "/pose"
+    LOCALIZATION_MODE = "/localization_mode"
+    MARKERS = "/target_markers"
+    MARKERS_COMMON_TRAJ = "/common_traj_markers"
+    MARKERS_NAV = "/target_nav_markers"
+    MOVE_BASE_FEEDBACK = "/move_base/feedback"
+    MOVE_BASE_RESULT = "/move_base/result"
+    NAV_POINT = "/nav_point"
+    NAVIGATION_RESPONSE = "/navigation_response"
+    NR_OF_RUNS = "/nr_of_runs"
     OBSTACLES = "/obstacles"
     OBSTACLES_GEOFENCED = "/obstacles_geofenced"
     OBSTACLES_VISU = "/obstacles_visu"
-    IMAGE_RAW = "/image_raw"
-    IMAGE_BB_WS = "/image_bb_ws"
-    IMAGE_BB_MOVEABLE = "/image_bb_moveable"
-    NAVIGATION_RESPONSE = "/navigation_response"
     ODOM = "/odom"
     ODOM_ROBOTINO = "/odom_robotino"
-    IR_SENSORS = "/distance_sensors"
-    EMERGENCY_BRAKE = "/emergency_break"
-    MARKERS = "/target_markers"
-    MARKERS_NAV = "/target_nav_markers"
-    MARKERS_COMMON_TRAJ = "/common_traj_markers"
-    LIDAR_ENABLED = "/lidar_enabled"
-    RISK_ESTIMATION_RL = "/risk_estimation_rl"
-    RISK_ESTIMATION_BRUTE = "/risk_estimation_brute"
-    RISK_ESTIMATION_SOTA = "/risk_estimation_sota"
-    BRUTEFORCE_ENABLED = "/bruteforce_enabled"
-    WORKSTATIONMAPPER_ENABLED = "/workstation_mapper_enabled"
-    SOTA_ENABLED = "/sota_enabled"
-    MOVE_BASE_FEEDBACK = "/move_base/feedback"
-    MOVE_BASE_RESULT = "/move_base/result"
-    NR_OF_RUNS = "/nr_of_runs"
-    PATH_ERRORDISTR_DIST = "/path_errordistr_dist"
+    PATH_ERRORDIST_DIST = "/path_errordistr_dist"
     PATH_ERRORDISTR_ANGLE = "/path_errordistr_angle"
+    RISK_ESTIMATION_BRUTE = "/risk_estimation_brute"
+    RISK_ESTIMATION_RL = "/risk_estimation_rl"
+    RISK_ESTIMATION_SOTA = "/risk_estimation_sota"
+    SOTA_ENABLED = "/sota_enabled"
+    TARGET = "/target"
+    TARGET_ID = "/target_id"
     USE_ERRORDIST = "/custom_errordist_enabled"
+    WORKSTATIONMAPPER_ENABLED = "/workstation_mapper_enabled"
 
 
 class Nodes(Enum):
@@ -65,3 +67,21 @@ class LoggingLevel(Enum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     EVAL = "EVAL"
+
+
+class CommonPositions(Enum):
+    __safe_Spot = PoseStamped()
+    __safe_Spot.header.frame_id = "map"
+    __safe_Spot.pose.position.x = -4.093
+    __safe_Spot.pose.position.y = 2.422
+    SAFE_SPOT = __safe_Spot
+
+
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
+
+
+class Paths(Enum):
+    ERRORDIST_DIST = f"{PATH}/logs/error_dist_csvs/localization_error_dist.csv"
+    ERRORDIST_ANGLE = f"{PATH}/logs/error_dist_csvs/localization_error_angle.csv"
+    RISK_ESTIMATION_OBSTACLES = f"{PATH}/logs/risk_estimation_obstacles.csv"
+    RISK_ESTIMATION = f"{PATH}/logs/risk_estimation.csv"

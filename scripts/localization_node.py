@@ -18,7 +18,7 @@ from copy import deepcopy
 from cv_bridge import CvBridge
 from threading import Thread
 
-from utils.constants import Topics, Nodes
+from utils.constants import Topics, Nodes, Paths
 from utils.ros_logger import set_rospy_log_lvl
 from yolov7.detect_online import loaded_detect
 from real_robot_navigation.move_utils import *
@@ -41,18 +41,18 @@ img_glob = []
 # the odometry message which will be published
 odom = Odometry()
 # The path to custom error distribution data
-errorDistrDistPath = f"{PATH}/logs/error_dist_csvs/localization_error_dist.csv"
-errorDistrAnglePath = f"{PATH}/logs/error_dist_csvs/localization_error_angle.csv"
+errorDistrDistPath = Paths.ERRORDIST_DIST.value
+errorDistrAnglePath = Paths.ERRORDIST_ANGLE.value
 
 
 def setPathErrorDist(path: String):
     global errorDistrDistPath
-    errorDistrDistPath = path
+    errorDistrDistPath = path.data
 
 
 def setPathErrorAngle(path: String):
     global errorDistrAnglePath
-    errorDistrAnglePath = path
+    errorDistrAnglePath = path.data
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -72,7 +72,11 @@ def setUseLidar(isUsed: Bool):
 
     if useLidar:
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
+        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(
+            False
+        )
     else:
+        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(True)
         rospy.logdebug_throttle(10, "[Localization] Use camera")
 
 
@@ -102,6 +106,37 @@ def _dumpErrorToCSV(savePath, value):
     ) as f1:
         write = csv.writer(f1)
         write.writerow([value])
+
+
+def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
+    """
+    Behaviour when a anomaly is detected:
+
+    Args:
+        errorValue (float): The value of the error
+        anomalySource (str): The name of the source where the anomaly originates from
+    """
+    global errorDistrDistPath
+    global errorDistrAnglePath
+
+    rospy.loginfo(
+        f"[Localization] Anomaly in {anomalySource} detected with error {errorValue}"
+    )
+
+    try:
+        # Published the used csv for error distribution so risk estimation can use them
+        rospy.Publisher(
+            Topics.PATH_ERRORDIST_DIST.value,
+            String,
+            queue_size=10,
+        ).publish(errorDistrDistPath)
+        rospy.Publisher(
+            Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10
+        ).publish(errorDistrAnglePath)
+        # Publish emergencyBreak so all nodes can go in fallback mode
+        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(True)
+    except Exception as e:
+        rospy.logerr(f"[Localization] Couldn't execute anomaly behaviour: {e}")
 
 
 def anomalyDetector(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_error"):
@@ -156,15 +191,13 @@ def anomalyDetector(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_e
         angleErrMedian = np.median(angleErrFIFO)
 
         if xErrMedian > THRES_X:
-            rospy.loginfo(f"[Localization] Anomaly detected with error {xErrMedian}")
+            _executeAnomalyMeasures(xErrMedian, "x-space")
         if yErrMedian > THRES_Y:
-            rospy.loginfo(f"[Localization] Anomaly detected with error {yErrMedian}")
+            _executeAnomalyMeasures(yErrMedian, "y-space")
         if distErrMedian > THRES_DIST:
-            rospy.loginfo(f"[Localization] Anomaly detected with error {distErrMedian}")
+            _executeAnomalyMeasures(distErrMedian, "distance-space")
         if angleErrMedian > THRES_ANGLE:
-            rospy.loginfo(
-                f"[Localization] Anomaly detected with error {angleErrMedian}"
-            )
+            _executeAnomalyMeasures(angleErrMedian, "angle-space")
 
 
 def localiseCam():
@@ -402,7 +435,7 @@ def localization():
         Topics.PATH_ERRORDISTR_ANGLE.value, String, setPathErrorAngle, queue_size=10
     )
     rospy.Subscriber(
-        Topics.PATH_ERRORDISTR_DIST.value, String, setPathErrorDist, queue_size=10
+        Topics.PATH_ERRORDIST_DIST.value, String, setPathErrorDist, queue_size=10
     )
     # For determining localization mode
     locMode = "lidar"

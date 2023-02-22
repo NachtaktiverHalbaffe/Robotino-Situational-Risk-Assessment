@@ -21,6 +21,7 @@ try:
     from .mcts import *
     from .sb3_as_adv import Sb3_as_adv
     from .sb3_model_same import SameExtractor
+    from utils.constants import Paths
 except:
     import env_gym
     from config import configs
@@ -146,7 +147,7 @@ def run_crash_and_remove(
     configs,
     env_name,
     use_brute_force_baseline=False,
-    save_location=f"{PATH}/risk_data_frames/df_rl_v_brut.obj",
+    save_location=Paths.RISK_ESTIMATION.value,
     replay_on=False,
     load_location=None,
     attempts=10,
@@ -196,6 +197,7 @@ def run_crash_and_remove(
     env_name = "robo_navigation-single_dimension-v0"
     # env = DummyVecEnv([lambda: Monitor(gym.make(env_name, config=configs))
     #                  for i in range(1)])
+
     if obstacles != None:
         env = gym.make(
             env_name,
@@ -486,21 +488,20 @@ def run_crash_and_remove(
 
             "every 500 runs we save the current state"
             if len(rl_actions_to_crash_lists) % 500 == 0 and not replay_on:
-                df_save = pd.DataFrame(
-                    {
-                        "rl_prob": rl_list,
-                        "brute_prob": brute_force_list,
-                        "traj": traj_list,
-                        "len_traj": len_traj_list,
-                        "len_traj_list_in_m": len_traj_list_in_m,
-                        "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
-                        "wall_discards": wall_discards,
-                        "collided_obs": collided_obs_list,
-                    }
-                )
-                filehandler = open(save_location, "wb")
-                pkl.dump(df_save, filehandler)
-                filehandler.close()
+                data = {
+                    "rl_prob": rl_list,
+                    "brute_prob": brute_force_list,
+                    "traj": traj_list,
+                    "len_traj": len_traj_list,
+                    "len_traj_list_in_m": len_traj_list_in_m,
+                    "rl_actions_to_crash_lists": rl_actions_to_crash_lists,
+                    "wall_discards": wall_discards,
+                    "collided_obs": collided_obs_list,
+                }
+                df_currentRun = pd.DataFrame(data)
+                df_oldRuns = pd.read_csv(save_location)
+                df_save = pd.concat([df_currentRun, df_oldRuns], ignore_index=True)
+                df_save.to_csv(save_location)
 
     # ----- Save the final results ----
     data = {
@@ -514,8 +515,10 @@ def run_crash_and_remove(
         "collided_obs": collided_obs_list,
     }
     if not replay_on:
-        df_save = pd.DataFrame(data)
-        df_save.to_csv(f"{PATH}/logs/risk_estimation.csv")
+        df_currentRun = pd.DataFrame(data)
+        df_oldRuns = pd.read_csv(save_location)
+        df_save = pd.concat([df_currentRun, df_oldRuns], ignore_index=True)
+        df_save.to_csv(save_location)
 
         rospy.logdebug(f"[Crash and Remove] Wall_discards {wall_discards}")
 

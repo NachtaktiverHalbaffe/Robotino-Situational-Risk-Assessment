@@ -35,7 +35,7 @@ from utils.py_ros_launch import ros_launch_without_core
 from risk_estimation.config import configs
 from risk_estimation.eval import mains as evaluation
 from src.risk_estimation.AutoLabel import AutoLabel, read_data, evaluate_virtual_vs_ida
-from utils.constants import Topics, Nodes
+from utils.constants import Topics, Nodes, Paths
 from utils.navigation_utils import pathToTraj
 from prototype.msg import Risk, ObstacleMsg, ObstacleList
 
@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
         self.ui.comboBox_errDistrANglePath.addItems(
             [
                 "Set path for angle error CSV",
-                f"{PATH_ERRORDISTS}/localization_error_angle.csv",
+                Paths.ERRORDIST_ANGLE.value,
                 f"{PATH_ERRORDISTS}/localization_error_badlight_angle.csv",
                 f"{PATH_ERRORDISTS}/localization_error_faulty_initialpose_angle.csv",
             ]
@@ -95,7 +95,7 @@ class MainWindow(QMainWindow):
         self.ui.comboBox_errDistrDistPath.addItems(
             [
                 "Set path for distance error CSV",
-                f"{PATH_ERRORDISTS}/localization_error_dist.csv",
+                Paths.ERRORDIST_DIST.value,
                 f"{PATH_ERRORDISTS}/localization_error_badlight_dist.csv",
                 f"{PATH_ERRORDISTS}/localization_error_faulty_initialpose_dist.csv",
             ]
@@ -166,20 +166,15 @@ class MainWindow(QMainWindow):
         self.ui.checkBox_LIDAR.stateChanged.connect(
             lambda: self.activateFeature("lidar")
         )
-        self.ui.checkBox_LIDAR.setChecked(True)
         self.ui.checkBox_qrScanner.stateChanged.connect(
             lambda: self.activateFeature("qr")
         )
-        self.ui.checkBox_qrScanner.setChecked(True)
         self.ui.checkBox_bruteforce.stateChanged.connect(
             lambda: self.activateFeature("bruteforce")
         )
-        self.ui.checkBox_bruteforce.setChecked(False)
         self.ui.checkBox_baselineRisk.stateChanged.connect(
             lambda: self.activateFeature("baseline")
         )
-        self.ui.checkBox_baselineRisk.setChecked(False)
-        self.ui.checkBox_errorDIst.setChecked(False)
         self.ui.checkBox_errorDIst.stateChanged.connect(
             lambda: self.activateFeature("error_dist")
         )
@@ -205,11 +200,31 @@ class MainWindow(QMainWindow):
                 Topics.NR_OF_RUNS.value, Int16, queue_size=10
             )
             self.errorDistrDistPathPub = rospy.Publisher(
-                Topics.PATH_ERRORDISTR_DIST.value, String, queue_size=10, latch=True
+                Topics.PATH_ERRORDIST_DIST.value, String, queue_size=10, latch=True
             )
             self.errorDistrAnglePathpub = rospy.Publisher(
                 Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10, latch=True
             )
+            self.LIDARpublisher = rospy.Publisher(
+                Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
+            )
+            self.qrPublisher = rospy.Publisher(
+                Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10, latch=True
+            )
+            self.brutePublisher = rospy.Publisher(
+                Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10, latch=True
+            )
+            self.sotaPublisher = rospy.Publisher(
+                Topics.SOTA_ENABLED.value, Bool, queue_size=10, latch=True
+            )
+            self.errorDistPublisher = rospy.Publisher(
+                Topics.USE_ERRORDIST.value, Bool, queue_size=10, latch=True
+            )
+            self.ui.checkBox_LIDAR.setChecked(True)
+            self.ui.checkBox_qrScanner.setChecked(True)
+            self.ui.checkBox_bruteforce.setChecked(False)
+            self.ui.checkBox_baselineRisk.setChecked(False)
+            self.ui.checkBox_errorDIst.setChecked(False)
 
     def start_robot(self):
         """
@@ -550,43 +565,28 @@ class MainWindow(QMainWindow):
 
     def activateFeature(self, feature: str):
         if "lidar" in feature.lower():
-            publisher = rospy.Publisher(
-                Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
-            )
             try:
-                publisher.publish(self.ui.checkBox_LIDAR.isChecked())
+                self.LIDARpublisher.publish(self.ui.checkBox_LIDAR.isChecked())
             except:
                 pass
         elif "qr" in feature.lower():
-            publisher = rospy.Publisher(
-                Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10, latch=True
-            )
             try:
-                publisher.publish(self.ui.checkBox_qrScanner.isChecked())
+                self.qrPublisher.publish(self.ui.checkBox_qrScanner.isChecked())
             except:
                 pass
         elif "bruteforce" in feature.lower():
-            publisher = rospy.Publisher(
-                Topics.BRUTEFORCE_ENABLED.value, Bool, queue_size=10, latch=True
-            )
             try:
-                publisher.publish(self.ui.checkBox_bruteforce.isChecked())
+                self.brutePublisher.publish(self.ui.checkBox_bruteforce.isChecked())
             except:
                 pass
         elif "baseline" in feature.lower():
-            publisher = rospy.Publisher(
-                Topics.SOTA_ENABLED.value, Bool, queue_size=10, latch=True
-            )
             try:
-                publisher.publish(self.ui.checkBox_baselineRisk.isChecked())
+                self.sotaPublisher.publish(self.ui.checkBox_baselineRisk.isChecked())
             except:
                 pass
         elif "error_dist" in feature.lower():
-            publisher = rospy.Publisher(
-                Topics.USE_ERRORDIST.value, Bool, queue_size=10, latch=True
-            )
             try:
-                publisher.publish(self.ui.checkBox_errorDIst.isChecked())
+                self.errorDistPublisher.publish(self.ui.checkBox_errorDIst.isChecked())
             except:
                 pass
 
