@@ -16,12 +16,12 @@
     <param name="package_path" value="(arg path)"/>
     
     <!-- Navigation -->
-    <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map1"/>
+    <node pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" name="map"  output="log"/>
     <node pkg="$(arg package_name)" name="path_planner"  type="path_planner_node.py" output="screen"  required="true">
         <param name="map_ref" value="$(arg path)/maps/FinalGridMapv2cleaned.png"/>
     </node>
     <node pkg="$(arg package_name)" name="strategy_planner" type="strategy_planner_node.py" output="screen" required="true" />
-    <!-- <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/> -->
+    <node pkg="$(arg package_name)" name="control"  type="control_node.py" output="screen" required="true"/>
     <node pkg="$(arg package_name)" name="fleetias_client" type="fleetias_client_node.py" output="screen">
         <param name="ip" value="$(arg ip)"/>
     </node>
