@@ -43,7 +43,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -727,6 +727,26 @@ background-image: url(src/gui/ml_rl_background.jpeg)
              <widget class="QPushButton" name="pushButton">
               <property name="text">
                <string>Estimate obstacle risk</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="3">
+             <widget class="QComboBox" name="comboBox_errDistrDistPath">
+              <property name="currentText">
+               <string/>
+              </property>
+              <property name="currentIndex">
+               <number>-1</number>
+              </property>
+              <property name="placeholderText">
+               <string>Path error distribution distance</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="4">
+             <widget class="QComboBox" name="comboBox_errDistrANglePath">
+              <property name="placeholderText">
+               <string>Path error distribution angles</string>
               </property>
              </widget>
             </item>
