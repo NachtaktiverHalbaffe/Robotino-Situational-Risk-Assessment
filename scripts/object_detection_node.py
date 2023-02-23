@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import csv
+from threading import Thread
 import rospy
 import os
 import numpy as np
@@ -17,13 +18,13 @@ from real_robot_navigation.move_utils import *
 from real_robot_navigation.move_utils_cords import *
 
 img_glob = []
-geofencedObs = Obstacle([], label="geofenced")
+geofencedObs = None
+detectedObstacles = []
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 
 def setGeofencedObj(obstacleMsg: ObstacleMsg):
     global geofencedObs
-    global detectedObstacles
     corners = []
     for corner in obstacleMsg.corners:
         corners.append((corner.x, corner.y))
@@ -33,24 +34,13 @@ def setGeofencedObj(obstacleMsg: ObstacleMsg):
 
 def setImage(rawImage: Image):
     global img_glob
-    global Image_data
     bridge = CvBridge()
     cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
 
     # Resize Image to 640 * 480 - YOLO was trained in this size
-    width = int(rawImage.width * 0.80)
-    height = int(rawImage.height * 0.80)
-    dim = (width, height)
-    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
 
     # The unmodified image
     img_glob = deepcopy(cv_image)
-    Image_data = [
-        "Image_Data",
-        dim,  # dimensions of resized image
-        img_resized,  # image data
-        rawImage.header.stamp,
-    ]
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -69,24 +59,43 @@ def visualizeObstacles():
     Create Polygon messages and sends them to rviz. Is used to visualize the detected obstacles in rviz
     """
     global detectedObstacles
-    msg = PolygonArray()
-    msg.header.frame_id = "map"
-    for obstacle in detectedObstacles:
-        polygon = PolygonStamped()
-        polygon.header.frame_id = "map"
-        for corner in obstacle.corners:
-            transformedCor = get_amcl_from_pixel_location(
-                corner[0], corner[1], *config["base_info"]
-            )
-            polygon.polygon.points.append(
-                Point32(transformedCor[0], transformedCor[1], 0.2)
+    global geofencedObs
+    global config
+
+    while not rospy.is_shutdown():
+        modify_map(
+            config["map_ref"],
+            [],
+            detectedObstacles,
+            color=(255, 255, 255),
+            convert_back_to_grey=True,
+            savePath=f"{PATH}/maps/map_obstacles.png",
+        )
+
+        msg = PolygonArray()
+        msg.header.frame_id = "map"
+        for obstacle in detectedObstacles:
+            polygon = PolygonStamped()
+            polygon.header.frame_id = "map"
+            for corner in obstacle.corners:
+                transformedCor = get_amcl_from_pixel_location(
+                    corner[0], corner[1], *config["base_info"]
+                )
+                polygon.polygon.points.append(
+                    Point32(transformedCor[0], transformedCor[1], 0.2)
+                )
+
+            msg.polygons.append(polygon)
+        try:
+            rospy.Publisher(
+                Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10
+            ).publish(msg)
+        except Exception as e:
+            rospy.logwarn(
+                f"[Object Detection] COuldn't publish visualization message: {e}"
             )
 
-        msg.polygons.append(polygon)
-
-    rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10).publish(
-        msg
-    )
+        rospy.Rate(2).sleep()
 
 
 def detect(log_detection_error=True):
@@ -113,6 +122,33 @@ def detect(log_detection_error=True):
     map_ref = deepcopy(config["map_ref"]).convert("RGB")
     while not rospy.is_shutdown():
         if len(real_data) == 0 or len(img_glob) == 0:
+            if geofencedObs != None:
+                detectedObstacles = [geofencedObs]
+                # Create message
+                msg = ObstacleList()
+                corners = []
+                # Convert corners to ROS points
+                for corner in geofencedObs.corners:
+                    cornerItem = Point()
+                    cornerItem.x = corner[0]
+                    cornerItem.y = corner[1]
+                    corners.append(cornerItem)
+                #  Append Obstacle to message
+                obstacleMsg = ObstacleMsg()
+                obstacleMsg.corners = corners
+                obstacleMsg.label = geofencedObs.label
+                msg.obstacles.append(obstacleMsg)
+                # Publish message
+                try:
+                    rospy.logdebug(
+                        f"[Object Detection] Publishing detected obstacles: {msg}"
+                    )
+                    publisher.publish(msg)
+                except:
+                    rospy.logwarn(
+                        f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
+                    )
+
             continue
 
         currentLocation = deepcopy(real_data)
@@ -145,7 +181,6 @@ def detect(log_detection_error=True):
                 detec_movables_obstacles,
                 color=(255, 255, 255),
                 convert_back_to_grey=True,
-                savePath=f"{PATH}/maps/map_obstacles.png",
             )
 
         # ----------- Determine error distribution and write it to a CSV ------------
@@ -197,6 +232,9 @@ def detect(log_detection_error=True):
                     # print(error)
                     write.writerow([error])
 
+        if geofencedObs != None:
+            detec_movables_obstacles.append(geofencedObs)
+
         # Create message
         msg = ObstacleList()
         for obstacle in detec_movables_obstacles:
@@ -208,7 +246,7 @@ def detect(log_detection_error=True):
                 cornerItem.y = corner[1]
                 corners.append(cornerItem)
             #  Append Obstacle to message
-            obstacleMsg = ObstacleMsg
+            obstacleMsg = ObstacleMsg()
             obstacleMsg.corners = corners
             obstacleMsg.label = obstacle.label
             msg.obstacles.append(obstacleMsg)
@@ -221,9 +259,7 @@ def detect(log_detection_error=True):
                 f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
             )
 
-        detec_movables_obstacles.append(geofencedObs)
         detectedObstacles = detec_movables_obstacles
-        visualizeObstacles()
 
 
 def objectDetection():
@@ -262,6 +298,7 @@ def objectDetection():
     rospy.Subscriber(
         Topics.OBSTACLES_GEOFENCED.value, ObstacleMsg, setGeofencedObj, queue_size=10
     )
+    Thread(target=visualizeObstacles).start()
     detect()
 
     # Prevents python from exiting until this node is stopped
@@ -269,8 +306,8 @@ def objectDetection():
 
 
 if __name__ == "__main__":
-    try:
-        objectDetection()
-    except Exception as e:
-        print(e)
-        rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")
+    # try:
+    objectDetection()
+# except Exception as e:
+#     print(e)
+#     rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")

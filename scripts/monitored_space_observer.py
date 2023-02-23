@@ -27,13 +27,23 @@ def setPathErrorAngle(path: String):
     errorDistrAnglePath = path.data
 
 
-def _dumpErrorToCSV(savePath, value):
+def __dumpErrorToCSV(savePath, value):
     with open(
         savePath,
         "a",
     ) as f1:
         write = csv.writer(f1)
         write.writerow([value])
+
+
+def __clearStandardCSVs():
+    """
+    Emptys the standard error distribution files which are used in normal operation
+    """
+    f = open(Paths.ERRORDIST_ANGLE.value, "w+")
+    f.close()
+    f = open(Paths.ERRORDIST_DIST.value, "w+")
+    f.close()
 
 
 def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
@@ -102,10 +112,10 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         )
 
         # Dump raw error values to a csv file
-        _dumpErrorToCSV(f"{savePath}_x.csv", xErr)
-        _dumpErrorToCSV(f"{savePath}_y.csv", yErr)
-        _dumpErrorToCSV(errorDistrDistPath, distErr)
-        _dumpErrorToCSV(errorDistrAnglePath, angleErr)
+        __dumpErrorToCSV(f"{savePath}_x.csv", xErr)
+        __dumpErrorToCSV(f"{savePath}_y.csv", yErr)
+        __dumpErrorToCSV(errorDistrDistPath, distErr)
+        __dumpErrorToCSV(errorDistrAnglePath, angleErr)
 
         # Update fifo queue
         xErrFIFO.appendleft(xErr)
@@ -144,6 +154,8 @@ def monitorSpace():
     rospy.Subscriber(
         Topics.PATH_ERRORDIST_DIST.value, String, setPathErrorDist, queue_size=10
     )
+
+    __clearStandardCSVs()
 
     spaceObserver()
 

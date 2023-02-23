@@ -37,13 +37,15 @@ def infer_rot(top, bot, d, w, dir):
     r = r - offset_y
     a = 0.0012277075719758462
     if dir == "c":
-        y = (a**2 * d * l * (r - l) + np.sqrt((a**2) * (l**2 * (w**2) - d**2 * (l - r) ** 2) + w**2)) / (
-            a**2 * (l**2) + 1
-        )
+        y = (
+            a**2 * d * l * (r - l)
+            + np.sqrt((a**2) * (l**2 * (w**2) - d**2 * (l - r) ** 2) + w**2)
+        ) / (a**2 * (l**2) + 1)
     elif dir == "a":
-        y = (a**2 * d * r * (l - r) + np.sqrt((a**2) * (r**2 * (w**2) - d**2 * (l - r) ** 2) + w**2)) / (
-            a**2 * (r**2) + 1
-        )
+        y = (
+            a**2 * d * r * (l - r)
+            + np.sqrt((a**2) * (r**2 * (w**2) - d**2 * (l - r) ** 2) + w**2)
+        ) / (a**2 * (r**2) + 1)
     else:
         print("except unknown roation, name either c or a")
     return y
@@ -87,13 +89,26 @@ def cube_rules(xyxy, label, h_real, w_real, d_real, use_pure_hight):
         #     shift = shift+w_real/2
         # depth = depth+d_real/2
     else:
-        shift = 100000
+        shift = infer_width(top[0], depth)
+        y_diff = infer_rot(top, bot, depth, w_real, "a")
+        rot = np.arcsin(y_diff / w_real)
+        rot = -rot
+        if math.isnan(rot):
+            rot = torch.tensor(0, dtype=torch.float32)
+        depth_c = depth
+        shift_c = shift + np.cos(-rot) * w_real / 2 - np.sin(-rot) * d_real / 2
     return depth, shift, depth_c, shift_c, rot, [d_real, w_real, h_real]
 
 
 def corners_from_center(x, y, rotation, sizes):
     # compute rotational matrix around yaw axis
-    R = np.array([[+np.cos(rotation), 0, +np.sin(rotation)], [0, 1, 0], [-np.sin(rotation), 0, +np.cos(rotation)]])
+    R = np.array(
+        [
+            [+np.cos(rotation), 0, +np.sin(rotation)],
+            [0, 1, 0],
+            [-np.sin(rotation), 0, +np.cos(rotation)],
+        ]
+    )
 
     # 3D bounding box dimensions
     l = sizes[0]
@@ -115,7 +130,9 @@ def corners_from_center(x, y, rotation, sizes):
 
 def apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real):
     use_pure_hight = True
-    depth, shift, depth_c, shift_c, rot, sizes = cube_rules(xyxy, label, h_real, w_real, d_real, use_pure_hight)
+    depth, shift, depth_c, shift_c, rot, sizes = cube_rules(
+        xyxy, label, h_real, w_real, d_real, use_pure_hight
+    )
     # depth_c = depth_c+0.11
     corners_3D.append(corners_from_center(depth_c, shift_c, rot, sizes))
     if label_reaches_border(xyxy, use_pure_hight):
@@ -172,9 +189,16 @@ def convert_2d_3d(xyxy, im0, label):
         h_real = 0.95
         w_real = 1.15
         d_real = 0.80
-        depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-            xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-        )
+        (
+            depth,
+            shift,
+            depth_c,
+            shift_c,
+            rot,
+            sizes,
+            boundry,
+            corners_3D,
+        ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
     elif label in movable_names:
         if label in ["sklappbox_c", "sklappbox_a", "klappbox_c", "klappbox_a"]:
             h_real = 0.465
@@ -184,9 +208,16 @@ def convert_2d_3d(xyxy, im0, label):
                 w_real_ = w_real
                 w_real = d_real
                 d_real = w_real_
-            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-            )
+            (
+                depth,
+                shift,
+                depth_c,
+                shift_c,
+                rot,
+                sizes,
+                boundry,
+                corners_3D,
+            ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
 
         if label in ["sbox_c", "sbox_a", "box_c", "box_a"]:
             h_real = 0.482
@@ -196,35 +227,63 @@ def convert_2d_3d(xyxy, im0, label):
                 w_real_ = w_real
                 w_real = d_real
                 d_real = w_real_
-            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-            )
+            (
+                depth,
+                shift,
+                depth_c,
+                shift_c,
+                rot,
+                sizes,
+                boundry,
+                corners_3D,
+            ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
 
         if label in ["hocker_c", "hocker_a"]:
             h_real = 0.51
             w_real = 0.32
             d_real = 0.32
-            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-            )
+            (
+                depth,
+                shift,
+                depth_c,
+                shift_c,
+                rot,
+                sizes,
+                boundry,
+                corners_3D,
+            ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
 
         if label == "chair":
             h_real = 1.04
             w_real = 0.7
             d_real = 0.7
             # TODO expand to cirle version
-            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-            )
+            (
+                depth,
+                shift,
+                depth_c,
+                shift_c,
+                rot,
+                sizes,
+                boundry,
+                corners_3D,
+            ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
         if label == "robotino":
             # TODO get real measurments
             h_real = 0.33
             w_real = 0.45
             d_real = 0.45
             # TODO expand to cirle version
-            depth, shift, depth_c, shift_c, rot, sizes, boundry, corners_3D = apply_for_cube(
-                xyxy, label, corners_3D, boundry, h_real, w_real, d_real
-            )
+            (
+                depth,
+                shift,
+                depth_c,
+                shift_c,
+                rot,
+                sizes,
+                boundry,
+                corners_3D,
+            ) = apply_for_cube(xyxy, label, corners_3D, boundry, h_real, w_real, d_real)
     else:
         raise ValueError("unknown label")
 

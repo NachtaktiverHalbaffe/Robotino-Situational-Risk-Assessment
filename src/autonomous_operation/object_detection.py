@@ -90,9 +90,7 @@ class Obstacle:
 
             # Little correction so prm tends to plan nearer free space/obstacles than workstations
             if "ws" in self.label.lower():
-                dist = dist - 2
-            else:
-                dist = dist + 2
+                dist = dist - 4
             distances.append(dist)
 
         if len(distances) != 0:

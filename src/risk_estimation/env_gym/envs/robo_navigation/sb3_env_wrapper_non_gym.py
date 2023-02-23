@@ -22,11 +22,17 @@ from PIL import Image
 try:
     # Import when running from  roslaunch
     from risk_estimation.Environment import *
-    from utils.risk_estimation_utils import loadErrorDistribution
+    from utils.risk_estimation_utils import (
+        loadErrorDistribution,
+        loadErrorDistributionLIDAR,
+    )
 except:
     # Import when running as python script
     from Environment import *
-    from utils.risk_estimation_utils import loadErrorDistribution
+    from utils.risk_estimation_utils import (
+        loadErrorDistribution,
+        loadErrorDistributionLIDAR,
+    )
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 
@@ -43,6 +49,7 @@ class RoboEnv_gym_2(gym.Env):
         isTraining=True,
         errorDistrDistPath=None,
         errorDistrAnglePath=None,
+        useLidar=False,
     ):
         self.persisten_map = False
         self.actions_per_dimension = 5
@@ -135,15 +142,18 @@ class RoboEnv_gym_2(gym.Env):
                 0.23108108 / 2 + 0.30135135 / 2,
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
-        # load dynamically from CSV file
-        if errorDistrDistPath != None:
-            self.dists, self.dist_probs = loadErrorDistribution(
-                errorDistrDistPath, bins=self.actions_per_dimension
-            )
-        if errorDistrAnglePath != None:
-            self.angles, self.angle_probs = loadErrorDistribution(
-                errorDistrAnglePath, bins=self.actions_per_dimension
-            )
+        if not useLidar:
+            # load dynamically from CSV file
+            if errorDistrDistPath != None:
+                self.dists, self.dist_probs = loadErrorDistribution(
+                    errorDistrDistPath, bins=self.actions_per_dimension
+                )
+            if errorDistrAnglePath != None:
+                self.angles, self.angle_probs = loadErrorDistribution(
+                    errorDistrAnglePath, bins=self.actions_per_dimension
+                )
+        else:
+            self.angles, self.angle_probs = loadErrorDistributionLIDAR()
 
     def set_test(self) -> None:
         """Sets the environment to a test env"""

@@ -105,6 +105,11 @@ def localiseCam():
     publisher = rospy.Publisher(
         Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
     )
+
+    FIFO_LENGTH = 3
+    xLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    yLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    angleLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     while not rospy.is_shutdown():
         loc_detec = [0, 0]
         detected_rotation = 0
@@ -193,6 +198,14 @@ def localiseCam():
                 loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
 
         if loc_detec[0] != 0 and loc_detec[1] != 0 and detected_rotation != 0:
+            xLocFIFO.appendleft(float(loc_detec[0]))
+            yLocFIFO.appendleft(float(loc_detec[1]))
+            angleLocFIFO.appendleft(float(detected_rotation))
+
+            loc_detec = list(loc_detec)
+            loc_detec[0] = float(np.average(list(xLocFIFO)))
+            loc_detec[1] = float(np.average(list(yLocFIFO)))
+            detected_rotation = np.average(list(angleLocFIFO))
             last_known_loc = [
                 "cv_data",
                 round(float(loc_detec[0]), PRECISION),
@@ -228,6 +241,10 @@ def localiseCam():
             detected_rotation = round(
                 last_known_loc[3] + (detected_rotation - last_known_rotation), PRECISION
             )
+
+            xLocFIFO.appendleft(float(loc_detec[0]))
+            yLocFIFO.appendleft(float(loc_detec[1]))
+            angleLocFIFO.appendleft(float(detected_rotation))
 
             last_known_loc = [
                 "interpolated_data",
