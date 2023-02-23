@@ -523,7 +523,7 @@ def run_crash_and_remove(
     if not replay_on:
         df_currentRun = pd.DataFrame(data)
         df_oldRuns = pd.read_csv(save_location)
-        df_save = pd.concat([df_currentRun, df_oldRuns], ignore_index=True)
+        df_save = pd.concat([df_currentRun, df_oldRuns])
         df_save.to_csv(save_location)
 
         rospy.logdebug(f"[Crash and Remove] Wall_discards {wall_discards}")

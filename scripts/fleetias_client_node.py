@@ -11,6 +11,12 @@ from utils.evalmanager_client import EvalManagerClient
 
 PORT = 13002
 
+targetIdPub = rospy.Publisher(Topics.TARGET_ID.value, Int16, queue_size=10)
+targetCorPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
+lidarFeaturePub = rospy.Publisher(
+    Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
+)
+
 
 def activateFeature(feature: str, enabled: bool):
     """
@@ -24,15 +30,16 @@ def activateFeature(feature: str, enabled: bool):
     Returns:
         str: Response message
     """
-    publisher = rospy.Publisher(feature, Bool)
     if "lidar" in feature.lower():
         EvalManagerClient().evalLogLIDAR(enabled)
         try:
-            publisher.publish(enabled)
+            lidarFeaturePub.publish(enabled)
         except:
             return
     else:
-        rospy.logwarn(f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature')
+        rospy.logwarn(
+            f'Couldn\'t activate/deactivate feature "{feature}": Unkown feature'
+        )
         return f'Error: Feature "{feature}" unknown.'
 
     return f'Success: Feature "{feature}" activate/deactivated'
@@ -51,7 +58,9 @@ def addOffset(offset: list, feature: str):
     """
     if feature == "Localization":
         # Create message
-        data = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
+        data = rospy.wait_for_message(
+            Topics.LOCALIZATION.value, PoseWithCovarianceStamped
+        )
         data.pose.pose.position.x += offset[0]
         data.pose.pose.position.y += offset[1]
         # Publish message
@@ -78,9 +87,9 @@ def pushTarget(id=0, coordinate=(0, 0), type="workstation"):
     """
     if type == "resource":
         # Publish so id gets converted to coordinate
-        publisher = rospy.Publisher(Int16, Topics.TARGET_ID.value, queue_size=10)
+
         try:
-            publisher.publish(Int16(id))
+            targetIdPub.publish(Int16(id))
         except:
             return f"Error: Couldn't publish workstation target {id}"
         return f"Success: Started navigation to workstation {id}"
@@ -89,9 +98,8 @@ def pushTarget(id=0, coordinate=(0, 0), type="workstation"):
         target.pose.position.x = coordinate[0]
         target.pose.position.y = coordinate[1]
         # Publish as a target coordinate directly
-        publisher = rospy.Publisher(PoseStamped, Topics.TARGET.value, queue_size=10)
         try:
-            publisher.publish(target)
+            targetCorPub.publish(target)
         except:
             return f"Error: Couldn't publish target coordinate {coordinate}"
         return f"Success: Started navigation to coordinate {coordinate}"
@@ -114,7 +122,9 @@ def processMessage(data: dict):
             )
             response = pushTarget(type="resource", id=data["workstationID"])
         elif data["type"].lower() == "coordinate":
-            rospy.logdebug(f'[FleetIAS-Client]: Received command "PushTarget with coordinate {data["coordinate"]}"')
+            rospy.logdebug(
+                f'[FleetIAS-Client]: Received command "PushTarget with coordinate {data["coordinate"]}"'
+            )
             response = pushTarget(type="coordinate", coordinate=data["coordinate"])
         else:
             pass

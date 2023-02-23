@@ -51,6 +51,10 @@ useCustomErrorDist = False
 errorDistrDistPath = Paths.ERRORDIST_DIST.value
 errorDistrAnglePath = Paths.ERRORDIST_ANGLE.value
 
+publisherRL = rospy.Publisher(
+    Topics.RISK_ESTIMATION_RL.value, Risk, queue_size=10, latch=True
+)
+
 
 def setUseBrute(enabled: Bool):
     global useBrute
@@ -346,7 +350,7 @@ def estimateRisk(globalPath: Path):
     global useBrute
     global obstacleMsg
     # Parameters for probability estimator&fault injector
-    ATTEMPTS = 10
+    ATTEMPTS = 3
     AMOUNT_OF_EXPLORATION = 1
     # Parameters for risk calculation
     COST_COLLISION = 200
@@ -513,9 +517,6 @@ def estimateRisk(globalPath: Path):
         np.average(riskCollision) + np.average(riskCollisionStop)
     )
     # Publish ros message
-    publisherRL = rospy.Publisher(
-        Topics.RISK_ESTIMATION_RL.value, Risk, queue_size=10, latch=True
-    )
     rospy.loginfo(
         f"[Risk Estimator] Finished global risk estimation.\nRisk collision: {np.average(riskCollision)}\nRisk collision&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
     )
@@ -554,9 +555,9 @@ def riskEstimator():
         Topics.USE_ERRORDIST.value, Bool, setUseCustomErroDist, queue_size=10
     )
 
-    while not rospy.is_shutdown():
-        visualizeCommonTraj()
-        rospy.Rate(1).sleep()
+    # while not rospy.is_shutdown():
+    #     visualizeCommonTraj()
+    #     rospy.Rate(1).sleep()
 
     # Prevents python from exiting until this node is stopped
     rospy.spin()

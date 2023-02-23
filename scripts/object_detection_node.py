@@ -22,6 +22,9 @@ geofencedObs = None
 detectedObstacles = []
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
+visuPub = rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10)
+objectDetecPub = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList, queue_size=10)
+
 
 def setGeofencedObj(obstacleMsg: ObstacleMsg):
     global geofencedObs
@@ -87,9 +90,7 @@ def visualizeObstacles():
 
             msg.polygons.append(polygon)
         try:
-            rospy.Publisher(
-                Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10
-            ).publish(msg)
+            visuPub.publish(msg)
         except Exception as e:
             rospy.logwarn(
                 f"[Object Detection] COuldn't publish visualization message: {e}"
@@ -117,7 +118,7 @@ def detect(log_detection_error=True):
         "~path_error_dist_doorclosed",
         default=f"{PATH}/logs/error_dist_csvs/error_dist_detec_22_12_rot_door_closed.csv",
     )
-    publisher = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList, queue_size=10)
+
     # copy map and create a drawing frame
     map_ref = deepcopy(config["map_ref"]).convert("RGB")
     while not rospy.is_shutdown():
@@ -143,7 +144,7 @@ def detect(log_detection_error=True):
                     rospy.logdebug(
                         f"[Object Detection] Publishing detected obstacles: {msg}"
                     )
-                    publisher.publish(msg)
+                    objectDetecPub.publish(msg)
                 except:
                     rospy.logwarn(
                         f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "
@@ -253,7 +254,7 @@ def detect(log_detection_error=True):
         # Publish message
         try:
             rospy.logdebug(f"[Object Detection] Publishing detected obstacles: {msg}")
-            publisher.publish(msg)
+            objectDetecPub.publish(msg)
         except:
             rospy.logwarn(
                 f"[Object Detection] Couldn't publish Obstacles to topic {Topics.OBSTACLES.value} "

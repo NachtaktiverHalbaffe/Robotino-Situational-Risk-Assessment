@@ -16,6 +16,14 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 errorDistrDistPath = Paths.ERRORDIST_DIST.value
 errorDistrAnglePath = Paths.ERRORDIST_ANGLE.value
 
+distPub = rospy.Publisher(
+    Topics.PATH_ERRORDIST_DIST.value,
+    String,
+    queue_size=10,
+)
+anglePub = rospy.Publisher(Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10)
+emergencyPub = rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10)
+
 
 def setPathErrorDist(path: String):
     global errorDistrDistPath
@@ -63,16 +71,10 @@ def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
 
     try:
         # Published the used csv for error distribution so risk estimation can use them
-        rospy.Publisher(
-            Topics.PATH_ERRORDIST_DIST.value,
-            String,
-            queue_size=10,
-        ).publish(errorDistrDistPath)
-        rospy.Publisher(
-            Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10
-        ).publish(errorDistrAnglePath)
+        distPub.publish(errorDistrDistPath)
+        anglePub.publish(errorDistrAnglePath)
         # Publish emergencyBreak so all nodes can go in fallback mode
-        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(True)
+        emergencyPub.publish(True)
     except Exception as e:
         rospy.logerr(
             f"[Monitored Space Observer] Couldn't execute anomaly behaviour: {e}"

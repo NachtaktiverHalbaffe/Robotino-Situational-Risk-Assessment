@@ -30,7 +30,8 @@ emergencyStop = Event()
 fallbackMode = False
 nrOfAttempt = 0
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
-safeSpotPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
+targetPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
+navPub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -206,11 +207,10 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
 
 
 def navigate(pose: PoseStamped):
-    pub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
     navMsg = Point()
     navMsg.x = pose.pose.position.x
     navMsg.y = pose.pose.position.y
-    pub.publish(Point)
+    navPub.publish(navMsg)
 
     response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
 
@@ -283,7 +283,7 @@ def executeAnomalyStrategy():
 
     # Start the path planning process to navigate to safe spot
     try:
-        safeSpotPub.publish(CommonPositions.SAFE_SPOT.value)
+        targetPub.publish(CommonPositions.SAFE_SPOT.value)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
 
@@ -330,9 +330,7 @@ def chooseStrategy(riskEstimation: Risk):
         # Retry risk estimation
         nrOfAttempt = nrOfAttempt + 1
         goalPose = trajectory.poses[len(trajectory.poses) - 1]
-        rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10).publish(
-            goalPose
-        )
+        targetPub.publish(goalPose)
         return
     elif (
         (np.average(riskGlobal) > riskStop)
@@ -456,14 +454,14 @@ def strategyPlanner(runWithRiskEstimation=True):
     if not runWithRiskEstimation:
         # Just drive the trajectory
         rospy.Subscriber(
-            Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=1
+            Topics.GLOBAL_PATH.value, Path, moveBaseClientPath, queue_size=10
         )
     else:
         # ROS setter for trajectory, its executet when risk values come in
         rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=10)
         # Start driving when the risk values come in
         rospy.Subscriber(
-            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=2
+            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=10
         )
         # Start fallback behaviour
         rospy.Subscriber(

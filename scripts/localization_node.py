@@ -29,17 +29,23 @@ from utils.cv_utils import (
     initCV,
 )
 
+
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 PRECISION = 3
 
 locPublisher = rospy.Publisher(
     Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
 )
+cvPublisher = rospy.Publisher(
+    Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
+)
+emergencyPub = rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10)
+
 last_known_loc = ["init_data", 0, 0, 0]
 last_update = time.time()
 img_glob = []
-# the odometry message which will be published
 odom = Odometry()
+useLidar = True
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -59,11 +65,9 @@ def setUseLidar(isUsed: Bool):
 
     if useLidar:
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
-        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(
-            False
-        )
+        emergencyPub.publish(False)
     else:
-        rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10).publish(True)
+        emergencyPub.publish(True)
         rospy.logdebug_throttle(10, "[Localization] Use camera")
 
 
@@ -102,11 +106,7 @@ def localiseCam():
     last_known_odom = odom
     dc_obstacles_ws = deepcopy(config["obstacles_ws"])
 
-    publisher = rospy.Publisher(
-        Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
-    )
-
-    FIFO_LENGTH = 3
+    FIFO_LENGTH = 2
     xLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     yLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     angleLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
@@ -273,7 +273,7 @@ def localiseCam():
             rospy.logdebug(
                 f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
             )
-            publisher.publish(locMsg)
+            cvPublisher.publish(locMsg)
         except:
             rospy.logerr(
                 f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}"
@@ -335,34 +335,22 @@ def localization():
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
 
-    # For determining localization mode
-    locMode = "lidar"
     # Publish localization
     msg = PoseWithCovarianceStamped()
     Thread(target=localiseCam).start()
     # Thread(target=anomalyDetector).start()
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
-        if useLidar:
-            locMode = "lidar"
-        else:
-            # Lidar-process wasn't found
-            locMode = "camera"
         try:
             # ------ Take the right localization value -------
-            if locMode.lower() == "camera":
+            if not useLidar:
                 msg = rospy.wait_for_message(
                     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )
-            elif locMode.lower() == "lidar":
+            else:
                 msg = rospy.wait_for_message(
                     Topics.ACML.value, PoseWithCovarianceStamped, timeout=1
                 )
-            else:
-                rospy.logwarn(
-                    f'No valid mode specified for localization. Make shure to specify localization mode over the topic {Topics.LOCALIZATION_MODE.value} with either "camera" or "LIDAR"'
-                )
-                break
             # ------ Publish the localization used by the Robotino ------
             createOdom(msg)
             locPublisher.publish(msg)

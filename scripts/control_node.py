@@ -11,6 +11,7 @@ from utils.constants import Topics, Nodes
 from utils.ros_logger import set_rospy_log_lvl
 
 velocity_publisher_robot = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+navResponsePublisher = rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool)
 stopFlag = Event()
 
 
@@ -43,13 +44,16 @@ def calc_command(target: Point):
     currentPos = rospy.wait_for_message(
         Topics.LOCALIZATION.value, PoseWithCovarianceStamped
     )
-    _, _, current_angle = euler_from_quaternion(currentPos.pose.pose.orientation)
+    quat = currentPos.pose.pose.orientation
+    _, _, current_angle = euler_from_quaternion([quat.x, quat.y, quat.z, quat.w])
     current_angle = np.arcsin(current_angle) * 2
     if current_angle < 0:  # from [-pi, pi] to [0, 2pi]
         current_angle = current_angle + (2 * np.pi)
 
-    position = (currentPos.pose.pose.position.x, currentPos.pose.pose.position.y)
-    target = (target.x, target.y)
+    position = np.array(
+        [currentPos.pose.pose.position.x, currentPos.pose.pose.position.y]
+    )
+    target = np.array([target.x, target.y])
     distance = np.linalg.norm(target - position)
 
     # comm_angle is the rotation angle -> positive angles represent counter clockwise rotation
@@ -124,6 +128,7 @@ def move(target: Point, dist):
         return False
     finally:
         if stopFlag.is_set():
+            print("stopflag set")
             return False
         else:
             return True
@@ -200,16 +205,17 @@ def navigateToPoint(target: Point):
     comm_angle, comm_dist = calc_command(target)
     rospy.logdebug(f"Started moving to target {target}")
 
-    publisher = rospy.Publisher(Topics.NAVIGATION_RESPONSE.value, Bool)
-    if rotate(comm_angle) and move(target, comm_dist):
+    rotResp = rotate(comm_angle)
+    moveResp = move(target, comm_dist)
+    if rotResp and moveResp:
         rospy.logdebug(f"Arrived at target {target}")
         try:
-            publisher.publish(True)
+            navResponsePublisher.publish(True)
         except:
             return
     else:
         try:
-            publisher.publish(False)
+            navResponsePublisher.publish(False)
         except:
             return
 
