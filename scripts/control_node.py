@@ -8,8 +8,9 @@ from tf.transformations import euler_from_quaternion
 from threading import Event
 
 from utils.constants import Topics, Nodes
+from utils.ros_logger import set_rospy_log_lvl
 
-velocity_publisher_robot = rospy.Publisher("cmd_vel_real", Twist, queue_size=10)
+velocity_publisher_robot = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
 stopFlag = Event()
 
 
@@ -20,8 +21,10 @@ def emergencyBreak(isSet: Bool):
     even if the flag is set in the middle of an loop execution
     """
     if bool(isSet.data):
+        print("[Control] Emergency brake set")
         stopFlag.set()
     else:
+        print("[Control] Emergency brake reset")
         stopFlag.clear()
 
 
@@ -37,7 +40,9 @@ def calc_command(target: Point):
         distance (float): The distance the Robotino has to move
     """
     # from [-1, 1] to [-pi, pi]
-    currentPos = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
+    currentPos = rospy.wait_for_message(
+        Topics.LOCALIZATION.value, PoseWithCovarianceStamped
+    )
     _, _, current_angle = euler_from_quaternion(currentPos.pose.pose.orientation)
     current_angle = np.arcsin(current_angle) * 2
     if current_angle < 0:  # from [-pi, pi] to [0, 2pi]
@@ -108,22 +113,10 @@ def move(target: Point, dist):
     current_dist = 0
     dist = np.abs(dist)
 
-    while not rospy.is_shutdown() and not stopFlag.is_set():
-        try:
-            velocity_publisher_robot.publish(msg_test_forward)
-        except:
-            return False
-
-        currentPos = rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
-        position = (currentPos.pose.pose.position.x, currentPos.pose.pose.position.y)
-        distance = np.linalg.norm(target - position)
-
-        # Calculate current dist if needed for checking in future implementations
+    while current_dist < dist:
+        velocity_publisher_robot.publish(msg_test_forward)
         t1 = rospy.Time.now().to_sec()
         current_dist = speed * (t1 - t0)
-
-        if np.abs(distance) <= 0.1:
-            break
 
     try:
         velocity_publisher_robot.publish(msg_test_stop)
@@ -174,21 +167,11 @@ def rotate(angle):
     current_angle = 0
     angle = np.abs(angle)
 
-    while not rospy.is_shutdown() and not stopFlag.is_set():
-        try:
-            velocity_publisher_robot.publish(msg_test_rotate)
-        except:
-            return False
-
-        currentOdom = rospy.wait_for_message(Topics.ODOM.value, Odometry)
-        _, _, currentAngle = euler_from_quaternion(currentOdom.pose.pose.orientation)
-
-        # Calculate current angle if needed for checking in future implementations
+    while current_angle < angle:
+        velocity_publisher_robot.publish(msg_test_rotate)
         t1 = rospy.Time.now().to_sec()
         current_angle = rot_speed * (t1 - t0)
-
-        if np.abs(currentAngle) <= angle:
-            break
+    velocity_publisher_robot.publish(msg_test_stop)
 
     try:
         velocity_publisher_robot.publish(msg_test_stop)
@@ -237,6 +220,7 @@ def control():
     for sending the actual control commands to the real Robotino
     """
     rospy.init_node(Nodes.CONTROL.value)
+    set_rospy_log_lvl(rospy.DEBUG)
     rospy.loginfo(f"Starting node {Nodes.CONTROL.value}")
     # Starts navigation to a point
     rospy.Subscriber(Topics.NAV_POINT.value, Point, navigateToPoint)

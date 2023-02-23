@@ -3,7 +3,7 @@ import time
 import rospy
 import actionlib
 import numpy as np
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point
 from sensor_msgs.msg import PointCloud
 from move_base_msgs.msg import (
     MoveBaseAction,
@@ -28,6 +28,7 @@ trajectory = []
 evalManagerClient = EvalManagerClient()
 emergencyStop = Event()
 fallbackMode = False
+nrOfAttempt = 0
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
 safeSpotPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 
@@ -93,24 +94,43 @@ def _fetchIRReadings(rawReadings: PointCloud):
                 => Has fixed length of 8
     """
     dist = []
+    offset = 0.22
     # Sensor 0 forward
-    dist.append(np.sqrt(rawReadings.points[0].x ** 2 + rawReadings.points[0].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[0].x ** 2 + rawReadings.points[0].y ** 2) - offset
+    )
     # Sensor 1 40° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[1].x ** 2 + rawReadings.points[1].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[1].x ** 2 + rawReadings.points[1].y ** 2) - offset
+    )
     # Sensor 2 80° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[2].x ** 2 + rawReadings.points[2].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[2].x ** 2 + rawReadings.points[2].y ** 2) - offset
+    )
     # Sensor 3 120° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[3].x ** 2 + rawReadings.points[3].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[3].x ** 2 + rawReadings.points[3].y ** 2) - offset
+    )
     # Sensor 4 160° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[4].x ** 2 + rawReadings.points[4].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[4].x ** 2 + rawReadings.points[4].y ** 2) - offset
+    )
     # Sensor 5 200° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[5].x ** 2 + rawReadings.points[5].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[5].x ** 2 + rawReadings.points[5].y ** 2) - offset
+    )
     # Sensor 6 240° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[6].x ** 2 + rawReadings.points[6].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[6].x ** 2 + rawReadings.points[6].y ** 2) - offset
+    )
     # Sensor 7 280° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[7].x ** 2 + rawReadings.points[7].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[7].x ** 2 + rawReadings.points[7].y ** 2) - offset
+    )
     # Sensor 8 320° rotated anti-clockwise
-    dist.append(np.sqrt(rawReadings.points[8].x ** 2 + rawReadings.points[8].y ** 2))
+    dist.append(
+        np.sqrt(rawReadings.points[8].x ** 2 + rawReadings.points[8].y ** 2) - offset
+    )
 
     return dist
 
@@ -165,6 +185,9 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
         doneFeedback = -1
 
         if emergencyStop.is_set():
+            rospy.logwarn(
+                "[Strategy Planner] Move_base client aborted operation because of emergency stop"
+            )
             client.cancel_all_goals()
             return 4
 
@@ -177,9 +200,21 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
                 client.cancel_goal()
                 break
 
-        time.sleep(0.5)
+    time.sleep(0.5)
 
     return doneFeedback
+
+
+def navigate(pose: PoseStamped):
+    pub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
+    navMsg = Point()
+    navMsg.x = pose.pose.position.x
+    navMsg.y = pose.pose.position.y
+    pub.publish(Point)
+
+    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
+
+    return response
 
 
 def detectHazard():
@@ -188,20 +223,19 @@ def detectHazard():
     """
     global currentTarget
     # Distance threshold under which a hazard is detected
-    THRESHOLD_DISTANCE = 2
+    THRESHOLD_DISTANCE = 0.1
 
     while not rospy.is_shutdown():
         try:
             rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
             dist = _fetchIRReadings(rawReadings)
-
             if np.min(dist) < THRESHOLD_DISTANCE:
                 # Detected hazard ==> stop until problem is resolved
                 rospy.loginfo(
                     "[Strategy Planner] IR sensors detected hazard. Emergency breaking now"
                 )
                 evalManagerClient.evalLogCollision()
-                rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
+                # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
         except:
             return
 
@@ -262,81 +296,149 @@ def chooseStrategy(riskEstimation: Risk):
         riskEstimation (custom risk-message): The risk parameters. Gets passed by the subscriber who\
                                                                           calls this function as a callback function
     """
+    global nrOfAttempt
     global trajectory
     global emergencyStop
+    global fallbackMode
+
+    MAX_ATTEMPTS = 3
+
     riskGlobal = riskEstimation.globalRisks
     criticalSectors = riskEstimation.criticalSectors
     # risk is simply the cost of a stop because probability is assumed to be 1
     riskStop = 100
 
+    rospy.loginfo(
+        f"[Strategy Planner] Received risk estimation. Start strategy planning"
+    )
     criticalNodes = set()
     for sectors in criticalSectors:
         for node in sectors.sectors:
             criticalNodes.add(node.node)
 
-    if np.average(riskGlobal) < riskStop:
-        for i in range(len(trajectory.poses[1:])):
-            if i in criticalNodes:
-                # Critical sector => Executing under safety constraints
-                rospy.logdebug("[Strategy Planner] Entering critical sector")
-                localRisk = []
+    ################################################
+    # ----------- Global estimation ---------------
+    ################################################
+    if (
+        (np.average(riskGlobal) > riskStop)
+        and (nrOfAttempt < MAX_ATTEMPTS)
+        and not fallbackMode
+    ):
+        rospy.loginfo(
+            f"[Strategy Planner] Risk too high. Restarting risk estimation. Risk: {np.average(riskGlobal)}"
+        )
+        # Retry risk estimation
+        nrOfAttempt = nrOfAttempt + 1
+        goalPose = trajectory.poses[len(trajectory.poses) - 1]
+        rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10).publish(
+            goalPose
+        )
+        return
+    elif (
+        (np.average(riskGlobal) > riskStop)
+        and (nrOfAttempt >= MAX_ATTEMPTS)
+        and not fallbackMode
+    ):
+        rospy.loginfo(
+            f"[Strategy Planner] Risk too high and maximal number of attemps exceeded. Abort navigation task. Risk: {np.average(riskGlobal)}"
+        )
+        # Retry risk estimation
+        nrOfAttempt = 0
+        evalManagerClient.evalLogStop()
+        return
 
-                for sectors in criticalSectors:
-                    for node in sectors.sectors:
-                        if node.node == i:
-                            localRisk.append(node.risk)
-                            break
+    #####################################################
+    # ------- Local estimation & behaviour execution ----
+    #####################################################
+    for i in range(len(trajectory.poses)):
+        if fallbackMode:
+            # Wait little time so camera based localization can settle a little bit
+            time.sleep(5)
 
-                # Logging in Evaluationmanager
-                evalManagerClient.evalLogCriticalSector(
-                    x=trajectory.poses[i].pose.position.x,
-                    y=trajectory.poses[i].pose.position.y,
-                    localRisk=np.average(localRisk),
+        if i in criticalNodes:
+            # Critical sector => Executing under safety constraints
+            rospy.logdebug("[Strategy Planner] Entering critical sector")
+            localRisk = []
+
+            for sectors in criticalSectors:
+                for node in sectors.sectors:
+                    if node.node == i:
+                        localRisk.append(node.risk)
+                        break
+
+            # Logging in Evaluationmanager
+            evalManagerClient.evalLogCriticalSector(
+                x=trajectory.poses[i].pose.position.x,
+                y=trajectory.poses[i].pose.position.y,
+                localRisk=np.average(localRisk),
+            )
+
+            # Check if emergencystop is set before start moving
+            if emergencyStop.is_set():
+                rospy.logwarn(
+                    "[Strategy Planner] Emergency stop detected. Aborting strategy execution"
                 )
+                return
 
-                ############################################################
-                #  ------------------------- Behaviour execution -------------------------
-                ############################################################
-                if emergencyStop.is_set():
-                    return
-
-                if np.average(localRisk) < riskStop:
-                    # Risk is reasonable low enough => Navigate
+            if np.average(localRisk) < riskStop:
+                # Risk is reasonable low enough => Navigate
+                if not fallbackMode:
                     result = moveBaseClient(trajectory.poses[i])
-                    if result.status != 3 and result.status != 2:
+                    if result >= 4:
                         # move base failed
                         evalManagerClient.evalLogStop()
                         return
                 else:
-                    # Risk is too high => Don't navigate
-                    rospy.logdebug(
-                        f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
-                    )
-                    break
+                    response = navigate(trajectory.poses[i])
+                    if not response:
+                        evalManagerClient.evalLogStop()
+                        return
             else:
-                # Uncritical sector => Just executing navigation
-                if emergencyStop.is_set():
-                    return
-                rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
-                # Logging in Evaluationmanager
-                evalManagerClient.evalLogUncriticalSector(
-                    x=trajectory.poses[i].pose.position.x,
-                    y=trajectory.poses[i].pose.position.y,
+                # Risk is too high => Don't navigate
+                rospy.logdebug(
+                    f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
                 )
+                evalManagerClient.evalLogStop()
+                break
+
+            if emergencyStop.is_set():
+                rospy.logwarn(
+                    "[Strategy Planner] Emergency stop detected. Aborting strategy execution"
+                )
+                return
+        else:
+            # Uncritical sector => Just executing navigation
+            if emergencyStop.is_set():
+                rospy.logwarn(
+                    "[Strategy Planner] Emergency stop detected. Aborting strategy execution"
+                )
+                return
+            rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
+            # Logging in Evaluationmanager
+            evalManagerClient.evalLogUncriticalSector(
+                x=trajectory.poses[i].pose.position.x,
+                y=trajectory.poses[i].pose.position.y,
+            )
+
+            if not fallbackMode:
                 result = moveBaseClient(trajectory.poses[i])
                 if result >= 4:
                     # move base failed
                     evalManagerClient.evalLogStop()
                     return
-    else:
-        rospy.loginfo(
-            f"[Strategy Planner] Risk too high. Restarting risk estimation. Risk: {np.average(riskGlobal)}"
-        )
-        # Retry risk estimation
-        goalPose = trajectory.poses[len(trajectory.poses) - 1]
-        rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10).publish(
-            goalPose
-        )
+            else:
+                response = navigate(trajectory.poses[i])
+                if not response:
+                    evalManagerClient.evalLogStop()
+                    return
+
+            if emergencyStop.is_set():
+                rospy.logwarn(
+                    "[Strategy Planner] Emergency stop detected. Aborting strategy execution"
+                )
+                return
+
+    rospy.loginfo("[Strategy Planner] Finished strategy execution")
 
 
 def strategyPlanner(runWithRiskEstimation=True):
@@ -358,10 +460,10 @@ def strategyPlanner(runWithRiskEstimation=True):
         )
     else:
         # ROS setter for trajectory, its executet when risk values come in
-        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=1)
+        rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=10)
         # Start driving when the risk values come in
         rospy.Subscriber(
-            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=1
+            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=2
         )
         # Start fallback behaviour
         rospy.Subscriber(
@@ -385,7 +487,7 @@ def strategyPlanner(runWithRiskEstimation=True):
         queue_size=10,
     )
 
-    detectHazard()
+    # detectHazard()
     rospy.spin()
 
 
