@@ -21,11 +21,17 @@ import numpy as np
 try:
     # Import when running from  roslaunch
     from risk_estimation.Environment import *
-    from utils.risk_estimation_utils import loadErrorDistribution
+    from utils.risk_estimation_utils import (
+        loadErrorDistribution,
+        loadErrorDistributionLIDAR,
+    )
 except:
     # Import when running as python script
     from Environment import *
-    from utils.risk_estimation_utils import loadErrorDistribution
+    from utils.risk_estimation_utils import (
+        loadErrorDistribution,
+        loadErrorDistributionLIDAR,
+    )
 
 
 class RoboEnv_gym(gym.Env):
@@ -39,6 +45,7 @@ class RoboEnv_gym(gym.Env):
         isTraining=True,
         errorDistrDistPath=None,
         errorDistrAnglePath=None,
+        useLidar=False,
     ):
         self.actions_per_dimension = 5
         self.onesided = False
@@ -130,14 +137,17 @@ class RoboEnv_gym(gym.Env):
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
         # load dynamically from CSV file
-        if errorDistrDistPath != None:
-            self.dists, self.dist_probs = loadErrorDistribution(
-                errorDistrDistPath, bins=self.actions_per_dimension
-            )
-        if errorDistrAnglePath != None:
-            self.dists, self.dist_probs = loadErrorDistribution(
-                errorDistrAnglePath, bins=self.actions_per_dimension
-            )
+        if not useLidar:
+            if errorDistrDistPath != None:
+                self.dists, self.dist_probs = loadErrorDistribution(
+                    errorDistrDistPath, bins=self.actions_per_dimension
+                )
+            if errorDistrAnglePath != None:
+                self.dists, self.dist_probs = loadErrorDistribution(
+                    errorDistrAnglePath, bins=self.actions_per_dimension
+                )
+        else:
+            self.angles, self.angle_probs = loadErrorDistributionLIDAR()
 
     def reset(self):
         """This is the overwritable version of reset that links to the actual version

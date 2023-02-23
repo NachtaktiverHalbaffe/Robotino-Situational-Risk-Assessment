@@ -160,6 +160,7 @@ def run_crash_and_remove(
     invertMap=False,
     errorDistrDistPath=None,
     errorDistrAnglePath=None,
+    useLidar=False,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -181,6 +182,9 @@ def run_crash_and_remove(
         intialTraj( list of coordinates, optional): Initial trajectory for which the risk estimation should be run. Defaults to None
         obstacles (list(Obstacle), optional): Detected obstacles which should be used in probability estimation
         invertMap(bool, optional): If map reference should be inverted. Needed when a PRM is used
+        errorDistrDistPath (str, optional): Path to the CSV if own error distribution data for distance should be used
+        errorDistrAnglePath (str, optional): Path to the CSV if own error distribution data for angles should be used
+        useLidar (bool, optional): If LIDAR error distribution should be used for probability estimation. The agent is not trained for this, but should kinda work
 
     Returns (in a dict):
         rl_prob (list(float)): Probabilities calculated by the reinforcement learning agents
@@ -207,6 +211,7 @@ def run_crash_and_remove(
             isTraining=False,
             errorDistrAnglePath=errorDistrAnglePath,
             errorDistrDistPath=errorDistrDistPath,
+            useLidar=useLidar,
         )
         # env = gym.make(env_name, config=configs)
     else:
@@ -217,6 +222,7 @@ def run_crash_and_remove(
             isTraining=False,
             errorDistrAnglePath=errorDistrAnglePath,
             errorDistrDistPath=errorDistrDistPath,
+            useLidar=useLidar,
         )
 
     policy_kwargs = dict(features_extractor_class=SameExtractor)
@@ -500,7 +506,7 @@ def run_crash_and_remove(
                 }
                 df_currentRun = pd.DataFrame(data)
                 df_oldRuns = pd.read_csv(save_location)
-                df_save = pd.concat([df_currentRun, df_oldRuns], ignore_index=True)
+                df_save = pd.concat([df_currentRun, df_oldRuns])
                 df_save.to_csv(save_location)
 
     # ----- Save the final results ----

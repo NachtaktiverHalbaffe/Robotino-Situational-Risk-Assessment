@@ -90,9 +90,9 @@ def __getErrorDistPaths():
     global errorDistrAnglePath
 
     if useCustomErrorDist:
-        return errorDistrDistPath, errorDistrAnglePath
+        return errorDistrDistPath, errorDistrAnglePath, False
     else:
-        return None, None
+        return None, None, True
 
 
 def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
@@ -121,7 +121,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     # Get obstacles
     obstacles = obstaclesMsgToObstacles(obstacleMsg)
 
-    errDistDistPath, errDistAnglePath = __getErrorDistPaths()
+    errDistDistPath, errDistAnglePath, useLIDAR = __getErrorDistPaths()
     nrTotalRuns = 0
     runs = []
     rospy.loginfo(
@@ -159,6 +159,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     invertMap=True,
                     errorDistrDistPath=errDistDistPath,
                     errorDistrAnglePath=errDistAnglePath,
+                    useLidar=useLIDAR,
                 )
                 runs.append(estimation)
     else:
@@ -358,7 +359,7 @@ def estimateRisk(globalPath: Path):
     traj = pathToTraj(globalPath)
     # Get obstacles
     obstacles = obstaclesMsgToObstacles(obstacleMsg)
-    errDistDistPath, errDistAnglePath = __getErrorDistPaths()
+    errDistDistPath, errDistAnglePath, useLIDAR = __getErrorDistPaths()
     if useBrute:
         rospy.loginfo(
             "[Risk Estimator] Starting Probability Estimator&Fault Injector with brute force"
@@ -376,6 +377,7 @@ def estimateRisk(globalPath: Path):
             expand_length=2,
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
+            useLidar=useLIDAR,
         )
     else:
         rospy.loginfo(
@@ -394,6 +396,7 @@ def estimateRisk(globalPath: Path):
             expand_length=2,
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
+            useLidar=useLIDAR,
         )
     rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(

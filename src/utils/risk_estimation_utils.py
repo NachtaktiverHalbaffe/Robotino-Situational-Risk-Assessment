@@ -109,7 +109,7 @@ def getIntersection(a1, a2, b1, b2):
          bool: If line is intersecting
     """
     THRES = 0.3
-    THRES_UPPER = 1 - THRES
+
     a = np.array([a1, a2])
     b = np.array([b1, b2])
 
@@ -122,7 +122,7 @@ def getIntersection(a1, a2, b1, b2):
     # t is from the trajectory driven by the ego-robotino. So it must be between 0<= t <= THRES and
     # 1-THRES (=THRES_UPPER) <= t <=1 so only intersections in a certain range to the start and goal nodes,
     # where the robotino would collide or stop and lead to a production stop, are considered
-    if (s <= 1 and s >= 0) and (t <= 1 and t >= 0 and (t >= THRES_UPPER or t <= THRES)):
+    if (s <= 1 and s >= 0) and (t <= 1 and t >= (1 - THRES)):
         return (1 - t) * a[0] + t * a[1], True
     else:
         return np.inf, False
@@ -177,6 +177,20 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
         return segments, probabilities
     else:
         raise FileExistsError("Error distribution doesn't exist")
+
+
+def loadErrorDistributionLIDAR():
+    segments = [-0.17, -0.08, 0, 0.08, 0.17]
+    probabilities = [0.02, 0.2, 0.56, 0.2, 0.02]
+
+    try:
+        rostopic.get_topic_class("/rosout")
+        rospy.logdebug(
+            f"[Crash and Remove] Loaded error distribution with LIDAR values."
+        )
+    except:
+        print(f"[Crash and Remove] Loaded error distribution with LIDAR values.")
+    return segments, probabilities
 
 
 if __name__ == "__main__":

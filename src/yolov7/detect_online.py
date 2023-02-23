@@ -31,7 +31,12 @@ try:
         increment_path,
     )
     from .utils.plots import plot_one_box, plot_3d_box
-    from .utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+    from .utils.torch_utils import (
+        select_device,
+        load_classifier,
+        time_synchronized,
+        TracedModel,
+    )
     from .utils.convert2d_to_3d import convert_2d_3d
 except:
     from models.experimental import attempt_load
@@ -49,7 +54,12 @@ except:
         increment_path,
     )
     from utils.plots import plot_one_box, plot_3d_box
-    from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+    from utils.torch_utils import (
+        select_device,
+        load_classifier,
+        time_synchronized,
+        TracedModel,
+    )
     from utils.convert2d_to_3d import convert_2d_3d
 
 
@@ -81,7 +91,12 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
         ]
     )
 
-    weights, view_img, imgsz, trace = opt.weights, opt.view_img, opt.img_size, not opt.no_trace
+    weights, view_img, imgsz, trace = (
+        opt.weights,
+        opt.view_img,
+        opt.img_size,
+        not opt.no_trace,
+    )
 
     # Initialize
     set_logging()
@@ -108,7 +123,7 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
         hyp = yaml.load(f, Loader=yaml.SafeLoader)  # load hyps
 
     # load cfg, this is different for each
-    if not "hocker" in weights[0].lower():
+    if not "tiny_robotino" in weights[0].lower():
         ### this is for workstations###
         cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_ws.yaml"
         nc = 2  # amount of classes, the same as in the cfg file
@@ -116,7 +131,7 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
     else:
         ### this is for movable ###
         cfg = f"{PATH}/src/yolov7/cfg/training/yolov7-tiny_robo_movable.yaml"
-        nc = 10
+        nc = 11
         names = [
             "sklappbox_c",
             "sklappbox_a",
@@ -143,7 +158,19 @@ def load_model_and_conf(opt, calc_3d=True, plot_3d=True):
     # names = model.module.names if hasattr(model, "module") else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
-    return (imgsz, stride, device, model, opt, names, view_img, colors, calc_3d, p_matrix, plot_3d)
+    return (
+        imgsz,
+        stride,
+        device,
+        model,
+        opt,
+        names,
+        view_img,
+        colors,
+        calc_3d,
+        p_matrix,
+        plot_3d,
+    )
 
 
 def loaded_detect(
@@ -194,7 +221,13 @@ def loaded_detect(
             pred = model(img, augment=opt.augment)[0]
         t2 = time_synchronized()
         # Apply NMS
-        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        pred = non_max_suppression(
+            pred,
+            opt.conf_thres,
+            opt.iou_thres,
+            classes=opt.classes,
+            agnostic=opt.agnostic_nms,
+        )
         t3 = time_synchronized()
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -203,14 +236,21 @@ def loaded_detect(
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-
                     label = f"{names[int(cls)]} {conf:.2f}"
                     # TODO REMOVE  next line and indent once chair no longer an object
                     if not label[0:3] == "cha":
                         if calc_3d:
-                            corners_3d, boundry, shifts = convert_2d_3d(xyxy, im0, label)
+                            corners_3d, boundry, shifts = convert_2d_3d(
+                                xyxy, im0, label
+                            )
                         if view_img:  # Add bbox to image
-                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                            plot_one_box(
+                                xyxy,
+                                im0,
+                                label=label,
+                                color=colors[int(cls)],
+                                line_thickness=1,
+                            )
                         if calc_3d and not boundry:
                             for options in corners_3d:
                                 # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
@@ -220,7 +260,11 @@ def loaded_detect(
                                         im0,
                                         p_matrix,
                                         label=label,
-                                        color=[random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)],
+                                        color=[
+                                            random.randint(0, 255),
+                                            random.randint(0, 255),
+                                            random.randint(0, 255),
+                                        ],
                                         line_thickness=1,
                                     )
                                     if show:
@@ -239,11 +283,17 @@ def loaded_detect(
                                 detected_3d_boxes.append(detec_dict)
 
                                 if "localization" in node:
-                                    rospy.Publisher(Topics.IMAGE_BB_WS.value, Image, queue_size=10).publish(
+                                    rospy.Publisher(
+                                        Topics.IMAGE_BB_WS.value, Image, queue_size=10
+                                    ).publish(
                                         CvBridge().cv2_to_imgmsg(im0, "passthrough")
                                     )
                                 else:
-                                    rospy.Publisher(Topics.IMAGE_BB_MOVEABLE.value, Image, queue_size=10).publish(
+                                    rospy.Publisher(
+                                        Topics.IMAGE_BB_MOVEABLE.value,
+                                        Image,
+                                        queue_size=10,
+                                    ).publish(
                                         CvBridge().cv2_to_imgmsg(im0, "passthrough")
                                     )
     # if we did not detect any boxes
@@ -325,23 +375,52 @@ def detect_args_parse(args):
     @param calc_3d: if the 3d boxes should be calculated
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", nargs="+", type=str, default="yolov7.pt", help="model.pt path(s)")
-    parser.add_argument("--source", type=str, default="inference/images", help="source")  # file/folder, 0 for webcam
-    parser.add_argument("--img-size", type=int, default=640, help="inference size (pixels)")
-    parser.add_argument("--conf-thres", type=float, default=0.25, help="object confidence threshold")
-    parser.add_argument("--iou-thres", type=float, default=0.45, help="IOU threshold for NMS")
-    parser.add_argument("--device", default="cpu", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
+    parser.add_argument(
+        "--weights", nargs="+", type=str, default="yolov7.pt", help="model.pt path(s)"
+    )
+    parser.add_argument(
+        "--source", type=str, default="inference/images", help="source"
+    )  # file/folder, 0 for webcam
+    parser.add_argument(
+        "--img-size", type=int, default=640, help="inference size (pixels)"
+    )
+    parser.add_argument(
+        "--conf-thres", type=float, default=0.25, help="object confidence threshold"
+    )
+    parser.add_argument(
+        "--iou-thres", type=float, default=0.45, help="IOU threshold for NMS"
+    )
+    parser.add_argument(
+        "--device", default="cpu", help="cuda device, i.e. 0 or 0,1,2,3 or cpu"
+    )
     parser.add_argument("--view-img", action="store_true", help="display results")
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
-    parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
-    parser.add_argument("--nosave", action="store_true", help="do not save images/videos")
-    parser.add_argument("--classes", nargs="+", type=int, help="filter by class: --class 0, or --class 0 2 3")
-    parser.add_argument("--agnostic-nms", action="store_true", help="class-agnostic NMS")
+    parser.add_argument(
+        "--save-conf", action="store_true", help="save confidences in --save-txt labels"
+    )
+    parser.add_argument(
+        "--nosave", action="store_true", help="do not save images/videos"
+    )
+    parser.add_argument(
+        "--classes",
+        nargs="+",
+        type=int,
+        help="filter by class: --class 0, or --class 0 2 3",
+    )
+    parser.add_argument(
+        "--agnostic-nms", action="store_true", help="class-agnostic NMS"
+    )
     parser.add_argument("--augment", action="store_true", help="augmented inference")
     parser.add_argument("--update", action="store_true", help="update all models")
-    parser.add_argument("--project", default="runs/detect", help="save results to project/name")
+    parser.add_argument(
+        "--project", default="runs/detect", help="save results to project/name"
+    )
     parser.add_argument("--name", default="exp", help="save results to project/name")
-    parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
+    parser.add_argument(
+        "--exist-ok",
+        action="store_true",
+        help="existing project/name ok, do not increment",
+    )
     parser.add_argument("--no-trace", action="store_true", help="don`t trace model")
     opt, _ = parser.parse_known_args()
     opt = parser.parse_args(args)
