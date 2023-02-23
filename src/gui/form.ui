@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>916</width>
+    <width>985</width>
     <height>515</height>
    </rect>
   </property>
@@ -655,10 +655,23 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="1" column="5">
-             <widget class="QPushButton" name="pushButton_driveToCor">
+            <item row="1" column="3">
+             <widget class="QLabel" name="label_7">
               <property name="text">
-               <string>Send Command</string>
+               <string>Coordinate</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="4">
+             <widget class="QComboBox" name="comboBox_errDistrDistPath">
+              <property name="currentText">
+               <string/>
+              </property>
+              <property name="currentIndex">
+               <number>-1</number>
+              </property>
+              <property name="placeholderText">
+               <string>Path error distribution distance</string>
               </property>
              </widget>
             </item>
@@ -686,22 +699,39 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </item>
              </layout>
             </item>
-            <item row="1" column="1">
-             <widget class="QSpinBox" name="spinBox_wsId"/>
-            </item>
-            <item row="1" column="3">
-             <widget class="QLabel" name="label_7">
-              <property name="text">
-               <string>Coordinate</string>
-              </property>
-             </widget>
-            </item>
             <item row="1" column="0">
              <widget class="QLabel" name="label_6">
               <property name="text">
                <string>Workstation:</string>
               </property>
              </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QSpinBox" name="spinBox_nrOfRuns"/>
+            </item>
+            <item row="3" column="3">
+             <widget class="QCheckBox" name="checkBox_errorDIst">
+              <property name="text">
+               <string>Use own error distribution</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="5">
+             <widget class="QPushButton" name="pushButton_driveToCor">
+              <property name="text">
+               <string>Send Command</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>Number of runs:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QSpinBox" name="spinBox_wsId"/>
             </item>
             <item row="0" column="0">
              <widget class="QLabel" name="label_5">
@@ -713,16 +743,6 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="label_12">
-              <property name="text">
-               <string>Number of runs:</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="1">
-             <widget class="QSpinBox" name="spinBox_nrOfRuns"/>
-            </item>
             <item row="3" column="2">
              <widget class="QPushButton" name="pushButton">
               <property name="text">
@@ -730,30 +750,10 @@ background-image: url(src/gui/ml_rl_background.jpeg)
               </property>
              </widget>
             </item>
-            <item row="3" column="5">
+            <item row="4" column="4">
              <widget class="QComboBox" name="comboBox_errDistrANglePath">
               <property name="placeholderText">
                <string>Path error distribution angles</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="4">
-             <widget class="QComboBox" name="comboBox_errDistrDistPath">
-              <property name="currentText">
-               <string/>
-              </property>
-              <property name="currentIndex">
-               <number>-1</number>
-              </property>
-              <property name="placeholderText">
-               <string>Path error distribution distance</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="3">
-             <widget class="QCheckBox" name="checkBox_errorDIst">
-              <property name="text">
-               <string>Use own error distribution</string>
               </property>
              </widget>
             </item>
@@ -827,7 +827,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>916</width>
+     <width>985</width>
      <height>25</height>
     </rect>
    </property>
