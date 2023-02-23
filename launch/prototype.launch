@@ -13,4 +13,5 @@
 
    <!-- Risk estimation parts -->
    <node pkg="$(arg package_name)" name="risk_estimator" type="risk_estimator_node.py" output="screen"/>
+   <node pkg="$(arg package_name)" name="monitored_space_observer" type="monitored_space_observer.py" output="screen"/>
 </launch>

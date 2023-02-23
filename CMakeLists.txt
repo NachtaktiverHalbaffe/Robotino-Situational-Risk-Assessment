@@ -137,6 +137,7 @@ catkin_install_python(PROGRAMS
                   scripts/risk_estimator_node.py
                   scripts/strategy_planner_node.py
                   scripts/image_capture.py
+                  scripts/monitored_space_observer.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########
