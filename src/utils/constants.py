@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped
 
 class Topics(Enum):
     ACML = "/amcl_pose"
+    ANOMALY_DETECTED = "/anomaly_detected"
     BRUTEFORCE_ENABLED = "/bruteforce_enabled"
     EMERGENCY_BRAKE = "/emergency_break"
     GLOBAL_PATH = "/path_global"
@@ -15,7 +16,7 @@ class Topics(Enum):
     IR_SENSORS = "/distance_sensors"
     LIDAR_ENABLED = "/lidar_enabled"
     LOCALIZATION = "/pose"
-    LOCALIZATION_MODE = "/localization_mode"
+    FALLBACK_POSE = "/pose_fallback"
     MARKERS = "/target_markers"
     MARKERS_COMMON_TRAJ = "/common_traj_markers"
     MARKERS_NAV = "/target_nav_markers"

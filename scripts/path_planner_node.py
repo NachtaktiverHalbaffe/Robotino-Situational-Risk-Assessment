@@ -4,7 +4,7 @@ import rospy
 import os
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Bool
 
 from autonomous_operation.PRM import (
     Edge,
@@ -40,6 +40,12 @@ currentPoint.pose.pose.position.x = -3.2
 currentPoint.pose.pose.position.y = 1.2
 
 obstacleMargin = 0
+fallbackPlanning = False
+
+
+def setFallbackPlanning(isInFallbackMode: Bool):
+    if isInFallbackMode.data:
+        fallbackPlanning = True
 
 
 def setObstacleMargin(margin: Int16):
@@ -86,12 +92,21 @@ def runPRM(targetMessage: PoseStamped):
     global newObstacles
     global pathPlannerConfig
     global obstacleMargin
+    global fallbackPlanning
+
     # Get target from geometry message
     xTarget = targetMessage.pose.position.x
     yTarget = targetMessage.pose.position.y
     # Current position of robotino
-    xCurrent = currentPoint.pose.pose.position.x
-    yCurrent = currentPoint.pose.pose.position.y
+    if not fallbackPlanning:
+        xCurrent = currentPoint.pose.pose.position.x
+        yCurrent = currentPoint.pose.pose.position.y
+    else:
+        fallbackPose = rospy.wait_for_message(
+            Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
+        )
+        xCurrent = fallbackPose.pose.pose.position.x
+        yCurrent = fallbackPose.pose.pose.position.y
     rospy.loginfo(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
     # Get configuration

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+from real_robot_navigation.move_utils_cords import (
+    get_base_info,
+    get_pixel_location_from_acml,
+)
 import rospy
 import csv
 import os
@@ -22,7 +26,7 @@ distPub = rospy.Publisher(
     queue_size=10,
 )
 anglePub = rospy.Publisher(Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10)
-emergencyPub = rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10)
+anomalyPub = rospy.Publisher(Topics.ANOMALY_DETECTED.value, Bool, queue_size=10)
 
 
 def setPathErrorDist(path: String):
@@ -56,16 +60,16 @@ def __clearStandardCSVs():
 
 def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
     """
-    Behaviour when a anomaly is detected:
+    Behaviour when a anomaly is detected => set ememrgency Break and publish currently used error values
 
     Args:
-        errorValue (float): The value of the error
+        errorValue (float): The value of the deviation
         anomalySource (str): The name of the source where the anomaly originates from
     """
     global errorDistrDistPath
     global errorDistrAnglePath
 
-    rospy.loginfo(
+    rospy.logwarn(
         f"[Monitored Space Observer] Anomaly in {anomalySource} detected with error {errorValue}"
     )
 
@@ -73,8 +77,10 @@ def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
         # Published the used csv for error distribution so risk estimation can use them
         distPub.publish(errorDistrDistPath)
         anglePub.publish(errorDistrAnglePath)
-        # Publish emergencyBreak so all nodes can go in fallback mode
-        emergencyPub.publish(True)
+        # Deactivate LIDAR usage
+        anomalyPub.publish(True)
+        # Wait until first image localization image comes in
+        rospy.wait_for_message(Topics.LOCALIZATION.value, PoseWithCovarianceStamped)
     except Exception as e:
         rospy.logerr(
             f"[Monitored Space Observer] Couldn't execute anomaly behaviour: {e}"
@@ -89,25 +95,37 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     """
     global errorDistrDistPath
     global errorDistrAnglePath
-    FIFO_LENGTH = 4
+    FIFO_LENGTH = 2
     THRES_X = 9
     THRES_Y = 9
-    THRES_DIST = 9
-    THRES_ANGLE = 3
+    THRES_DIST = 30
+    THRES_ANGLE = 1.8
 
+    base_info, _ = get_base_info()
     xErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     yErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     distErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     angleErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     while not rospy.is_shutdown():
+        anomalyPub.publish(False)
+
         imageLoc = rospy.wait_for_message(
             Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
         )
         amclPose = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
 
-        # Calculating error in localization in x,y and angle
-        xErr = float(amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x)
-        yErr = float(amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y)
+        # Convert poses into pixel domain
+        imagePosePixels = get_pixel_location_from_acml(
+            imageLoc.pose.pose.position.x, imageLoc.pose.pose.position.y, *base_info
+        )
+        amclPosePixels = get_pixel_location_from_acml(
+            amclPose.pose.pose.position.x, amclPose.pose.pose.position.y, *base_info
+        )
+
+        # Calculating error in localization in x,y, distance and angle
+        xErr = float(amclPosePixels[0] - imagePosePixels[0])
+        yErr = float(amclPosePixels[1] - imagePosePixels[1])
+
         distErr = float(np.sqrt(np.square(xErr) + np.square(yErr)))
         angleErr = float(
             amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
@@ -131,14 +149,16 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         angleErrMedian = np.median(angleErrFIFO)
 
         # Anomaly detection
-        if xErrMedian > THRES_X:
-            _executeAnomalyMeasures(xErrMedian, "x-space")
-        if yErrMedian > THRES_Y:
-            _executeAnomalyMeasures(yErrMedian, "y-space")
-        if distErrMedian > THRES_DIST:
+        # if np.abs(xErrMedian) > THRES_X:
+        #     _executeAnomalyMeasures(xErrMedian, "x-space")
+        # if np.abs(yErrMedian) > THRES_Y:
+        #     _executeAnomalyMeasures(yErrMedian, "y-space")
+        if np.abs(distErrMedian) > THRES_DIST:
             _executeAnomalyMeasures(distErrMedian, "distance-space")
-        if angleErrMedian > THRES_ANGLE:
+            return
+        if np.abs(angleErrMedian) > THRES_ANGLE:
             _executeAnomalyMeasures(angleErrMedian, "angle-space")
+            return
 
 
 def monitorSpace():

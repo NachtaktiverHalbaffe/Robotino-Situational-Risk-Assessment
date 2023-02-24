@@ -39,13 +39,41 @@ locPublisher = rospy.Publisher(
 cvPublisher = rospy.Publisher(
     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
 )
-emergencyPub = rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10)
+fallbackPosePub = rospy.Publisher(
+    Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped, queue_size=10, latch=True
+)
 
-last_known_loc = ["init_data", 0, 0, 0]
-last_update = time.time()
 img_glob = []
 odom = Odometry()
 useLidar = True
+fallbackPose = PoseWithCovarianceStamped()
+real_data = ["real_data", 0, 0, 0]
+
+
+def setOdom(newOdom: Odometry):
+    global odom
+    odom = newOdom
+
+
+def setImage(rawImage: Image):
+    global img_glob
+    global Image_data
+    bridge = CvBridge()
+    cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
+    # Resize Image to 640 * 480 - YOLO was trained in this size
+    width = int(rawImage.width * 0.80)
+    height = int(rawImage.height * 0.80)
+    dim = (width, height)
+    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
+
+    # The unmodified image
+    img_glob = deepcopy(cv_image)
+    Image_data = [
+        "Image_Data",
+        dim,  # dimensions of resized image
+        img_resized,  # image data
+        rawImage.header.stamp,
+    ]
 
 
 def setRealData(acmlData: PoseWithCovarianceStamped):
@@ -61,13 +89,24 @@ def setRealData(acmlData: PoseWithCovarianceStamped):
 
 def setUseLidar(isUsed: Bool):
     global useLidar
+    global real_data
+    global fallbackPose
+
     useLidar = isUsed.data
 
     if useLidar:
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
-        emergencyPub.publish(False)
+        # Use last LIDAR Data as fallback pose because it is
+        # assumed that a lidar breakdown happens instantly and so last lidar data should be okay
+        poseMsg = PoseWithCovarianceStamped()
+        poseMsg.pose.pose.position.x = real_data[1]
+        poseMsg.pose.pose.position.y = real_data[2]
+        poseMsg.pose.pose.orientation.z = real_data[3]
+        poseMsg.pose.pose.orientation.w = 1
+        fallbackPose = poseMsg
+        fallbackPosePub.publish(poseMsg)
+
     else:
-        emergencyPub.publish(True)
         rospy.logdebug_throttle(10, "[Localization] Use camera")
 
 
@@ -90,6 +129,18 @@ def createOdom(currentPose: PoseWithCovarianceStamped):
         rospy.logwarn(f"[Localization] Couldn't publish odometry: {e}")
 
 
+def anomalyBehaviour(anomalyDetected: Bool):
+    global fallbackPose
+
+    if anomalyDetected.data:
+        # Use next image localization data as fallback pose to start behaviour
+        fallbackPose = rospy.wait_for_message(
+            Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+        )
+        fallbackPosePub.publish(fallbackPose)
+        useLidar = False
+
+
 def localiseCam():
     """
     Uses the camera to localise the Robotino on the map. Uses the camera based\
@@ -100,20 +151,16 @@ def localiseCam():
     global real_data
     global config
     # For interpolating position if camera based localization isn't possible
-    global last_known_loc
-    global last_update
-    global odom
-    last_known_odom = odom
     dc_obstacles_ws = deepcopy(config["obstacles_ws"])
+    # corners of the workstations on the map
+    corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
 
     FIFO_LENGTH = 2
     xLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     yLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     angleLocFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    last_known_loc = ["init_data", 0, 0, 0]
     while not rospy.is_shutdown():
-        loc_detec = [0, 0]
-        detected_rotation = 0
-
         # rotation of the workstations in the gridmap TODO remove this line and get it into the obstables?
         rots_ws = [0, 0, 0.85, 1.57, 2.19, 2.19]
         # last_known_locs and the map TODO not sure if deepopy ws_map is needed
@@ -123,22 +170,15 @@ def localiseCam():
             continue
 
         # Use last known location as location assumption if at least it located once with camera-based localization, otherwise use amcl data as initial pose
-        if (
-            not "init_data" in last_known_loc[0].lower()
-            and not "cv_data" in last_known_loc[0].lower()
-        ):
-            location_assumption = deepcopy(last_known_loc)
-            if not "interpolated_data" in location_assumption[0].lower():
-                location_assumption = offset_to_robo(last_known_loc)
-        else:
+        if useLidar:
             if len(real_data) != 0:
                 location_assumption = deepcopy(real_data)
                 location_assumption = offset_to_robo(location_assumption)
             else:
                 continue
-
-        # corners of the workstations on the map
-        corners_map_all = [obstacle.corners for obstacle in dc_obstacles_ws]
+        else:
+            location_assumption = deepcopy(last_known_loc)
+            location_assumption = offset_to_robo(last_known_loc)
 
         # getting the detection based on the newest image
         localise_dict = loaded_detect(
@@ -197,115 +237,38 @@ def localiseCam():
                 # subtracting the detected distance from the workstation on the map
                 loc_detec = (ws_map[0] - corner[0], ws_map[1] - corner[1])
 
-        if loc_detec[0] != 0 and loc_detec[1] != 0 and detected_rotation != 0:
-            xLocFIFO.appendleft(float(loc_detec[0]))
-            yLocFIFO.appendleft(float(loc_detec[1]))
-            angleLocFIFO.appendleft(float(detected_rotation))
+                last_known_loc = [
+                    "cv_data",
+                    round(float(loc_detec[0]), PRECISION),
+                    round(float(loc_detec[1]), PRECISION),
+                    round(float(detected_rotation), PRECISION),
+                ]
 
-            # loc_detec = list(loc_detec)
-            # loc_detec[0] = float(np.average(list(xLocFIFO)))
-            # loc_detec[1] = float(np.average(list(yLocFIFO)))
-            # detected_rotation = np.average(list(angleLocFIFO))
-            last_known_loc = [
-                "cv_data",
-                round(float(loc_detec[0]), PRECISION),
-                round(float(loc_detec[1]), PRECISION),
-                round(float(detected_rotation), PRECISION),
-            ]
-        elif (
-            "cv_data" in last_known_loc[0].lower()
-            or "interpolated_data" in last_known_loc[0].lower()
-        ):
-            # Calculate position => add difference between last odom and currentodom to last known location
-            loc_detec[0] = odom.pose.pose.position.x
-            loc_detec[1] = odom.pose.pose.position.y
-            loc_detec[0] = round(
-                last_known_loc[1]
-                + (loc_detec[0] - last_known_odom.pose.pose.position.x),
-                PRECISION,
-            )
-            loc_detec[1] = round(
-                last_known_loc[2]
-                + (loc_detec[1] - last_known_odom.pose.pose.position.y),
-                PRECISION,
-            )
-            # Calculate orientation=> add difference between last odom and currentodom to last known rotation
-            quat = odom.pose.pose.orientation
-            quatLastknown = last_known_odom.pose.pose.orientation
-            _, _, detected_rotation = euler_from_quaternion(
-                [quat.x, quat.y, quat.z, quat.w]
-            )
-            _, _, last_known_rotation = euler_from_quaternion(
-                [quatLastknown.x, quatLastknown.y, quatLastknown.z, quatLastknown.w]
-            )
-            detected_rotation = round(
-                last_known_loc[3] + (detected_rotation - last_known_rotation), PRECISION
-            )
-
-            xLocFIFO.appendleft(float(loc_detec[0]))
-            yLocFIFO.appendleft(float(loc_detec[1]))
-            angleLocFIFO.appendleft(float(detected_rotation))
-
-            last_known_loc = [
-                "interpolated_data",
-                loc_detec[0],
-                loc_detec[1],
-                detected_rotation,
-            ]
-
-        last_known_odom = odom
-        # Create message to publish
-        locMsg = PoseWithCovarianceStamped()
-        locMsg.header.frame_id = "map"
-        # Position
-        locMsg.pose.pose.position.x = loc_detec[0]
-        locMsg.pose.pose.position.y = loc_detec[1]
-        locMsg.pose.pose.position.z = 0
-        # Orientation
-        # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
-        quaternion = quaternion_from_euler(0, 0, detected_rotation)
-        locMsg.pose.pose.orientation.x = quaternion[0]
-        locMsg.pose.pose.orientation.y = quaternion[1]
-        locMsg.pose.pose.orientation.z = quaternion[2]
-        locMsg.pose.pose.orientation.w = quaternion[3]
-        # Publish message
-        try:
-            rospy.logdebug(
-                f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
-            )
-            cvPublisher.publish(locMsg)
-        except:
-            rospy.logerr(
-                f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}"
-            )
-            break
-        last_update = time.time()
-
-
-def setOdom(newOdom: Odometry):
-    global odom
-    odom = newOdom
-
-
-def setImage(rawImage: Image):
-    global img_glob
-    global Image_data
-    bridge = CvBridge()
-    cv_image = bridge.imgmsg_to_cv2(rawImage, "rgb8")
-    # Resize Image to 640 * 480 - YOLO was trained in this size
-    width = int(rawImage.width * 0.80)
-    height = int(rawImage.height * 0.80)
-    dim = (width, height)
-    img_resized = cv2.resize(cv_image, dim, interpolation=cv2.INTER_AREA)
-
-    # The unmodified image
-    img_glob = deepcopy(cv_image)
-    Image_data = [
-        "Image_Data",
-        dim,  # dimensions of resized image
-        img_resized,  # image data
-        rawImage.header.stamp,
-    ]
+            # Create message to publish
+            locMsg = PoseWithCovarianceStamped()
+            locMsg.header.frame_id = "map"
+            # Position
+            locMsg.pose.pose.position.x = loc_detec[0]
+            locMsg.pose.pose.position.y = loc_detec[1]
+            locMsg.pose.pose.position.z = 0
+            # Orientation
+            # quaternion = quaternion_from_euler(0, 0, np.sin(detected_rotation / 2))
+            quaternion = quaternion_from_euler(0, 0, detected_rotation)
+            locMsg.pose.pose.orientation.x = quaternion[0]
+            locMsg.pose.pose.orientation.y = quaternion[1]
+            locMsg.pose.pose.orientation.z = quaternion[2]
+            locMsg.pose.pose.orientation.w = quaternion[3]
+            # Publish message
+            try:
+                rospy.logdebug(
+                    f"Publishing camera-based localization: x:{loc_detec[0]} y:{loc_detec[0]} yaw:{np.sin(detected_rotation / 2)}"
+                )
+                cvPublisher.publish(locMsg)
+            except:
+                rospy.logerr(
+                    f"Couldn't publish camera based location to topic {Topics.IMG_LOCALIZATION.value}"
+                )
+                break
 
 
 def localization():
@@ -315,7 +278,7 @@ def localization():
     """
     global useLidar
     global config
-    useLidar = True
+    global fallbackPose
 
     rospy.init_node(Nodes.LOCALIZATION.value)
     set_rospy_log_lvl(rospy.INFO)
@@ -348,6 +311,7 @@ def localization():
                     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )
             else:
+                fallbackPosePub.publish(fallbackPose)
                 msg = rospy.wait_for_message(
                     Topics.ACML.value, PoseWithCovarianceStamped, timeout=1
                 )

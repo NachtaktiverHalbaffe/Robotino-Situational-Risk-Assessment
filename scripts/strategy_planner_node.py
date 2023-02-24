@@ -3,7 +3,7 @@ import time
 import rospy
 import actionlib
 import numpy as np
-from geometry_msgs.msg import PoseStamped, Point
+from geometry_msgs.msg import PoseStamped, Point, PoseWithCovarianceStamped
 from sensor_msgs.msg import PointCloud
 from move_base_msgs.msg import (
     MoveBaseAction,
@@ -20,6 +20,7 @@ from prototype.msg import Risk
 from utils.constants import Topics, Nodes, CommonPositions
 from utils.ros_logger import set_rospy_log_lvl
 from utils.evalmanager_client import EvalManagerClient
+from utils.navigation_utils import navigateToPoint
 
 
 feedbackValue = []
@@ -29,6 +30,7 @@ evalManagerClient = EvalManagerClient()
 emergencyStop = Event()
 fallbackMode = False
 nrOfAttempt = 0
+detectedAngle = 0
 
 # Publisher
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
@@ -38,6 +40,12 @@ responsePub = rospy.Publisher(Topics.STRATEGY_PLANNER_RESPONSE.value, String)
 obstacleMarginPub = rospy.Publisher(
     Topics.OBSTACLE_MARGIN.value, Int16, queue_size=10, latch=True
 )
+
+
+def setFallbackPose(loc: PoseWithCovarianceStamped):
+    global detectedAngle
+
+    detectedAngle = loc.pose.pose.orientation.z
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -212,41 +220,55 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
     return doneFeedback
 
 
-def navigate(pose: PoseStamped):
-    navMsg = Point()
-    navMsg.x = pose.pose.position.x
-    navMsg.y = pose.pose.position.y
-    navPub.publish(navMsg)
+def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption):
+    target = Point()
+    target.x = pose.pose.position.x
+    target.y = pose.pose.position.y
 
-    response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value, Bool)
+    start = Point()
+    start.x = positionAssumption.pose.position.x
+    start.y = positionAssumption.pose.position.y
 
-    return response
+    angleChange, _ = navigateToPoint(target, start, angleAssumption)
+
+    new_rotation = angleAssumption + angleChange
+    # if new_rotation < (-np.pi):
+    #     new_rotation = new_rotation + np.pi * 2
+    # if new_rotation > (np.pi):
+    #     new_rotation = new_rotation - np.pi * 2
+
+    return new_rotation
 
 
 def detectHazard():
     """
     Identifies the hazard/collision
     """
-    global currentTarget
+    global emergencyStop
     # Distance threshold under which a hazard is detected
-    THRESHOLD_DISTANCE = 0.1
+    THRESHOLD_COLLISIONDETECTION_DISTANCE = 0.05
+    THRESHOLD_EMERGENCYSTOP_DISTANCE = 0.13
 
     while not rospy.is_shutdown():
         try:
             rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
             dist = _fetchIRReadings(rawReadings)
-            if np.min(dist) < THRESHOLD_DISTANCE:
-                # Detected hazard ==> stop until problem is resolved
-                rospy.loginfo(
-                    "[Strategy Planner] IR sensors detected hazard. Emergency breaking now"
-                )
+            if np.min(dist) < THRESHOLD_COLLISIONDETECTION_DISTANCE:
+                # Detected collision
+                rospy.loginfo("[Strategy Planner] IR sensors detected collision")
                 evalManagerClient.evalLogCollision()
                 # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
+            elif np.min(dist) < THRESHOLD_EMERGENCYSTOP_DISTANCE:
+                rospy.loginfo(
+                    "[Strategy Planner] IR sensors detected obstacle and activates emergencybreak"
+                )
+                emergencyStop.set()
+                evalManagerClient.evalLogStop()
         except:
             return
 
 
-def activateFallbackBehaviour(enabled: Bool):
+def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
     """
     It activates/ deactives fallback behaviour and starts fallback Behaviour strategies
 
@@ -257,14 +279,20 @@ def activateFallbackBehaviour(enabled: Bool):
     global fallbackMode
 
     if enabled.data:
-        rospy.logwarn("[Strategy Planner] EMERGENCY-STOP: LIDAR has breakdown")
+        if "lidar" in reason:
+            rospy.logwarn(
+                "[Strategy Planner] EMERGENCY-STOP: LIDAR has breakdown. Executing fallback behaviour"
+            )
+        else:
+            rospy.logwarn(
+                "[Strategy Planner] EMERGENCY-STOP: Anomaly detected. Executing fallback behaviour"
+            )
         # Set event flag so currently exectuing startegies are aborted
         emergencyStop.set()
         # Tell strategy planner that its in fallbackMode
         fallbackMode = True
         # Start fallback behaviour after a short time to let all nodes set the necessary parameters
-        time.sleep(3)
-        executeAnomalyStrategy()
+        executeFallbackStrategy()
     else:
         rospy.loginfo("[Strategy Planner] EMERGENCY-STOP has been reset")
         # Clear event flag so strategy planner can run under normal behaviour
@@ -273,23 +301,24 @@ def activateFallbackBehaviour(enabled: Bool):
         fallbackMode = False
 
 
-def executeAnomalyStrategy():
+def executeFallbackStrategy():
     """
     Executes the behaviour when detecting a lidar anomaly or breakdown.
-    The strategy is to drive to a safe place when the risk is high enough.
+    The strategy is to drive to a safe place when the risk is high enough
     """
     global emergencyStop
     # Release emergency stop flag so strategy planner can run again if risk values come in
     emergencyStop.clear()
-    try:
-        # Activate usage of own error distribution so it uses the last known error values for risk estimation
-        useErrorDistPub.publish(True)
-    except Exception as e:
-        rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
 
     # Start the path planning process to navigate to safe spot
     try:
         targetPub.publish(CommonPositions.SAFE_SPOT.value)
+    except Exception as e:
+        rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
+
+    try:
+        # Activate usage of own error distribution so it uses the last known error values for risk estimation
+        useErrorDistPub.publish(True)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
 
@@ -300,12 +329,13 @@ def chooseStrategy(riskEstimation: Risk):
 
     Args:
         riskEstimation (custom risk-message): The risk parameters. Gets passed by the subscriber who\
-                                                                          calls this function as a callback function
+                                             calls this function as a callback function
     """
     global nrOfAttempt
     global trajectory
     global emergencyStop
     global fallbackMode
+    global detectedAngle
 
     MAX_ATTEMPTS = 3
 
@@ -354,13 +384,17 @@ def chooseStrategy(riskEstimation: Risk):
         return
 
     obstacleMarginPub.publish(0)
+
     #####################################################
     # ------- Local estimation & behaviour execution ----
     #####################################################
+    angleAssumption = 0
     for i in range(len(trajectory.poses)):
-        if fallbackMode:
-            # Wait little time so camera based localization can settle a little bit
-            time.sleep(5)
+        # We assume that we havn't to navigate to start node because were already there
+        if i == 0:
+            continue
+        if i == 1 and fallbackMode:
+            angleAssumption = detectedAngle
 
         if i in criticalNodes:
             # Critical sector => Executing under safety constraints
@@ -396,10 +430,12 @@ def chooseStrategy(riskEstimation: Risk):
                         evalManagerClient.evalLogStop()
                         return
                 else:
-                    response = navigate(trajectory.poses[i])
-                    if not response:
-                        evalManagerClient.evalLogStop()
-                        return
+                    angleAssumption = navigate(
+                        trajectory.poses[i],
+                        positionAssumption=trajectory.poses[i - 1],
+                        angleAssumption=angleAssumption,
+                    )
+
             else:
                 # Risk is too high => Don't navigate
                 rospy.logdebug(
@@ -434,7 +470,12 @@ def chooseStrategy(riskEstimation: Risk):
                     evalManagerClient.evalLogStop()
                     return
             else:
-                response = navigate(trajectory.poses[i])
+                response = navigate(
+                    trajectory.poses[i],
+                    positionAssumption=trajectory.poses[i - 1],
+                    angleAssumption=angleAssumption,
+                )
+
                 if not response:
                     evalManagerClient.evalLogStop()
                     responsePub.publish("Error: Trajectory execution did fail")
@@ -477,14 +518,25 @@ def strategyPlanner(runWithRiskEstimation=True):
         rospy.Subscriber(
             Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=10
         )
-        # Start fallback behaviour
-        rospy.Subscriber(
-            Topics.EMERGENCY_BRAKE.value, Bool, activateFallbackBehaviour, queue_size=10
-        )
 
-    # rospy.Subscriber(
-    #     Topics.LIDAR_ENABLED.value, Bool, reconfigureMovebase, queue_size=10
-    # )
+    # For fallback behaviour
+    rospy.Subscriber(
+        Topics.ANOMALY_DETECTED.value,
+        Bool,
+        activateFallbackBehaviour,
+        queue_size=10,
+        callback_args=["anomaly detected"],
+    )
+    rospy.Subscriber(
+        Topics.LIDAR_ENABLED.value, Bool, activateFallbackBehaviour, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.FALLBACK_POSE.value,
+        PoseWithCovarianceStamped,
+        setFallbackPose,
+        queue_size=10,
+    )
+
     # Callbacks of move_base client
     rospy.Subscriber(
         Topics.MOVE_BASE_FEEDBACK.value,
@@ -499,7 +551,7 @@ def strategyPlanner(runWithRiskEstimation=True):
         queue_size=10,
     )
 
-    # detectHazard()
+    detectHazard()
     rospy.spin()
 
 

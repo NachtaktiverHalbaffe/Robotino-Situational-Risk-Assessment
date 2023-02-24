@@ -46,14 +46,14 @@ def setImage(rawImage: Image):
     img_glob = deepcopy(cv_image)
 
 
-def setRealData(acmlData: PoseWithCovarianceStamped):
+def setRealData(locData: PoseWithCovarianceStamped):
     global real_data
     real_data = [
         "real_data",
-        acmlData.pose.pose.position.x,
-        acmlData.pose.pose.position.y,
-        acmlData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
-        acmlData.header.stamp,
+        locData.pose.pose.position.x,
+        locData.pose.pose.position.y,
+        locData.pose.pose.orientation.z,  # this will be a value e[-1, 1] and can be converted [-pi, pi] with angle=arcsin(z)*2
+        locData.header.stamp,
     ]
 
 
