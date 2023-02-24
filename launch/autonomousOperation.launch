@@ -2,7 +2,7 @@
     <!-- Args for launchfile -->
     <arg name="package_name" default="prototype" />
     <arg name="hostname" default="129.69.102.242" />
-    <arg name="ip" default="129.69.102.246"/>
+    <arg name="ip" default="129.69.102.180"/>
     <arg name="path" value="$(eval find(arg('package_name')))" />
     <arg name="map_file" default="$(arg path)/maps/FinalGridMapv2cleaned.yaml"/>
 

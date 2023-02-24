@@ -202,10 +202,10 @@ def localiseCam():
             yLocFIFO.appendleft(float(loc_detec[1]))
             angleLocFIFO.appendleft(float(detected_rotation))
 
-            loc_detec = list(loc_detec)
-            loc_detec[0] = float(np.average(list(xLocFIFO)))
-            loc_detec[1] = float(np.average(list(yLocFIFO)))
-            detected_rotation = np.average(list(angleLocFIFO))
+            # loc_detec = list(loc_detec)
+            # loc_detec[0] = float(np.average(list(xLocFIFO)))
+            # loc_detec[1] = float(np.average(list(yLocFIFO)))
+            # detected_rotation = np.average(list(angleLocFIFO))
             last_known_loc = [
                 "cv_data",
                 round(float(loc_detec[0]), PRECISION),
