@@ -62,7 +62,9 @@ class Metrics(Enum):
     COLLISIONS = "collisions"
     PRODUCTION_STOPS = "prodStop"
     RISK = "risk"
-    COLLISION_PROBABILITY = "collisionProb"
+    STARTED_TASKS = "startedTasks"
+    SUCCESSFUL_TASKS = "successfulTasks"
+    COLLISION_PROBABILITY = "collisionProbability"
 
 
 class LoggingLevel(Enum):
