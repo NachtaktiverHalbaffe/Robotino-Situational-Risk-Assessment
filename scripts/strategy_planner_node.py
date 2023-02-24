@@ -12,7 +12,7 @@ from move_base_msgs.msg import (
     MoveBaseActionResult,
     MoveBaseFeedback,
 )
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String, Int16
 from nav_msgs.msg import Path
 from threading import Event
 
@@ -29,9 +29,15 @@ evalManagerClient = EvalManagerClient()
 emergencyStop = Event()
 fallbackMode = False
 nrOfAttempt = 0
+
+# Publisher
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
 targetPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 navPub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
+responsePub = rospy.Publisher(Topics.STRATEGY_PLANNER_RESPONSE.value, String)
+obstacleMarginPub = rospy.Publisher(
+    Topics.OBSTACLE_MARGIN.value, Int16, queue_size=10, latch=True
+)
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -329,6 +335,7 @@ def chooseStrategy(riskEstimation: Risk):
         )
         # Retry risk estimation
         nrOfAttempt = nrOfAttempt + 1
+        obstacleMarginPub.publish(4 * nrOfAttempt)
         goalPose = trajectory.poses[len(trajectory.poses) - 1]
         targetPub.publish(goalPose)
         return
@@ -342,9 +349,11 @@ def chooseStrategy(riskEstimation: Risk):
         )
         # Retry risk estimation
         nrOfAttempt = 0
+        obstacleMarginPub.publish(4 * nrOfAttempt)
         evalManagerClient.evalLogStop()
         return
 
+    obstacleMarginPub.publish(0)
     #####################################################
     # ------- Local estimation & behaviour execution ----
     #####################################################
@@ -428,6 +437,7 @@ def chooseStrategy(riskEstimation: Risk):
                 response = navigate(trajectory.poses[i])
                 if not response:
                     evalManagerClient.evalLogStop()
+                    responsePub.publish("Error: Trajectory execution did fail")
                     return
 
             if emergencyStop.is_set():
@@ -436,6 +446,10 @@ def chooseStrategy(riskEstimation: Risk):
                 )
                 return
 
+    try:
+        responsePub.publish("Success")
+    except Exception as e:
+        rospy.logwarn
     rospy.loginfo("[Strategy Planner] Finished strategy execution")
 
 

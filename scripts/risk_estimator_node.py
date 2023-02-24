@@ -39,6 +39,9 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
+# This are the configurable measures how long the risk estimation will take, but also the quality
+ATTEMPTS = 10
+EXPAND_LENGTH = 2
 
 # If to use bruteforce risk estimation
 useBrute = False
@@ -116,7 +119,6 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     """
     global obstacleMsg
     # Parameters for probability estimator&fault injector
-    ATTEMPTS = 10
     AMOUNT_OF_EXPLORATION = 1
 
     ###################################################
@@ -157,6 +159,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                     replay_on=False,
                     attempts=ATTEMPTS,
                     amount_of_exploration=AMOUNT_OF_EXPLORATION,
+                    expand_length=EXPAND_LENGTH,
                     obstacles=obstacles,
                     start=task[0],
                     goal=task[1],
@@ -177,8 +180,12 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
                 replay_on=False,
                 attempts=ATTEMPTS,
                 amount_of_exploration=AMOUNT_OF_EXPLORATION,
+                expand_length=EXPAND_LENGTH,
                 obstacles=obstacles,
-                expand_length=2,
+                invertMap=True,
+                errorDistrDistPath=errDistDistPath,
+                errorDistrAnglePath=errDistAnglePath,
+                useLidar=useLIDAR,
             )
             runs.append(estimation)
     rospy.loginfo(
@@ -350,7 +357,6 @@ def estimateRisk(globalPath: Path):
     global useBrute
     global obstacleMsg
     # Parameters for probability estimator&fault injector
-    ATTEMPTS = 3
     AMOUNT_OF_EXPLORATION = 1
     # Parameters for risk calculation
     COST_COLLISION = 200
@@ -378,7 +384,7 @@ def estimateRisk(globalPath: Path):
             initialTraj=traj,
             obstacles=obstacles,
             invertMap=True,
-            expand_length=2,
+            expand_length=EXPAND_LENGTH,
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
             useLidar=useLIDAR,
@@ -397,7 +403,7 @@ def estimateRisk(globalPath: Path):
             initialTraj=traj,
             obstacles=obstacles,
             invertMap=True,
-            expand_length=2,
+            expand_length=EXPAND_LENGTH,
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
             useLidar=useLIDAR,

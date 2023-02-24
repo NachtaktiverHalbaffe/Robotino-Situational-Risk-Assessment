@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-from real_robot_navigation.move_utils import modify_map
+
 import rospy
 import os
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from nav_msgs.msg import Path
+from std_msgs.msg import Int16
 
 from autonomous_operation.PRM import (
     Edge,
@@ -12,6 +13,7 @@ from autonomous_operation.PRM import (
     apply_PRM_init,
     get_traj_edges,
 )
+from real_robot_navigation.move_utils import modify_map
 from autonomous_operation.object_detection import Obstacle
 from prototype.msg import ObstacleList
 from utils.constants import Topics, Nodes
@@ -24,7 +26,7 @@ from real_robot_navigation.move_utils_cords import (
 )
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
-THRESHOLD_EDGE = 6
+THRESHOLD_EDGE = 8
 
 pathPublisher = rospy.Publisher(
     Topics.GLOBAL_PATH.value, Path, queue_size=10, latch=True
@@ -36,6 +38,13 @@ newObstacles = False
 currentPoint = PoseWithCovarianceStamped()
 currentPoint.pose.pose.position.x = -3.2
 currentPoint.pose.pose.position.y = 1.2
+
+obstacleMargin = 0
+
+
+def setObstacleMargin(margin: Int16):
+    global obstacleMargin
+    obstacleMargin = margin.data
 
 
 def setCurrentPose(currentPose: PoseWithCovarianceStamped):
@@ -76,6 +85,7 @@ def runPRM(targetMessage: PoseStamped):
     global PRMNodes
     global newObstacles
     global pathPlannerConfig
+    global obstacleMargin
     # Get target from geometry message
     xTarget = targetMessage.pose.position.x
     yTarget = targetMessage.pose.position.y
@@ -105,6 +115,7 @@ def runPRM(targetMessage: PoseStamped):
             nodes=PRMNodes,
             start=start,
             goal=goal,
+            obstacleMargin=obstacleMargin,
         )
     else:
         traj, _, PRMNodes, _ = apply_PRM_init(
@@ -112,6 +123,7 @@ def runPRM(targetMessage: PoseStamped):
             obstacles=all_obst,
             start=start,
             goal=goal,
+            obstacleMargin=obstacleMargin,
         )
         newObstacles = False
 
@@ -169,6 +181,9 @@ def planner():
     )
     # Sets the obstacles global variable
     rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacles, queue_size=10)
+    rospy.Subscriber(
+        Topics.OBSTACLE_MARGIN.value, Int16, setObstacleMargin, queue_size=10
+    )
 
     # Dirty fix to make sure that topics are subscribed and has active connection to corresponding node
     rate = rospy.Rate(1)

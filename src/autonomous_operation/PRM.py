@@ -117,7 +117,7 @@ class Edge:
     __repr__ = __str__  # X kind of a bad practice
 
 
-def add_nodes(map_ref, N, obstacles, start=None, goal=None):
+def add_nodes(map_ref, N, obstacles, start=None, goal=None, obstacleMargin=0):
     """
     Adds the nodes of the graph into the reference map for PRM -> since the robot has a width, we don't \
     place the nodes close to the obstacles (->RADIUS_ROBOT). This is done by randomly generating nodes and\
@@ -129,6 +129,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
         obstacles(list(Obstacle)): Obstacle-objects (results from object detection)
         start (optional): if we want a specific position to be sampled as start we have to pass it here (as tuple)
         goal (optional): if we want a specific position to be sampled as goal we have to pass it here (as tuple)
+        obstacleMargin (int, optional): Margin to add to the radius if the robot => Increase required distance between node and obstacle
 
     Returns:
         im_with_nodes: PIL Image of the reference map mit the nodes added as grey dots - just for visualization
@@ -163,7 +164,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
         dist = np.min(np.array(distances))
 
         if (
-            (dist > RADIUS_ROBOT)
+            (dist > RADIUS_ROBOT + obstacleMargin)
             and pixels[random_y][random_x] != 255
             and pixels[random_y][random_x] != NODE_COLOR
         ):
@@ -177,7 +178,7 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None):
     return im_with_nodes, nodes
 
 
-def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
+def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False, obstacleMargin=0):
     """ Recalculates the cost of all passed edges based on the passed reference map and obstacles.
 
     PROBLEM of calculate_edge_cost: Can only detect collisions with known obstacles\
@@ -189,6 +190,7 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
         obstacles (list(Obstacle), optional): Known obstacles in map_ref. Defaults to None
         prot (bool, optional): If the function is called to calculate the weights for the protagonist, we have to return (only) the\
             edges, which have been influenced by the protagonist. Defaults to False
+        obstacleMargin (int, optional): Margin to add to the radius if the robot => Increase required distance between node and obstacle
 
     Returns: 
         edges_prot (dict): Edges that has been changed by the protagonist (if prot=True)
@@ -231,7 +233,7 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False):
                     ):
                         for obstacle in obstacles:
                             distances.append(obstacle.distance_to_point(edge_point))
-                        if np.min(np.array(distances)) < RADIUS_ROBOT:
+                        if np.min(np.array(distances)) < RADIUS_ROBOT + obstacleMargin:
                             close_object = True
                             obstacles_to_remove.append(
                                 (
@@ -845,7 +847,7 @@ def get_node_with_coordinates(nodes, xycoords):
     return ret_node
 
 
-def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
+def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles, obstacleMargin=0):
     """
     This function is needed when we generate a trajectory outside the PRM with the adversary
 
@@ -853,6 +855,7 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
         map_ref: reference map
         adv_traj_coordinates (list(Node)): Manipulated trajectory by adversary
         obstacles (list(Node)): Obstacles which are known to the map
+        obstacleMargin (int, optional): Margin to add to the radius if the robot => Increase required distance between node and obstacle
 
     Returns:
         nodes (list(Node)):  Nodes from the calculated trajectory
@@ -907,7 +910,9 @@ def calc_adv_traj(map_ref, adv_traj_coordinates, obstacles):
             if not (point == edge_points[-1]).all():
                 edge.edge_points.append((point[0], point[1]))
 
-    edges_prot, obstacles_to_remove = calculate_edge_costs(map_ref, edges, obstacles)
+    edges_prot, obstacles_to_remove = calculate_edge_costs(
+        map_ref, edges, obstacles, obstacleMargin=obstacleMargin
+    )
 
     return nodes, edges, obstacles_to_remove
 
@@ -953,7 +958,13 @@ def findNearestNode(nodes, xCor, yCor):
 
 
 def apply_PRM_init(
-    map_ref, obstacles, start_node=None, goal_node=None, start=None, goal=None
+    map_ref,
+    obstacles,
+    start_node=None,
+    goal_node=None,
+    start=None,
+    goal=None,
+    obstacleMargin=0,
 ):
     """
     Applies the whole PRM process which includes all steps like sampling nodes, building a graph and\
@@ -984,9 +995,18 @@ def apply_PRM_init(
             nodes[i] = Node(nodes[i].coordinates[0], nodes[i].coordinates[1])
     else:
         if None in [start, goal]:
-            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles)
+            map_visu, nodes = add_nodes(
+                map_ref_copy, N_NODES, obstacles, obstacleMargin=obstacleMargin
+            )
         else:
-            map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, goal)
+            map_visu, nodes = add_nodes(
+                map_ref_copy,
+                N_NODES,
+                obstacles,
+                start,
+                goal,
+                obstacleMargin=obstacleMargin,
+            )
         map_visu.save(f"{PATH}/maps/map_nodes.png")
 
     t0 = time.perf_counter()
@@ -994,11 +1014,17 @@ def apply_PRM_init(
     map_visu, nodes, edges_all = add_neighbours(map_ref_copy, nodes, N_NEIGHBOURS)
     # TODO: XXX this might cause trouble in for the adv!!! -> visualization will not exactly represent the truth (pixel perfect)
     try:
-        calculate_edge_costs(map_ref_copy, edges_all, obstacles)
+        calculate_edge_costs(
+            map_ref_copy, edges_all, obstacles, obstacleMargin=obstacleMargin
+        )
     except:
-        map_visu, nodes = add_nodes(map_ref_copy, N_NODES, obstacles, start, goal)
+        map_visu, nodes = add_nodes(
+            map_ref_copy, N_NODES, obstacles, start, goal, obstacleMargin=obstacleMargin
+        )
         map_visu, nodes, edges_all = add_neighbours(map_ref_copy, nodes, N_NEIGHBOURS)
-        calculate_edge_costs(map_ref_copy, edges_all, obstacles)
+        calculate_edge_costs(
+            map_ref_copy, edges_all, obstacles, obstacleMargin=obstacleMargin
+        )
     nodes_copy = copy.copy(nodes)
     map_visu.save(f"{PATH}/maps/map_graph.png")
     rospy.logdebug(f"[PRM] Time add_neighbours: {time.perf_counter() - t0}")
@@ -1042,6 +1068,7 @@ def apply_PRM(
     goal=None,
     edges_all=None,
     prot=False,
+    obstacleMargin=0,
 ):
     """
     Applies the PRM process without sampling new nodes and building a graph (basically just does the dijkstra)
@@ -1072,7 +1099,9 @@ def apply_PRM(
     edges_change_back = None
     # if edges_all are passed, we recalculate their costs (for the protagonist)
     if edges_all:
-        edges_change_back = calculate_edge_costs(map_ref, edges_all, prot=prot)
+        edges_change_back = calculate_edge_costs(
+            map_ref, edges_all, prot=prot, obstacleMargin=obstacleMargin
+        )
 
     # todo: a bit ugly for now --- [0] and [1] are the indices for the "start" and "goal" given by the apply_PRM(..) params
     # Generate random start and goal
