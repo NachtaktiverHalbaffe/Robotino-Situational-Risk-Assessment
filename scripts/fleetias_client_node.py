@@ -3,7 +3,7 @@ import json
 import rospy
 import socket
 from threading import Thread
-from std_msgs.msg import Int16, Bool
+from std_msgs.msg import Int16, Bool, String
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 from utils.constants import Topics, Nodes
@@ -162,9 +162,12 @@ def communicate(client, server):
         data = json.loads(data)
         # Process the request
         response = processMessage(data=data)
-        if not response.contains("Error") and data["command"] == "PushTarget":
+        if not "error" in response.lower() and data["command"].lower() == "pushtarget":
             # Wait for response from ROS task which was started by FleetIAS
-            response = rospy.wait_for_message(Topics.NAVIGATION_RESPONSE.value)
+            response = rospy.wait_for_message(
+                Topics.STRATEGY_PLANNER_RESPONSE.value, String
+            )
+            response = response.data
         else:
             # Send error response to FleetIAS
             rospy.logwarn(response)
@@ -178,10 +181,11 @@ def runClient():
     """
     Runs the FleetIAS client. Although being named a client, it's technically a TCP server.
     """
-    ipAddr = rospy.get_param("~ip")
+    ipAddr = rospy.get_param("~ip", default="129.69.102.180")
     # Setup socket
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    print(ipAddr)
     server.bind((ipAddr, PORT))
     #  Start server
     server.listen()
@@ -189,7 +193,7 @@ def runClient():
     while not rospy.is_shutdown():
         try:
             # Connect with FleetIAS
-            server.settimeout(2)
+            # server.settimeout(2)
             client, addr = server.accept()
             rospy.loginfo(f"[Fleetias-Client] {addr} connected to socket")
             Thread(target=communicate, args=[client, server]).start()
@@ -201,9 +205,9 @@ def runClient():
 
 if __name__ == "__main__":
     rospy.init_node(Nodes.FLEETIAS_CLIENT.value)
-    try:
-        rospy.loginfo(f"Starting node {Nodes.FLEETIAS_CLIENT.value}")
-        runClient()
-        rospy.spin()
-    except:
-        rospy.loginfo(f"Shutdown node {Nodes.FLEETIAS_CLIENT.value}")
+    # try:
+    rospy.loginfo(f"Starting node {Nodes.FLEETIAS_CLIENT.value}")
+    runClient()
+    rospy.spin()
+    # except:
+    #     rospy.loginfo(f"Shutdown node {Nodes.FLEETIAS_CLIENT.value}")
