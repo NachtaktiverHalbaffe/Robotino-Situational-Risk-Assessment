@@ -16,59 +16,98 @@ class EvalManagerClient:
         self.payload = {}
         self.timeout = timeout
 
-    def evalLogCollision(self, stepSize: int = 1, timeStamp: str = None):
+    def evalLogCollision(self, stepSize: int = 1):
         """
         Sends a request to the evaluationmanager to add an collision
 
         Args:
             stepSize (int,optional): How much collisions should be added
-            timeStamp (str, optional):  A timestamp when the collision happend
         """
         self.payload = {
             "metric": Metrics.COLLISIONS.value,
             "loggerSource": "prototype",
             "stepSize": stepSize,
         }
-        if timeStamp != None:
-            self.payload["timeStamp"] = timeStamp
 
         uri = f"{self.baseUri}/increaselogger"
         self.__sendRequest(url=uri)
 
-    def evalLogStop(self, stepSize: int = 1, timeStamp: str = None):
+    def evalLogStop(self, stepSize: int = 1):
         """
         Sends a request to the evaluationmanager to add an stop of the robot
 
         Args:
             stepSize (int,optional): How much stops should be added
-            timeStamp (str, optional):  A timestamp when the stop happend
         """
         self.payload = {
             "metric": Metrics.PRODUCTION_STOPS.value,
             "loggerSource": "prototype",
             "stepSize": stepSize,
         }
-        if timeStamp != None:
-            self.payload["timeStamp"] = timeStamp
 
         uri = f"{self.baseUri}/increaselogger"
         self.__sendRequest(url=uri)
 
-    def evalLogRisk(self, risk: float, timeStamp: str = None):
+    def evalLogSuccessfulTask(self, stepSize: int = 1):
+        """
+        Sends a request to the evaluationmanager to add an successful task
+
+        Args:
+            stepSize (int,optional): How much stops should be added
+        """
+        self.payload = {
+            "metric": Metrics.SUCCESSFUL_TASKS.value,
+            "loggerSource": "prototype",
+            "stepSize": stepSize,
+        }
+
+        uri = f"{self.baseUri}/increaselogger"
+        self.__sendRequest(url=uri)
+
+    def evalLogStartedTask(self, stepSize: int = 1):
+        """
+        Sends a request to the evaluationmanager to add an started task
+
+        Args:
+            stepSize (int,optional): How much stops should be added
+        """
+        self.payload = {
+            "metric": Metrics.STARTED_TASKS.value,
+            "loggerSource": "prototype",
+            "stepSize": stepSize,
+        }
+
+        uri = f"{self.baseUri}/increaselogger"
+        self.__sendRequest(url=uri)
+
+    def evalLogRisk(self, risk: float):
         """
         Sends a request to the evaluationmanager to add an risk
 
         Args:
             risk (float): The risk value itself
-            timeStamp (str, optional):  A timestamp when the risk was calculated
         """
         self.payload = {
             "metric": Metrics.RISK.value,
             "loggerSource": "prototype",
             "value": risk,
         }
-        if timeStamp != None:
-            self.payload["timeStamp"] = timeStamp
+
+        uri = f"{self.baseUri}/valuelogger"
+        self.__sendRequest(url=uri)
+
+    def evalLogCollisionProb(self, prob: float):
+        """
+        Sends a request to the evaluationmanager to add an risk
+
+        Args:
+            risk (float): The risk value itself
+        """
+        self.payload = {
+            "metric": Metrics.COLLISION_PROBABILITY.value,
+            "loggerSource": "prototype",
+            "value": prob,
+        }
 
         uri = f"{self.baseUri}/valuelogger"
         self.__sendRequest(url=uri)
