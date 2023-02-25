@@ -162,6 +162,7 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
     if file.exists():
         data = pd.read_csv(path, header=None)
         probabilities, segments = np.histogram(data, bins=bins)
+        # segments = np.round(segments, 2)
         probabilities = np.divide(probabilities, len(data))
         probabilities = np.round(probabilities, precision)
         try:
@@ -180,8 +181,10 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
 
 
 def loadErrorDistributionLIDAR():
-    segments = [-0.17, -0.08, 0, 0.08, 0.17]
-    probabilities = [0.02, 0.2, 0.56, 0.2, 0.02]
+    segmentsAngles = [-0.17, -0.08, 0, 0.08, 0.17]
+    probabilitiesAngles = [0.0153, 0.175, 0.7, 0.10, 0.008]
+    segmentsDist = [-0.03, -0.02, 0, 0.02, 0.03]
+    probabilitiesDist = [0.02, 0.20, 0.56, 0.20, 0.02]
 
     try:
         rostopic.get_topic_class("/rosout")
@@ -190,10 +193,10 @@ def loadErrorDistributionLIDAR():
         )
     except:
         print(f"[Crash and Remove] Loaded error distribution with LIDAR values.")
-    return segments, probabilities
+    return segmentsAngles, probabilitiesAngles, segmentsDist, probabilitiesDist
 
 
 if __name__ == "__main__":
     loadErrorDistribution(
-        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/localization_error_daemmerung_badlight_angle.csv"
+        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/test.csv"
     )

@@ -405,7 +405,12 @@ def apply_object_detection(map_path):
         map_ref: reference map (with the detected obstacles) after applying object detection
         obstacles: list of the found Obstacles-objects
     """
-    map_grey = Image.open(map_path)
+    try:
+        map_grey = Image.open(map_path)
+    except:
+        time.sleep(1)
+        map_grey = Image.open(map_path)
+
     map_grey = map_grey.convert("L")
     map_grey.save(f"{PATH}/maps/map_cropped.png")
     # map_grey = Image.open(map_path)

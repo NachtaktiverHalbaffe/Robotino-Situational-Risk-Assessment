@@ -153,7 +153,12 @@ class RoboEnv_gym_2(gym.Env):
                     errorDistrAnglePath, bins=self.actions_per_dimension
                 )
         else:
-            self.angles, self.angle_probs = loadErrorDistributionLIDAR()
+            (
+                self.angles,
+                self.angle_probs,
+                self.dists,
+                self.dist_probs,
+            ) = loadErrorDistributionLIDAR()
 
     def set_test(self) -> None:
         """Sets the environment to a test env"""

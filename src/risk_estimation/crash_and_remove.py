@@ -438,7 +438,7 @@ def run_crash_and_remove(
                         rospy.logdebug(
                             "[Crash and Remove] There was a crash without an obstacle"
                         )
-                        # break_out = True
+                        break_out = True
                         if replay_on:
                             rospy.logdebug(
                                 "[Crash and Remove] \U0001F4C0 obstacles not remove"
@@ -524,10 +524,14 @@ def run_crash_and_remove(
         df_currentRun = pd.DataFrame(data)
         try:
             df_oldRuns = pd.read_csv(save_location)
-            df_save = df_oldRuns.append(df_currentRun)
-            df_save.to_csv(save_location)
+            pd.concat([df_oldRuns, df_currentRun], ignore_index=True).to_csv(
+                save_location, index=False
+            )
+            # df_currentRun.concat(df_oldRuns, ignore_index=True).to_csv(
+            #     save_location, index=False
+            # )
         except:
-            df_currentRun.to_csv(save_location)
+            df_currentRun.to_csv(save_location, index=False)
         rospy.logdebug(f"[Crash and Remove] Wall_discards {wall_discards}")
 
     return data

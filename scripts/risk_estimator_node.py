@@ -36,12 +36,74 @@ from prototype.msg import (
 
 logger = logging.getLogger(__name__)
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
-
 CONFIG = config.configs[0]
 ENV_NAME = "robo_navigation-v01"
 # This are the configurable measures how long the risk estimation will take, but also the quality
 ATTEMPTS = 10
 EXPAND_LENGTH = 2
+
+INIT_CRITICALOBS = {
+    "box": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "klapp": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "hocker": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "robotino": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "generic": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "geofenced": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws1": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws2": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws3": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws4": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws5": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+    "ws6": {
+        "collisions": 0,
+        "risks": [],
+        "relativeOccurence": 0,
+    },
+}
 
 # If to use bruteforce risk estimation
 useBrute = False
@@ -99,7 +161,84 @@ def __getErrorDistPaths():
     if useCustomErrorDist:
         return errorDistrDistPath, errorDistrAnglePath, False
     else:
-        return None, None, True
+        return None, None, False
+
+
+def getUniqueCollisons(
+    estimationDict: dict, initialCriticalObjects: dict = None, nrTotalRuns: int = 1
+):
+    """
+    In the current probability estimator and fault injector collisions can be detected and so calculated twice.\
+    This function filters all collisions so each collision is unique and creates a dict with the obstacles with which\
+    a collision happend.
+
+    Args:
+        estimationDict (dict): A single estimation from the probability estimator& Fault injector (crash_remove.py)
+        initialCriticalObjects (dict, optional): A initial statistic of obstacles and how often they where involved in a collision.\
+                                                 If given, the new collisions get added to this statistic
+        nrTotalRuns (int): Number of total runs in the entire estimation. Needed to calculated the relativeOccurence of collisions of obstacles
+
+    Returns:
+        filteredProbs (list of tuple): The filtered collision probabilities. Tuple schema is as follows: (probability, node number where collision happend)
+        criticalObstacles (dict): A statistic which obstacles where involved in a collision
+    """
+    # In this dict the results are saved
+    if initialCriticalObjects == None:
+        criticalObstacles = INIT_CRITICALOBS
+    else:
+        criticalObstacles = initialCriticalObjects
+
+    # Filter out probabilities where a single collision was detected twice
+    filteredProbs = []
+    filteredObstacles = []
+    # Run through one run
+    for i in range(len(estimationDict["rl_prob"])):
+        # Skip iteration if no collision happend
+        if len(estimationDict["rl_prob"][i]) == 0:
+            continue
+        singleExplorationProbs = []
+        singleExplorationObs = []
+        # Iterate through all collisions
+        for j in range(len(estimationDict["collided_obs"][i])):
+            isAlreadyPresent = False
+            # Iterate through already discovered collisions
+            for k in range(len(singleExplorationProbs)):
+                if (
+                    singleExplorationObs[k].label
+                    == estimationDict["collided_obs"][i][j].label
+                    or singleExplorationProbs[k][0]
+                    == estimationDict["rl_prob"][i][j][0]
+                ):
+                    isAlreadyPresent = True
+                    break
+            # Add collision if it's not already present
+            if not isAlreadyPresent:
+                singleExplorationProbs.append(estimationDict["rl_prob"][i][j])
+                singleExplorationObs.append(estimationDict["collided_obs"][i][j])
+
+        filteredProbs.append(singleExplorationProbs)
+        filteredObstacles.append(singleExplorationObs)
+
+    # Count number of collisions with each obstacle and write metrics into criticalObstacles
+    # Iterate through all iterations
+    for i in range(len(filteredProbs)):
+        # Iterate through one exploration
+        for j in range(len(filteredProbs[i])):
+            risk = filteredProbs[i][j]
+            # Iterate through all collisions in this one exploration
+            for obstacle in filteredObstacles[i]:
+                criticalObstacles[obstacle.label]["collisions"] = (
+                    criticalObstacles[obstacle.label]["collisions"] + 1
+                )
+                criticalObstacles[obstacle.label]["risks"].append(risk)
+
+    # Calculate relativeOccurence of collisions (only meaningful if nrTotalRuns != 0)
+    for key in criticalObstacles.keys():
+        criticalObstacles[key]["relativeOccurence"] = (
+            criticalObstacles[key]["collisions"] / nrTotalRuns
+        )
+
+    return filteredProbs, criticalObstacles
 
 
 def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
@@ -147,28 +286,38 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
             [wsNodes[1], wsNodes[2]],
             [wsNodes[1], wsNodes[3]],
             [wsNodes[2], wsNodes[3]],
+            # Now inverse direction
+            [wsNodes[1], wsNodes[0]],
+            [wsNodes[2], wsNodes[0]],
+            [wsNodes[3], wsNodes[0]],
+            [wsNodes[2], wsNodes[1]],
+            [wsNodes[2], wsNodes[1]],
+            [wsNodes[3], wsNodes[2]],
         ]
         nrTotalRuns = nrOfRuns.data * len(commonTasks) * AMOUNT_OF_EXPLORATION
         # Run probability estimator for each common task
         for task in commonTasks:
             for _ in range(nrOfRuns.data):
-                estimation = run_crash_and_remove(
-                    configs=CONFIG,
-                    env_name=ENV_NAME,
-                    use_brute_force_baseline=False,
-                    replay_on=False,
-                    attempts=ATTEMPTS,
-                    amount_of_exploration=AMOUNT_OF_EXPLORATION,
-                    expand_length=EXPAND_LENGTH,
-                    obstacles=obstacles,
-                    start=task[0],
-                    goal=task[1],
-                    invertMap=True,
-                    errorDistrDistPath=errDistDistPath,
-                    errorDistrAnglePath=errDistAnglePath,
-                    useLidar=useLIDAR,
-                )
-                runs.append(estimation)
+                try:
+                    estimation = run_crash_and_remove(
+                        configs=CONFIG,
+                        env_name=ENV_NAME,
+                        use_brute_force_baseline=False,
+                        replay_on=False,
+                        attempts=ATTEMPTS,
+                        amount_of_exploration=AMOUNT_OF_EXPLORATION,
+                        expand_length=EXPAND_LENGTH,
+                        obstacles=obstacles,
+                        start=task[0],
+                        goal=task[1],
+                        invertMap=True,
+                        errorDistrDistPath=errDistDistPath,
+                        errorDistrAnglePath=errDistAnglePath,
+                        useLidar=useLIDAR,
+                    )
+                    runs.append(estimation)
+                except:
+                    continue
     else:
         nrTotalRuns = nrOfRuns.data * AMOUNT_OF_EXPLORATION
         # Run nrOfRuns times a probability estimation with random start- and goalpoints
@@ -196,110 +345,25 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     # ----- Get how often the obstacles collided ----------
     #######################################################
     # In this dict the results are saved
-    criticalObstacles = {
-        "box": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "klapp": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "hocker": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "robotino": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "generic": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws1": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws2": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws3": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws4": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws5": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-        "ws6": {
-            "collisions": 0,
-            "risks": [],
-            "relativeOccurence": 0,
-        },
-    }
-
+    criticalObstacles = INIT_CRITICALOBS
     for run in runs:
-        # Filter out probabilities where a single collision was detected twice
-        filteredProbs = []
-        filteredObstacles = []
-
-        for i in range(len(run["rl_prob"])):
-            isAlreadyPresent = False
-            for item in filteredProbs:
-                if item[0] == run["rl_prob"][i][0]:
-                    isAlreadyPresent = True
-                    break
-            if not isAlreadyPresent:
-                filteredProbs.append(run["rl_prob"][i])
-                filteredObstacles.append(run["collided_obs"][i])
-
-        if len(filteredProbs) != 0:
-            for i in range(len(filteredProbs)):
-                try:
-                    risk = filteredProbs[i][0]
-                    for obstacle in filteredObstacles[i]:
-                        criticalObstacles[obstacle.label]["collisions"] = (
-                            criticalObstacles[obstacle.label]["collisions"] + 1
-                        )
-                        criticalObstacles[obstacle.label]["risks"].append(risk)
-                except:
-                    continue
-    # Set collision potential in all known obstacle objects
-    for obstacle in obstacles:
-        obstacle.collisionPotential = (
-            criticalObstacles[obstacle.label]["collisions"] / nrTotalRuns
-        )
-
-    for key in criticalObstacles.keys():
-        criticalObstacles[key]["relativeOccurence"] = (
-            criticalObstacles[key]["collisions"] / nrTotalRuns
-        )
+        _, criticalObstacles = getUniqueCollisons(run, criticalObstacles, nrTotalRuns)
 
     # estimationObstacles = sorted(criticalObstacles.items(), key=lambda t: t[1])[-1][0]
     rospy.loginfo(
         f"[Risk Estimator] Analyzed obstacles and their potential to leading to a collison:{criticalObstacles} in {nrTotalRuns} simulations"
     )
     # Save
+
     df_currentRun = pd.DataFrame(criticalObstacles)
-    df_oldRuns = pd.read_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
-    df_save = pd.concat([df_oldRuns, df_currentRun])
-    df_save.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
+    try:
+        df_oldRuns = pd.read_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
+        df_oldRuns.append(df_currentRun, ignore_index=True).to_csv(
+            Paths.RISK_ESTIMATION_OBSTACLES.value
+        )
+    except:
+        df_currentRun.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
+
     return criticalObstacles
 
 
@@ -424,21 +488,14 @@ def estimateRisk(globalPath: Path):
     riskCollision = []
     riskCollisionStop = []
     commonTraj = getCommonTraj()
-    for i in range(len(estimation["rl_prob"])):
+
+    # Filter out probabilities where a single collision was detected twice
+    filteredProbs, _ = getUniqueCollisons(estimation)
+    for i in range(len(filteredProbs)):
         ###########################################
         # ---------------- Process one run ------------------
         ###########################################
-        # Filter out probabilities where a single collision was detected twice
-        filteredProbs = []
-        for prob in estimation["rl_prob"][i]:
-            isAlreadyPresent = False
-            for item in filteredProbs:
-                if item[0] == prob[0]:
-                    isAlreadyPresent = True
-                    break
-            if not isAlreadyPresent:
-                filteredProbs.append(prob)
-        print(f"Filtered Probs: {filteredProbs}")
+
         # The raw collision probabilities of the probability estimator are also send with the risk message if needed
         # by receiver of message
         probabilitiesMsg = ProbabilitiesRL()
@@ -448,7 +505,7 @@ def estimateRisk(globalPath: Path):
 
         # Calculate risk of collision => given by probability estimator
         riskCollision.append(
-            np.multiply(calculate_collosion_order(filteredProbs), COST_COLLISION)
+            np.multiply(calculate_collosion_order(filteredProbs[i]), COST_COLLISION)
         )
 
         ###########################################
@@ -458,7 +515,7 @@ def estimateRisk(globalPath: Path):
         # Critical sector: A sector where the probability estimator estimated a possible collision.
         # The given nodeNr is the end node of the sector
         riskCollisionStopProb = 0
-        for probability in filteredProbs:
+        for probability in filteredProbs[i]:
             nodeNr = probability[1]
             rawProb = probability[0]
             # Critical sector is a custom ros message, but is always part of the custom ros message CriticalSectors
@@ -511,9 +568,9 @@ def estimateRisk(globalPath: Path):
         riskMsg.probs_rl.append(probabilitiesMsg)
         # Calculate global risk
         riskMsg.globalRisks.append(riskCollision[i] + riskCollisionStop[i])
-        rospy.logdebug(
-            f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
-        )
+        # rospy.logdebug(
+        #     f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
+        # )
 
     #######################################
     # ------ Finishing&sending risk message -----

@@ -114,19 +114,13 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         )
         amclPose = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
 
-        # Convert poses into pixel domain
-        imagePosePixels = get_pixel_location_from_acml(
-            imageLoc.pose.pose.position.x, imageLoc.pose.pose.position.y, *base_info
-        )
-        amclPosePixels = get_pixel_location_from_acml(
-            amclPose.pose.pose.position.x, amclPose.pose.pose.position.y, *base_info
-        )
-
         # Calculating error in localization in x,y, distance and angle
-        xErr = float(amclPosePixels[0] - imagePosePixels[0])
-        yErr = float(amclPosePixels[1] - imagePosePixels[1])
+        xErr = float(amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x)
+        yErr = float(amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y)
 
         distErr = float(np.sqrt(np.square(xErr) + np.square(yErr)))
+        if xErr > 0:
+            distErr = -1 * distErr
         angleErr = float(
             amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
         )
