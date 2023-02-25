@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
                 Topics.PATH_ERRORDISTR_ANGLE.value, String, queue_size=10, latch=True
             )
             self.LIDARpublisher = rospy.Publisher(
-                Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
+                Topics.LIDAR_BREAKDOWN.value, Bool, queue_size=10, latch=True
             )
             self.qrPublisher = rospy.Publisher(
                 Topics.WORKSTATIONMAPPER_ENABLED.value, Bool, queue_size=10, latch=True
@@ -566,7 +566,7 @@ class MainWindow(QMainWindow):
     def activateFeature(self, feature: str):
         if "lidar" in feature.lower():
             try:
-                self.LIDARpublisher.publish(self.ui.checkBox_LIDAR.isChecked())
+                self.LIDARpublisher.publish(not self.ui.checkBox_LIDAR.isChecked())
             except:
                 pass
         elif "qr" in feature.lower():
@@ -726,7 +726,6 @@ class MainWindow(QMainWindow):
         if event == cv2.EVENT_LBUTTONDOWN:
             points = [x, y]
             self.corners.append(points)
-            print(x, " ", y)
             # print(flags)
             self.ui.info_box_rl.append(str(x) + " " + str(y))
             # self.ui.info_box_rl.setText(str(flags))
@@ -755,7 +754,6 @@ class MainWindow(QMainWindow):
         # wait for a key to be pressed to exit
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        print(self.corners)
         self.ui.info_box_rl.append(str(self.corners))
         pts = np.array(self.corners)
         pts = pts.reshape((-1, 1, 2))
@@ -805,7 +803,6 @@ class MainWindow(QMainWindow):
 
         # Red color in BGR
         color = (0, 0, 0)
-        print(object)
         self.ui.info_box_rl.append(object)
 
         if object == "rectangle":

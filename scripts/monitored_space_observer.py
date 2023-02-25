@@ -98,7 +98,7 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     FIFO_LENGTH = 2
     THRES_X = 9
     THRES_Y = 9
-    THRES_DIST = 30
+    THRES_DIST = 1
     THRES_ANGLE = 1.8
 
     base_info, _ = get_base_info()

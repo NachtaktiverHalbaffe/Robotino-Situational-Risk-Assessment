@@ -14,7 +14,7 @@ PORT = 13002
 targetIdPub = rospy.Publisher(Topics.TARGET_ID.value, Int16, queue_size=10)
 targetCorPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 lidarFeaturePub = rospy.Publisher(
-    Topics.LIDAR_ENABLED.value, Bool, queue_size=10, latch=True
+    Topics.LIDAR_BREAKDOWN.value, Bool, queue_size=10, latch=True
 )
 
 
@@ -33,7 +33,7 @@ def activateFeature(feature: str, enabled: bool):
     if "lidar" in feature.lower():
         EvalManagerClient().evalLogLIDAR(enabled)
         try:
-            lidarFeaturePub.publish(enabled)
+            lidarFeaturePub.publish(not enabled)
         except:
             return
     else:

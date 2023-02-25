@@ -14,7 +14,7 @@ class Topics(Enum):
     IMAGE_RAW = "/image_raw"
     IMG_LOCALIZATION = "/camera_pose"
     IR_SENSORS = "/distance_sensors"
-    LIDAR_ENABLED = "/lidar_enabled"
+    LIDAR_BREAKDOWN = "/lidar_breakdown"
     LOCALIZATION = "/pose"
     FALLBACK_POSE = "/pose_fallback"
     MARKERS = "/target_markers"

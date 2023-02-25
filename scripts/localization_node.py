@@ -45,7 +45,7 @@ fallbackPosePub = rospy.Publisher(
 
 img_glob = []
 odom = Odometry()
-useLidar = True
+lidarBreakdown = True
 fallbackPose = PoseWithCovarianceStamped()
 real_data = ["real_data", 0, 0, 0]
 
@@ -88,13 +88,13 @@ def setRealData(acmlData: PoseWithCovarianceStamped):
 
 
 def setUseLidar(isUsed: Bool):
-    global useLidar
+    global lidarBreakdown
     global real_data
     global fallbackPose
 
-    useLidar = isUsed.data
+    lidarBreakdown = isUsed.data
 
-    if useLidar:
+    if not lidarBreakdown:
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
         # Use last LIDAR Data as fallback pose because it is
         # assumed that a lidar breakdown happens instantly and so last lidar data should be okay
@@ -170,7 +170,7 @@ def localiseCam():
             continue
 
         # Use last known location as location assumption if at least it located once with camera-based localization, otherwise use amcl data as initial pose
-        if useLidar:
+        if lidarBreakdown:
             if len(real_data) != 0:
                 location_assumption = deepcopy(real_data)
                 location_assumption = offset_to_robo(location_assumption)
@@ -276,7 +276,7 @@ def localization():
     Runs the node itself and subscribes to all necessary topics. This is basically a adapter for the work\
     from Kai Binder which gets reused/integrated here.
     """
-    global useLidar
+    global lidarBreakdown
     global config
     global fallbackPose
 
@@ -294,7 +294,7 @@ def localization():
         Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25
     )
     # ROS "setter"
-    rospy.Subscriber(Topics.LIDAR_ENABLED.value, Bool, setUseLidar, queue_size=10)
+    rospy.Subscriber(Topics.LIDAR_BREAKDOWN.value, Bool, setUseLidar, queue_size=10)
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
 
@@ -306,7 +306,7 @@ def localization():
         # ------ Check if LIDAR is running ------
         try:
             # ------ Take the right localization value -------
-            if not useLidar:
+            if not lidarBreakdown:
                 msg = rospy.wait_for_message(
                     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )

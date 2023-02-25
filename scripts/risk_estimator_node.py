@@ -161,7 +161,7 @@ def __getErrorDistPaths():
     if useCustomErrorDist:
         return errorDistrDistPath, errorDistrAnglePath, False
     else:
-        return None, None, False
+        return None, None, True
 
 
 def getUniqueCollisons(

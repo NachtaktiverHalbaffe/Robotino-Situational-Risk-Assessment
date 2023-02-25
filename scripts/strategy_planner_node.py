@@ -36,7 +36,9 @@ detectedAngle = 0
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
 targetPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 navPub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
-responsePub = rospy.Publisher(Topics.STRATEGY_PLANNER_RESPONSE.value, String)
+responsePub = rospy.Publisher(
+    Topics.STRATEGY_PLANNER_RESPONSE.value, String, queue_size=10
+)
 obstacleMarginPub = rospy.Publisher(
     Topics.OBSTACLE_MARGIN.value, Int16, queue_size=10, latch=True
 )
@@ -64,31 +66,6 @@ def _moveBaseActionCallback(data: MoveBaseActionFeedback):
 def _moveBaseActionDoneCallback(data: MoveBaseActionResult):
     global doneFeedback
     doneFeedback = int(data.status.status)
-
-
-def reconfigureMovebase(lidarEnabled: Bool):
-    """
-    Updates the configuration of move_base. It basically adds or removes the\
-    LIDAR from the used sensors in the obstacle cost layer
-
-    Args:
-        lidarEnabled (Bool): If lidas is enabled
-    """
-    # Load correct configuration from config file
-    if lidarEnabled.data:
-        rospy.set_param(
-            "/move_base/local_costmap/obstacle_layer/observation_sources",
-            "laser_scan_sensor ir_sensor",
-        )
-    else:
-        rospy.set_param(
-            "/move_base/local_costmap/obstacle_layer/observation_sources", "ir_sensor"
-        )
-
-    # Update parameters of move_base
-    rospy.logdebug(
-        f"[Strategy Planner] Reconfigured move_base. Use LIDAR: {lidarEnabled.data}"
-    )
 
 
 def _setTrajectory(traj: Path):
@@ -528,7 +505,7 @@ def strategyPlanner(runWithRiskEstimation=True):
         callback_args=["anomaly detected"],
     )
     rospy.Subscriber(
-        Topics.LIDAR_ENABLED.value, Bool, activateFallbackBehaviour, queue_size=10
+        Topics.LIDAR_BREAKDOWN.value, Bool, activateFallbackBehaviour, queue_size=10
     )
     rospy.Subscriber(
         Topics.FALLBACK_POSE.value,
