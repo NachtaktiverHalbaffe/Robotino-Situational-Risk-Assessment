@@ -180,7 +180,8 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
                 "[Strategy Planner] Move_base client aborted operation because of emergency stop"
             )
             client.cancel_all_goals()
-            return 4
+            client.cancel_goal()
+            return 2
 
         if feedbackValue:
             if (
