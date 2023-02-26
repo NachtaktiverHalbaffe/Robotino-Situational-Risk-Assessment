@@ -290,3 +290,7 @@ rl_output_folder/kai/
 risk_data_frames/
 sb3_callbacks.py
 sb3_dens.py
+maps/map_traj.png
+maps/prot_obs.png
+maps/map_graph.png
+maps/map_nodes.png

@@ -21,12 +21,12 @@ from utils.constants import Topics, Nodes, CommonPositions
 from utils.ros_logger import set_rospy_log_lvl
 from utils.evalmanager_client import EvalManagerClient
 from utils.navigation_utils import navigateToPoint
+from risk_estimation.crash_and_remove import calculate_collosion_order
 
 
 feedbackValue = []
 doneFeedback = -1
 trajectory = []
-evalManagerClient = EvalManagerClient()
 emergencyStop = Event()
 fallbackMode = False
 nrOfAttempt = 0
@@ -232,14 +232,14 @@ def detectHazard():
             if np.min(dist) < THRESHOLD_COLLISIONDETECTION_DISTANCE:
                 # Detected collision
                 rospy.loginfo("[Strategy Planner] IR sensors detected collision")
-                evalManagerClient.evalLogCollision()
+                EvalManagerClient().evalLogCollision()
                 # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
             elif np.min(dist) < THRESHOLD_EMERGENCYSTOP_DISTANCE:
                 rospy.loginfo(
                     "[Strategy Planner] IR sensors detected obstacle and activates emergencybreak"
                 )
                 emergencyStop.set()
-                evalManagerClient.evalLogStop()
+                EvalManagerClient().evalLogStop()
         except:
             return
 
@@ -342,7 +342,7 @@ def fallbackLocalStrategy(
                     break
 
         # Logging in Evaluationmanager
-        evalManagerClient.evalLogCriticalSector(
+        EvalManagerClient().evalLogCriticalSector(
             x=trajectory.poses[iterationNr].pose.position.x,
             y=trajectory.poses[iterationNr].pose.position.y,
             localRisk=np.average(localRisk),
@@ -382,7 +382,7 @@ def fallbackLocalStrategy(
             rospy.logdebug(
                 f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
             )
-            evalManagerClient.evalLogStop()
+            EvalManagerClient().evalLogStop()
             return False, angleAssumption
 
     else:
@@ -397,7 +397,7 @@ def fallbackLocalStrategy(
         rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
 
         # Logging in Evaluationmanager
-        evalManagerClient.evalLogUncriticalSector(
+        EvalManagerClient().evalLogUncriticalSector(
             x=trajectory.poses[iterationNr].pose.position.x,
             y=trajectory.poses[iterationNr].pose.position.y,
         )
@@ -441,7 +441,7 @@ def standardLocalStrategy(
                     break
 
         # Logging in Evaluationmanager
-        evalManagerClient.evalLogCriticalSector(
+        EvalManagerClient().evalLogCriticalSector(
             x=trajectory.poses[iterationNr].pose.position.x,
             y=trajectory.poses[iterationNr].pose.position.y,
             localRisk=np.average(localRisk),
@@ -460,7 +460,7 @@ def standardLocalStrategy(
             result = moveBaseClient(trajectory.poses[iterationNr])
             if result >= 4:
                 # move base failed
-                evalManagerClient.evalLogStop()
+                EvalManagerClient().evalLogStop()
                 return False
 
             # Check if emergencystop is set before start moving
@@ -475,13 +475,13 @@ def standardLocalStrategy(
             rospy.logdebug(
                 f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
             )
-            evalManagerClient.evalLogStop()
+            EvalManagerClient().evalLogStop()
             return False
     else:
         # Uncritical sector => Just executing navigation
         rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
         # Logging in Evaluationmanager
-        evalManagerClient.evalLogUncriticalSector(
+        EvalManagerClient().evalLogUncriticalSector(
             x=trajectory.poses[iterationNr].pose.position.x,
             y=trajectory.poses[iterationNr].pose.position.y,
         )
@@ -496,7 +496,7 @@ def standardLocalStrategy(
         result = moveBaseClient(trajectory.poses[iterationNr])
         if result >= 4:
             # move base failed
-            evalManagerClient.evalLogStop()
+            EvalManagerClient().evalLogStop()
             return False
 
     return True
@@ -533,9 +533,9 @@ def standardGlobalStrategy(
         # Consider navigation finally too risky
         nrOfAttempt = 0
         obstacleMarginPub.publish(4 * nrOfAttempt)
-        evalManagerClient.evalLogStartedTask()
-        evalManagerClient.evalLogRisk(np.average(riskGlobal))
-        evalManagerClient.evalLogStop()
+        EvalManagerClient().evalLogStartedTask()
+        EvalManagerClient().evalLogRisk(np.average(riskGlobal))
+        EvalManagerClient().evalLogStop()
         return False
 
     return True
@@ -588,12 +588,22 @@ def chooseStrategy(riskEstimation: Risk):
     #####################################################
     angleAssumption = 0
     emergencyStop.clear()
-    evalManagerClient.evalLogStartedTask()
-    evalManagerClient.evalLogRisk(np.average(riskGlobal))
+    EvalManagerClient().evalLogStartedTask()
+    EvalManagerClient().evalLogRisk(np.average(riskGlobal))
 
     for i in range(len(trajectory.poses)):
         # We assume that we havn't to navigate to start node because were already there
         if i == 0:
+            # Purely for logging in evaluationmanager
+            collisionProbs = []
+            rawProbs = riskEstimation.probs_rl
+            for probs in rawProbs:
+                for singleProb in probs.probabilities:
+                    collisionProbs.append(
+                        (singleProb.probability, singleProb.nodeIndex)
+                    )
+            cummulativeProb = calculate_collosion_order(collisionProbs)
+            EvalManagerClient().evalLogCollisionProb(cummulativeProb)
             continue
         # Set initial angle from which the angle starts gets started to be interpolated
         # depending on the navigation responses
@@ -628,7 +638,7 @@ def chooseStrategy(riskEstimation: Risk):
             return False
 
     try:
-        evalManagerClient.evalLogSuccessfulTask()
+        EvalManagerClient().evalLogSuccessfulTask()
         responsePub.publish("Success")
     except Exception as e:
         print(e)
