@@ -108,7 +108,7 @@ def getIntersection(a1, a2, b1, b2):
          x,y-tuple: Intersection point of two edges or infinite if lines are parallel
          bool: If line is intersecting
     """
-    THRES = 0.3
+    THRES = 0.2
 
     a = np.array([a1, a2])
     b = np.array([b1, b2])

@@ -45,7 +45,7 @@ fallbackPosePub = rospy.Publisher(
 
 img_glob = []
 odom = Odometry()
-lidarBreakdown = True
+lidarBreakdown = False
 fallbackPose = PoseWithCovarianceStamped()
 real_data = ["real_data", 0, 0, 0]
 
@@ -170,7 +170,7 @@ def localiseCam():
             continue
 
         # Use last known location as location assumption if at least it located once with camera-based localization, otherwise use amcl data as initial pose
-        if lidarBreakdown:
+        if not lidarBreakdown:
             if len(real_data) != 0:
                 location_assumption = deepcopy(real_data)
                 location_assumption = offset_to_robo(location_assumption)
@@ -306,7 +306,7 @@ def localization():
         # ------ Check if LIDAR is running ------
         try:
             # ------ Take the right localization value -------
-            if not lidarBreakdown:
+            if lidarBreakdown:
                 msg = rospy.wait_for_message(
                     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )

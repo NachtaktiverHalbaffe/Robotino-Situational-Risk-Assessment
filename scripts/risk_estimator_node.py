@@ -516,6 +516,11 @@ def estimateRisk(globalPath: Path):
         # The given nodeNr is the end node of the sector
         riskCollisionStopProb = 0
         for probability in filteredProbs[i]:
+            # Skip risk estimation if no collision happened
+            if len(filteredProbs[i]) == 0:
+                riskCollision.append(0)
+                riskCollisionStop.append(0)
+
             nodeNr = probability[1]
             rawProb = probability[0]
             # Critical sector is a custom ros message, but is always part of the custom ros message CriticalSectors
@@ -548,7 +553,7 @@ def estimateRisk(globalPath: Path):
                     edge[1],
                 )
                 if isIntersected:
-                    print(f"Intersected at {point}")
+                    # print(f"Intersected at {point}")
                     risk = np.multiply(COST_COLLISIONSTOP, rawProb)
                     criticalSector.isIntersected = True
                     criticalSector.risk_collisionStop = risk

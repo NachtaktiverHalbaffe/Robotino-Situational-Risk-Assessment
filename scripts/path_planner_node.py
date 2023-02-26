@@ -123,24 +123,24 @@ def runPRM(targetMessage: PoseStamped):
         all_obst += obstacles
     map_ref = modify_map(pathPlannerConfig[0], [], all_obst, convert_back_to_grey=True)
 
-    if len(PRMNodes) != 0 and not newObstacles:
-        traj, _, PRMNodes, _ = apply_PRM(
-            map_ref=map_ref,
-            obstacles=all_obst,
-            nodes=PRMNodes,
-            start=start,
-            goal=goal,
-            obstacleMargin=obstacleMargin,
-        )
-    else:
-        traj, _, PRMNodes, _ = apply_PRM_init(
-            map_ref=map_ref,
-            obstacles=all_obst,
-            start=start,
-            goal=goal,
-            obstacleMargin=obstacleMargin,
-        )
-        newObstacles = False
+    # if len(PRMNodes) != 0 and not newObstacles:
+    #     traj, _, PRMNodes, _ = apply_PRM(
+    #         map_ref=map_ref,
+    #         obstacles=all_obst,
+    #         nodes=PRMNodes,
+    #         start=start,
+    #         goal=goal,
+    #         obstacleMargin=obstacleMargin,
+    #     )
+    # else:
+    traj, _, PRMNodes, _ = apply_PRM_init(
+        map_ref=map_ref,
+        obstacles=all_obst,
+        start=start,
+        goal=goal,
+        obstacleMargin=obstacleMargin,
+    )
+    newObstacles = False
 
     # Construct path message
     edges = get_traj_edges(traj)

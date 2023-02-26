@@ -143,22 +143,26 @@ class RoboEnv_gym_2(gym.Env):
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
         if not useLidar:
-            # load dynamically from CSV file
-            if errorDistrDistPath != None:
-                self.dists, self.dist_probs = loadErrorDistribution(
-                    errorDistrDistPath, bins=self.actions_per_dimension
-                )
-            if errorDistrAnglePath != None:
-                self.angles, self.angle_probs = loadErrorDistribution(
-                    errorDistrAnglePath, bins=self.actions_per_dimension
-                )
-        else:
-            (
-                self.angles,
-                self.angle_probs,
-                self.dists,
-                self.dist_probs,
-            ) = loadErrorDistributionLIDAR()
+            try:
+                # load dynamically from CSV file
+                if errorDistrDistPath != None:
+                    self.dists, self.dist_probs = loadErrorDistribution(
+                        errorDistrDistPath, bins=self.actions_per_dimension
+                    )
+                if errorDistrAnglePath != None:
+                    self.angles, self.angle_probs = loadErrorDistribution(
+                        errorDistrAnglePath, bins=self.actions_per_dimension
+                    )
+            except:
+                # Exceptions could happen if no error distribution was loaded
+                pass
+        # else:
+        #     (
+        #         self.angles,
+        #         self.angle_probs,
+        #         self.dists,
+        #         self.dist_probs,
+        #     ) = loadErrorDistributionLIDAR()
 
     def set_test(self) -> None:
         """Sets the environment to a test env"""

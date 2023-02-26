@@ -169,9 +169,13 @@ def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
     goal.target_pose.pose.position.z = 0
     goal.target_pose.pose.orientation.w = 1.0
 
-    client.wait_for_server()
-    # Sends the goal to the action server.
-    client.send_goal(goal, feedback_cb=_moveBaseCallback)
+    try:
+        client.wait_for_server(timeout=rospy.Duration(secs=5))
+        # Sends the goal to the action server.
+        client.send_goal(goal, feedback_cb=_moveBaseCallback)
+    except:
+        client.cancel_goal()
+        return 4
 
     while not rospy.is_shutdown():
         doneFeedback = -1
@@ -285,10 +289,11 @@ def executeFallbackStrategy():
     """
     global emergencyStop
     # Release emergency stop flag so strategy planner can run again if risk values come in
-    emergencyStop.clear()
 
     # Start the path planning process to navigate to safe spot
     try:
+        # Avoid obstacles in path planning
+        obstacleMarginPub.publish(4)
         targetPub.publish(CommonPositions.SAFE_SPOT.value)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
@@ -298,6 +303,8 @@ def executeFallbackStrategy():
         useErrorDistPub.publish(True)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
+
+    emergencyStop.clear()
 
 
 def chooseStrategy(riskEstimation: Risk):
@@ -320,10 +327,15 @@ def chooseStrategy(riskEstimation: Risk):
     criticalSectors = riskEstimation.criticalSectors
     # risk is simply the cost of a stop because probability is assumed to be 1
     riskStop = 100
+    if not fallbackMode:
+        rospy.loginfo(
+            f"[Strategy Planner] Received risk estimation. Start strategy planning"
+        )
+    else:
+        rospy.loginfo(
+            f"[Strategy Planner] Received risk estimation. Start strategy planning with fallback behaviour"
+        )
 
-    rospy.loginfo(
-        f"[Strategy Planner] Received risk estimation. Start strategy planning"
-    )
     criticalNodes = set()
     for sectors in criticalSectors:
         for node in sectors.sectors:
@@ -334,7 +346,7 @@ def chooseStrategy(riskEstimation: Risk):
     ################################################
     if (
         (np.average(riskGlobal) > riskStop)
-        and (nrOfAttempt < MAX_ATTEMPTS)
+        and (nrOfAttempt <= MAX_ATTEMPTS)
         and not fallbackMode
     ):
         rospy.loginfo(
@@ -348,7 +360,7 @@ def chooseStrategy(riskEstimation: Risk):
         return
     elif (
         (np.average(riskGlobal) > riskStop)
-        and (nrOfAttempt >= MAX_ATTEMPTS)
+        and (nrOfAttempt > MAX_ATTEMPTS)
         and not fallbackMode
     ):
         rospy.loginfo(
@@ -361,7 +373,7 @@ def chooseStrategy(riskEstimation: Risk):
         return
 
     obstacleMarginPub.publish(0)
-
+    emergencyStop.clear()
     #####################################################
     # ------- Local estimation & behaviour execution ----
     #####################################################
@@ -419,7 +431,7 @@ def chooseStrategy(riskEstimation: Risk):
                     f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
                 )
                 evalManagerClient.evalLogStop()
-                break
+                return
 
             if emergencyStop.is_set():
                 rospy.logwarn(
