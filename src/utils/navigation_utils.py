@@ -246,6 +246,8 @@ def navigateToPoint(
 
     Args:
         target (Point): The coordinate to which the Robotino should drive
+        positionAssumption (Point): Assumption of the current/starting position
+        angleAssumption (float): Assumption of the current angle of the robotino
     
     Returns:
         Publishes a response (Bool) to the topic  "/navigation_response"

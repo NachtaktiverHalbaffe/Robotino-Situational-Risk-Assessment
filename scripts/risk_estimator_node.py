@@ -503,6 +503,7 @@ def estimateRisk(globalPath: Path):
 
     # Filter out probabilities where a single collision was detected twice
     filteredProbs, _ = getUniqueCollisons(estimation)
+
     if len(filteredProbs) == 0:
         riskCollision.append(0)
         riskCollisionStop.append(0)
@@ -531,7 +532,7 @@ def estimateRisk(globalPath: Path):
         # Critical sector: A sector where the probability estimator estimated a possible collision.
         # The given nodeNr is the end node of the sector
         riskCollisionStopProb = 0
-
+        collStopProb = []
         for probability in filteredProbs[i]:
             # Skip risk estimation if no collision happened
 
@@ -568,6 +569,7 @@ def estimateRisk(globalPath: Path):
                 )
                 if isIntersected:
                     # print(f"Intersected at {point}")
+                    collStopProb.append(probability)
                     risk = np.multiply(COST_COLLISIONSTOP, rawProb)
                     criticalSector.isIntersected = True
                     criticalSector.risk_collisionStop = risk
@@ -582,6 +584,13 @@ def estimateRisk(globalPath: Path):
             )
             criticalSectorsMsg.sectors.append(criticalSector)
 
+        # riskCollisionStop.append(
+        #     calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP
+        # )
+        print(
+            (calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP)
+            == riskCollisionStopProb
+        )
         riskCollisionStop.append(riskCollisionStopProb)
         riskMsg.criticalSectors.append(criticalSectorsMsg)
         riskMsg.probs_rl.append(probabilitiesMsg)

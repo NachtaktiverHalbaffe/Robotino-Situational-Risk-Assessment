@@ -8,7 +8,6 @@ from sensor_msgs.msg import PointCloud
 from move_base_msgs.msg import (
     MoveBaseAction,
     MoveBaseGoal,
-    MoveBaseActionFeedback,
     MoveBaseActionResult,
     MoveBaseFeedback,
 )
@@ -24,13 +23,20 @@ from utils.navigation_utils import navigateToPoint
 from risk_estimation.crash_and_remove import calculate_collosion_order
 
 
-feedbackValue = []
 doneFeedback = -1
+"""Feedback from move_base. 2 and 3 are success, greater than 4 a failure"""
 trajectory = []
+"""The trajectory the robotino plans to drive. Given by path planner node"""
+feedbackValue = []
+"""Feedback of the move_base during execution"""
 emergencyStop = Event()
+"""An event flag indicating if all current navigation tasks should be aborted"""
 fallbackMode = False
+"""If robotino has detected a anomaly or lidar breakdown and is now executing in fallback mode"""
 nrOfAttempt = 0
+"""Number of the current attempt in planning and executing a strategy for a given trajecotry and risk estimation"""
 detectedAngle = 0
+"""The last known angle of the robotino. Needed when the robotino enters fallback mode"""
 
 # Publisher
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
@@ -124,7 +130,7 @@ def _fetchIRReadings(rawReadings: PointCloud):
 
 def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
     """
-    Executes a global strategy. It's basically driving a trajectory and using a local planner if a hazard\
+    Client for the move_base node. It's basically driving a trajectory and using a local planner if a hazard\
     is detected which wasn't mitigated by the risk evaluation.
 
     Args:
@@ -142,7 +148,7 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
     return response
 
 
-def moveBaseClient(pose: PoseStamped) -> MoveBaseActionResult:
+def moveBaseClient(pose: PoseStamped) -> int:
     """
     Drives to a node. It's basically driving a trajectory and using a local planner if a hazard\
     is detected which wasn't mitigated by the risk evaluation.
@@ -209,10 +215,10 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     angleChange, _ = navigateToPoint(target, start, angleAssumption)
 
     new_rotation = angleAssumption + angleChange
-    # if new_rotation < (-np.pi):
-    #     new_rotation = new_rotation + np.pi * 2
-    # if new_rotation > (np.pi):
-    #     new_rotation = new_rotation - np.pi * 2
+    if new_rotation < (-np.pi):
+        new_rotation = new_rotation + np.pi * 2
+    if new_rotation > (np.pi):
+        new_rotation = new_rotation - np.pi * 2
 
     return new_rotation
 
@@ -385,9 +391,9 @@ def fallbackLocalStrategy(
             )
             EvalManagerClient().evalLogStop()
             return False, angleAssumption
-
     else:
         # Uncritical sector => Just executing navigation
+        rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
         nrOfAttempt = 0
 
         if emergencyStop.is_set():
@@ -395,7 +401,6 @@ def fallbackLocalStrategy(
                 "[Strategy Planner] Emergency stop detected. Aborting strategy execution"
             )
             return False, angleAssumption
-        rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
 
         # Logging in Evaluationmanager
         EvalManagerClient().evalLogUncriticalSector(
@@ -509,11 +514,7 @@ def standardGlobalStrategy(
     global trajectory
     global nrOfAttempt
 
-    if (
-        (np.average(riskGlobal) > riskStop)
-        and (nrOfAttempt <= MAX_ATTEMPTS)
-        and not fallbackMode
-    ):
+    if (np.average(riskGlobal) > riskStop) and (nrOfAttempt < MAX_ATTEMPTS):
         rospy.loginfo(
             f"[Strategy Planner] Risk too high. Restarting risk estimation. Risk: {np.average(riskGlobal)}"
         )
@@ -523,11 +524,7 @@ def standardGlobalStrategy(
         goalPose = trajectory.poses[len(trajectory.poses) - 1]
         targetPub.publish(goalPose)
         return False
-    elif (
-        (np.average(riskGlobal) > riskStop)
-        and (nrOfAttempt > MAX_ATTEMPTS)
-        and not fallbackMode
-    ):
+    elif (np.average(riskGlobal) > riskStop) and (nrOfAttempt >= MAX_ATTEMPTS):
         rospy.loginfo(
             f"[Strategy Planner] Risk too high and maximal number of attemps exceeded. Abort navigation task. Risk: {np.average(riskGlobal)}"
         )
@@ -621,6 +618,7 @@ def chooseStrategy(riskEstimation: Risk):
 
             if responseLocalStrat == False:
                 return False
+
         # ---- Fallback strategy ----
         else:
             responseLocalStrat, angleAssumption = fallbackLocalStrategy(
