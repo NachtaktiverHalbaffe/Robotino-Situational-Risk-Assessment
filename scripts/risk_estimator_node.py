@@ -10,7 +10,6 @@ from std_msgs.msg import Bool, Float32, Int16, String
 
 from risk_estimation import config
 from risk_estimation.eval import mains
-from utils.evalmanager_client import EvalManagerClient
 from utils.constants import Topics, Nodes, Paths
 from utils.risk_estimation_utils import (
     getIntersection,
@@ -115,10 +114,18 @@ obstacleMsg = ObstacleList()
 useCustomErrorDist = False
 errorDistrDistPath = Paths.ERRORDIST_DIST.value
 errorDistrAnglePath = Paths.ERRORDIST_ANGLE.value
+obstacleMargin = 0
 
 publisherRL = rospy.Publisher(
-    Topics.RISK_ESTIMATION_RL.value, Risk, queue_size=10, latch=True
+    Topics.RISK_ESTIMATION_RL.value,
+    Risk,
+    queue_size=10,  # latch=True
 )
+
+
+def setObstacleMargin(margin: Int16):
+    global obstacleMargin
+    obstacleMargin = margin.data
 
 
 def setUseBrute(enabled: Bool):
@@ -208,6 +215,8 @@ def getUniqueCollisons(
                     == estimationDict["collided_obs"][i][j].label
                     or singleExplorationProbs[k][0]
                     == estimationDict["rl_prob"][i][j][0]
+                    or singleExplorationProbs[k][1]
+                    == estimationDict["rl_prob"][i][j][1]
                 ):
                     isAlreadyPresent = True
                     break
@@ -420,6 +429,7 @@ def estimateRisk(globalPath: Path):
     """
     global useBrute
     global obstacleMsg
+    global obstacleMargin
     # Parameters for probability estimator&fault injector
     AMOUNT_OF_EXPLORATION = 1
     # Parameters for risk calculation
@@ -452,6 +462,7 @@ def estimateRisk(globalPath: Path):
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
             useLidar=useLIDAR,
+            obstacleMargin=obstacleMargin,
         )
     else:
         rospy.loginfo(
@@ -471,6 +482,7 @@ def estimateRisk(globalPath: Path):
             errorDistrDistPath=errDistDistPath,
             errorDistrAnglePath=errDistAnglePath,
             useLidar=useLIDAR,
+            obstacleMargin=obstacleMargin,
         )
     rospy.loginfo("[Risk Estimator] Probability Estimator&Fault Injector finished")
     rospy.logdebug(
@@ -491,6 +503,10 @@ def estimateRisk(globalPath: Path):
 
     # Filter out probabilities where a single collision was detected twice
     filteredProbs, _ = getUniqueCollisons(estimation)
+    if len(filteredProbs) == 0:
+        riskCollision.append(0)
+        riskCollisionStop.append(0)
+
     for i in range(len(filteredProbs)):
         ###########################################
         # ---------------- Process one run ------------------
@@ -515,11 +531,9 @@ def estimateRisk(globalPath: Path):
         # Critical sector: A sector where the probability estimator estimated a possible collision.
         # The given nodeNr is the end node of the sector
         riskCollisionStopProb = 0
+
         for probability in filteredProbs[i]:
             # Skip risk estimation if no collision happened
-            if len(filteredProbs[i]) == 0:
-                riskCollision.append(0)
-                riskCollisionStop.append(0)
 
             nodeNr = probability[1]
             rawProb = probability[0]
@@ -581,9 +595,6 @@ def estimateRisk(globalPath: Path):
     # ------ Finishing&sending risk message -----
     #######################################
     # Logging in Evaluationmanager
-    EvalManagerClient().evalLogRisk(
-        np.average(riskCollision) + np.average(riskCollisionStop)
-    )
     # Publish ros message
     rospy.loginfo(
         f"[Risk Estimator] Finished global risk estimation.\nRisk collision: {np.average(riskCollision)}\nRisk collision&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
@@ -611,6 +622,9 @@ def riskEstimator():
     # Selecting which additional estimator to use (beside the risk estimation used by prototype)
     rospy.Subscriber(Topics.BRUTEFORCE_ENABLED.value, Bool, setUseBrute, queue_size=10)
     rospy.Subscriber(Topics.SOTA_ENABLED.value, Bool, setUseSOTA, queue_size=10)
+    rospy.Subscriber(
+        Topics.OBSTACLE_MARGIN.value, Int16, setObstacleMargin, queue_size=10
+    )
     # ROS "setter"
     rospy.Subscriber(Topics.OBSTACLES.value, ObstacleList, setObstacle, queue_size=10)
     rospy.Subscriber(

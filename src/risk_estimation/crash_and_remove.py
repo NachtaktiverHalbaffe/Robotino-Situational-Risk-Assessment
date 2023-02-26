@@ -161,6 +161,7 @@ def run_crash_and_remove(
     errorDistrDistPath=None,
     errorDistrAnglePath=None,
     useLidar=False,
+    obstacleMargin=0,
 ):
     """
     This function is used to run a simulation of an agent navigating through an environment, with the goal of
@@ -212,6 +213,7 @@ def run_crash_and_remove(
             errorDistrAnglePath=errorDistrAnglePath,
             errorDistrDistPath=errorDistrDistPath,
             useLidar=useLidar,
+            obstacleMargin=obstacleMargin,
         )
         # env = gym.make(env_name, config=configs)
     else:
@@ -223,9 +225,10 @@ def run_crash_and_remove(
             errorDistrAnglePath=errorDistrAnglePath,
             errorDistrDistPath=errorDistrDistPath,
             useLidar=useLidar,
+            obstacleMargin=obstacleMargin,
         )
 
-    policy_kwargs = dict(features_extractor_class=SameExtractor)
+    # policy_kwargs = dict(features_extractor_class=SameExtractor)
     # model = PPO(
     #     ActorCriticCnnPolicy,
     #     env,
@@ -311,7 +314,10 @@ def run_crash_and_remove(
         # Generate a trajectory with a given start and endpoint
         elif start != None and goal != None:
             _, traj_vanilla = env.env_real.reset(
-                "adv1", start=start, goal=goal, new_traj=True
+                "adv1",
+                start=start,
+                goal=goal,
+                new_traj=True,
             )
         # Randomly generate new trajectory
         else:

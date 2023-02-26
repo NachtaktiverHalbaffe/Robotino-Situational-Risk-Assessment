@@ -50,6 +50,7 @@ class RoboEnv_gym_2(gym.Env):
         errorDistrDistPath=None,
         errorDistrAnglePath=None,
         useLidar=False,
+        obstacleMargin=0,
     ):
         self.persisten_map = False
         self.actions_per_dimension = 5
@@ -70,6 +71,7 @@ class RoboEnv_gym_2(gym.Env):
                 goal=config["goal"],
                 invertMap=invertMap,
                 isTraining=isTraining,
+                obstacleMargin=obstacleMargin,
             )
         else:
             self.env_real = Environment(
@@ -83,6 +85,7 @@ class RoboEnv_gym_2(gym.Env):
                 obstacles=obstacles,
                 invertMap=invertMap,
                 isTraining=isTraining,
+                obstacleMargin=obstacleMargin,
             )
         "some extra settings"
         self.n_reset_nodes = config["n_reset_nodes"]
@@ -142,27 +145,27 @@ class RoboEnv_gym_2(gym.Env):
                 0.23108108 / 2 + 0.30135135 / 2,
                 0.17567568 / 2 + 0.10135135 / 2,
             ]
-        if not useLidar:
+        if useLidar:
+            (
+                self.angles,
+                self.angle_probs,
+                self.dists,
+                self.dist_probs,
+            ) = loadErrorDistributionLIDAR()
+        else:
             try:
                 # load dynamically from CSV file
-                if errorDistrDistPath != None:
+                if errorDistrDistPath != None and not useLidar:
                     self.dists, self.dist_probs = loadErrorDistribution(
                         errorDistrDistPath, bins=self.actions_per_dimension
                     )
-                if errorDistrAnglePath != None:
+                if errorDistrAnglePath != None and not useLidar:
                     self.angles, self.angle_probs = loadErrorDistribution(
                         errorDistrAnglePath, bins=self.actions_per_dimension
                     )
             except:
                 # Exceptions could happen if no error distribution was loaded
                 pass
-        # else:
-        #     (
-        #         self.angles,
-        #         self.angle_probs,
-        #         self.dists,
-        #         self.dist_probs,
-        #     ) = loadErrorDistributionLIDAR()
 
     def set_test(self) -> None:
         """Sets the environment to a test env"""

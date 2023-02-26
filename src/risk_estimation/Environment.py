@@ -267,6 +267,7 @@ def initialize_traj(
     env=None,
     start=None,
     goal=None,
+    obstacleMargin=0,
 ):
     """Initialize a new usually random trajectory for training
     
@@ -291,18 +292,28 @@ def initialize_traj(
             # env.map_ref, env.obstacles = create_random_map()
             if start != None and goal != None:
                 traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                    env.map_ref, env.obstacles
+                    env.map_ref, env.obstacles, obstacleMargin=obstacleMargin
                 )
             else:
                 traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                    env.map_ref, env.obstacles, start=start, goal=goal
+                    env.map_ref,
+                    env.obstacles,
+                    start=start,
+                    goal=goal,
+                    obstacleMargin=obstacleMargin,
                 )
         elif start != None and goal != None:
             traj, traj_opt, nodes, edges_all = apply_PRM_init(
-                map_ref, obstacles, start=start, goal=goal
+                map_ref,
+                obstacles,
+                start=start,
+                goal=goal,
+                obstacleMargin=obstacleMargin,
             )
         else:
-            traj, traj_opt, nodes, edges_all = apply_PRM_init(map_ref, obstacles)
+            traj, traj_opt, nodes, edges_all = apply_PRM_init(
+                map_ref, obstacles, obstacleMargin=obstacleMargin
+            )
 
         # pickle dump ~~~
         # open_file = open('nodes_presentation', "wb")
@@ -312,10 +323,17 @@ def initialize_traj(
         # for specific start / goal location: ------------------
         if start != None and goal != None:
             traj, _, nodes, _ = apply_PRM(
-                map_ref, nodes, start=start, goal=goal, visualize=visualize
+                map_ref,
+                nodes,
+                start=start,
+                goal=goal,
+                visualize=visualize,
+                obstacleMargin=obstacleMargin,
             )
         else:
-            traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize)
+            traj, _, nodes, _ = apply_PRM(
+                map_ref, nodes, visualize=visualize, obstacleMargin=obstacleMargin
+            )
 
         """ Uncomment the below code for own path"""
         # traj, _, nodes, _ = apply_PRM(map_ref, nodes, visualize=visualize, start_node=start_node, goal_node=goal_node)
@@ -483,6 +501,7 @@ class Environment:
         start=[62, 74],
         goal=[109, 125],
         isTraining=True,
+        obstacleMargin=0,
     ):
         clear_image_files()
         # For now only have angle-offset as action
@@ -490,6 +509,7 @@ class Environment:
         # self.observation_space = gym.spaces.Box(low=np.full((160, 160), 0), high=np.full((160, 160), 1), shape=(160, 160), dtype=int) # 0: empty, 1: object, 2: trajectory segment (planned), 3: current position
         self.adversary = adversary
         self.isTraining = isTraining
+        self.obstacleMargin = obstacleMargin
         self.map_ref, self.obstacles = initialize_map(map_path)
         if invertMap:
             self.map_ref = ImageOps.invert(self.map_ref)
@@ -523,7 +543,12 @@ class Environment:
             self.nodes_vanilla,
             self.edges_all_vanilla,
         ) = initialize_traj(
-            self.map_ref, self.obstacles, nodes=None, start=start, goal=goal
+            self.map_ref,
+            self.obstacles,
+            nodes=None,
+            start=start,
+            goal=goal,
+            obstacleMargin=self.obstacleMargin,
         )
         self.nodes_prot, self.edges_all_prot = copy_nodes(self.edges_all_vanilla)
         self.relevant_segments = relevant_segments
@@ -905,6 +930,7 @@ class Environment:
             goal_node=goal_node,
             edges_all=self.edges_all_prot,
             prot=True,
+            obstacleMargin=self.obstacleMargin,
         )
 
         # Calculate length of trajectory
@@ -1057,6 +1083,7 @@ class Environment:
                     visualize=self.visualize,
                     start=start,
                     goal=goal,
+                    obstacleMargin=self.obstacleMargin,
                 )
             else:
                 (
@@ -1070,6 +1097,7 @@ class Environment:
                     env=self,
                     start=start,
                     goal=goal,
+                    obstacleMargin=self.obstacleMargin,
                 )
                 self.nodes_prot, self.edges_all_prot = copy_nodes(
                     self.edges_all_vanilla

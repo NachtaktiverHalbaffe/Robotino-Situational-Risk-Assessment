@@ -135,7 +135,6 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None, obstacleMargin=0):
         im_with_nodes: PIL Image of the reference map mit the nodes added as grey dots - just for visualization
         nodes (list(Node)): Nodes which are added
     """
-
     im_width = map_ref.size[0]
     im_height = map_ref.size[1]
 
@@ -147,7 +146,13 @@ def add_nodes(map_ref, N, obstacles, start=None, goal=None, obstacleMargin=0):
     if start and goal:
         nodes.append(Node(start[0], start[1]))
         nodes.append(Node(goal[0], goal[1]))
-    for node in loadWSMarkers():
+
+    try:
+        wsNodes = loadWSMarkers()
+    except:
+        wsNodes = loadWSMarkers()
+
+    for node in wsNodes:
         if get_node_with_coordinates(nodes, node) == None:
             nodes.append(Node(node[0], node[1]))
 
@@ -214,7 +219,17 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False, obstacleMar
             rounded_edge_points = np.round(np.array(edge.edge_points)).astype(int)
             rounded_edge_points_x = rounded_edge_points[:, 0]
             rounded_edge_points_y = rounded_edge_points[:, 1]
-            grayscale_vals = map_matrix[rounded_edge_points_y, rounded_edge_points_x]
+            try:
+                grayscale_vals = map_matrix[
+                    rounded_edge_points_y, rounded_edge_points_x
+                ]
+            except:
+                rounded_edge_points = np.round(np.array(edge.edge_points)).astype(int)
+                rounded_edge_points_x = rounded_edge_points[:, 0]
+                rounded_edge_points_y = rounded_edge_points[:, 1]
+                grayscale_vals = map_matrix[
+                    rounded_edge_points_y, rounded_edge_points_x
+                ]
 
             for edge_point in edge.edge_points:
                 distances = []
@@ -983,7 +998,6 @@ def apply_PRM_init(
         edges_all (list(Edge)): All Edge in the graph
     """
     map_ref_copy = copy.deepcopy(map_ref)
-
     # add nodes to the cropped map
     load_nodes = False
     if load_nodes:
@@ -1088,8 +1102,6 @@ def apply_PRM(
         nodes (list(Node)): Nodes in the graph
         edges_change_back (list(Edge)): Edges in the graph
     """
-    t0_total = time.perf_counter()
-
     t0 = time.perf_counter()
     # map_ref_copy = copy.deepcopy(map_ref)     # only need that for opt_trajectory
     # nodes_copy = copy.deepcopy(nodes)
