@@ -596,6 +596,16 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_6.addWidget(self.checkBox_LIDAR)
 
+        self.checkBox_freezeObjects = QCheckBox(self.tab_7)
+        self.checkBox_freezeObjects.setObjectName(u"checkBox_freezeObjects")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_freezeObjects)
+
+        self.checkBox_Offset = QCheckBox(self.tab_7)
+        self.checkBox_Offset.setObjectName(u"checkBox_Offset")
+
+        self.horizontalLayout_6.addWidget(self.checkBox_Offset)
+
         self.checkBox_qrScanner = QCheckBox(self.tab_7)
         self.checkBox_qrScanner.setObjectName(u"checkBox_qrScanner")
 
@@ -742,6 +752,8 @@ class Ui_MainWindow(object):
         self.comboBox_errDistrANglePath.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Path error distribution angles", None))
         self.label_10.setText(QCoreApplication.translate("MainWindow", u"### Enable features", None))
         self.checkBox_LIDAR.setText(QCoreApplication.translate("MainWindow", u"LIDAR", None))
+        self.checkBox_freezeObjects.setText(QCoreApplication.translate("MainWindow", u"Freeze Objects", None))
+        self.checkBox_Offset.setText(QCoreApplication.translate("MainWindow", u"Inject Offset", None))
         self.checkBox_qrScanner.setText(QCoreApplication.translate("MainWindow", u"Scan QR Codes", None))
         self.checkBox_bruteforce.setText(QCoreApplication.translate("MainWindow", u"Bruteforce risk estimation", None))
         self.checkBox_baselineRisk.setText(QCoreApplication.translate("MainWindow", u"Baseline risk estimation", None))

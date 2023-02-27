@@ -6,6 +6,7 @@ import os
 import numpy as np
 from geometry_msgs.msg import PoseWithCovarianceStamped, Point, Point32, PolygonStamped
 from sensor_msgs.msg import Image
+from std_msgs.msg import Bool
 from jsk_recognition_msgs.msg import PolygonArray
 from copy import deepcopy
 
@@ -19,11 +20,17 @@ from real_robot_navigation.move_utils_cords import *
 
 img_glob = []
 geofencedObs = None
+freezeObjects = False
 detectedObstacles = []
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 visuPub = rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10)
 objectDetecPub = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList, queue_size=10)
+
+
+def setFreezeObjects(areFreezed: Bool):
+    global freezeObjects
+    freezeObjects = areFreezed.data
 
 
 def setGeofencedObj(obstacleMsg: ObstacleMsg):
@@ -64,8 +71,11 @@ def visualizeObstacles():
     global detectedObstacles
     global geofencedObs
     global config
+    global freezeObjects
 
     while not rospy.is_shutdown():
+        if freezeObjects:
+            continue
         modify_map(
             config["map_ref"],
             [],
@@ -109,6 +119,7 @@ def detect(log_detection_error=True):
     global config
     global detectedObstacles
     global geofencedObs
+    global freezeObjects
 
     PATH_ERROR_DIST = rospy.get_param(
         "~path_error_dist",
@@ -122,7 +133,7 @@ def detect(log_detection_error=True):
     # copy map and create a drawing frame
     map_ref = deepcopy(config["map_ref"]).convert("RGB")
     while not rospy.is_shutdown():
-        if len(real_data) == 0 or len(img_glob) == 0:
+        if len(real_data) == 0 or len(img_glob) == 0 or freezeObjects:
             if geofencedObs != None:
                 detectedObstacles = [geofencedObs]
                 # Create message
@@ -299,6 +310,7 @@ def objectDetection():
     rospy.Subscriber(
         Topics.OBSTACLES_GEOFENCED.value, ObstacleMsg, setGeofencedObj, queue_size=10
     )
+    rospy.Subscriber(Topics.FREEZE_OBJECTS.value, Bool, setFreezeObjects, queue_size=10)
     Thread(target=visualizeObstacles).start()
     detect()
 

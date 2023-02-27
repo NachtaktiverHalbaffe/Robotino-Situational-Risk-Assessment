@@ -40,19 +40,28 @@ cvPublisher = rospy.Publisher(
     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
 )
 fallbackPosePub = rospy.Publisher(
-    Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped, queue_size=10, latch=True
+    Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped, queue_size=10
+)
+amclPub = rospy.Publisher(
+    Topics.ACML.value, PoseWithCovarianceStamped, queue_size=10, latch=True
 )
 
 img_glob = []
 odom = Odometry()
 lidarBreakdown = False
-fallbackPose = PoseWithCovarianceStamped()
+injectOffsetEnabled = False
+fallbackPose = None
 real_data = ["real_data", 0, 0, 0]
 
 
 def setOdom(newOdom: Odometry):
     global odom
     odom = newOdom
+
+
+def setInjectOffset(enabled: Bool):
+    global injectOffsetEnabled
+    injectOffsetEnabled = enabled.data
 
 
 def setImage(rawImage: Image):
@@ -129,8 +138,24 @@ def createOdom(currentPose: PoseWithCovarianceStamped):
         rospy.logwarn(f"[Localization] Couldn't publish odometry: {e}")
 
 
+def injectOffset():
+    global injectOffsetEnabled
+
+    while not rospy.is_shutdown():
+        amclMsg = rospy.wait_for_message(
+            Topics.AMCL_SOURCE.value, PoseWithCovarianceStamped
+        )
+
+        if injectOffsetEnabled:
+            amclMsg.pose.pose.position.x += 2
+            amclMsg.pose.pose.position.x += 2
+
+        amclPub.publish(amclMsg)
+
+
 def anomalyBehaviour(anomalyDetected: Bool):
     global fallbackPose
+    global lidarBreakdown
 
     if anomalyDetected.data:
         # Use next image localization data as fallback pose to start behaviour
@@ -138,7 +163,7 @@ def anomalyBehaviour(anomalyDetected: Bool):
             Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
         )
         fallbackPosePub.publish(fallbackPose)
-        useLidar = False
+        lidarBreakdown = True
 
 
 def localiseCam():
@@ -297,26 +322,33 @@ def localization():
     rospy.Subscriber(Topics.LIDAR_BREAKDOWN.value, Bool, setUseLidar, queue_size=10)
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
+    rospy.Subscriber(Topics.INJECT_OFFSET.value, Bool, setInjectOffset, queue_size=10)
+    rospy.Subscriber(
+        Topics.ANOMALY_DETECTED.value, Bool, anomalyBehaviour, queue_size=10
+    )
 
     # Publish localization
     msg = PoseWithCovarianceStamped()
     Thread(target=localiseCam).start()
+    Thread(target=injectOffset).start()
     # Thread(target=anomalyDetector).start()
     while not rospy.is_shutdown():
         # ------ Check if LIDAR is running ------
         try:
             # ------ Take the right localization value -------
             if lidarBreakdown:
+                if fallbackPose != None:
+                    fallbackPosePub.publish(fallbackPose)
+
                 msg = rospy.wait_for_message(
                     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, timeout=1
                 )
             else:
-                fallbackPosePub.publish(fallbackPose)
                 msg = rospy.wait_for_message(
                     Topics.ACML.value, PoseWithCovarianceStamped, timeout=1
                 )
             # ------ Publish the localization used by the Robotino ------
-            createOdom(msg)
+            # createOdom(msg)
             locPublisher.publish(msg)
 
         except rospy.ROSInterruptException:

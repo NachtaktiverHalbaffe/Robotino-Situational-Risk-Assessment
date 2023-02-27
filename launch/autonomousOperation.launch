@@ -51,6 +51,7 @@
 
     <node pkg="amcl" type="amcl" name="amcl" output="screen">
         <remap from="scan" to="/scan"/>
+        <remap from="amcl_pose" to="/amcl_pose_source"/>
         <param name="odom_frame_id" value="odom"/>
         <param name="odom_model_type" value="omni-corrected"/>
         <param name="base_frame_id" value="base_link"/>

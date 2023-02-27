@@ -11,7 +11,9 @@ class EvalManagerClient:
     the text logging messages are standardized here so they are potentially automatically processable by the evaluationmanager
     """
 
-    def __init__(self, host: str = "129.69.102.129", port: int = 5000, timeout: float = 2):
+    def __init__(
+        self, host: str = "129.69.102.129", port: int = 5000, timeout: float = 2
+    ):
         self.baseUri = f"http://{host}:{port}"
         self.payload = {}
         self.timeout = timeout
@@ -90,7 +92,7 @@ class EvalManagerClient:
         self.payload = {
             "metric": Metrics.RISK.value,
             "loggerSource": "prototype",
-            "value": risk,
+            "value": float(risk),
         }
 
         uri = f"{self.baseUri}/valuelogger"
@@ -113,7 +115,12 @@ class EvalManagerClient:
         self.__sendRequest(url=uri)
 
     def evalLogNav(
-        self, x: int = None, y: int = None, id: int = None, level: str = LoggingLevel.INFO.value, success: bool = True
+        self,
+        x: int = None,
+        y: int = None,
+        id: int = None,
+        level: str = LoggingLevel.INFO.value,
+        success: bool = True,
     ):
         """
         Sends a request to the evaluationmanager to add an textlog if Robotino did complete navigation successfully or not
@@ -131,7 +138,9 @@ class EvalManagerClient:
         elif id != None:
             targetIdentifier = f"(id:{id})"
         else:
-            rospy.logwarn(f"[Evalmanager Client] Couldn't send navLog: Neither coordinate nor id given")
+            rospy.logwarn(
+                f"[Evalmanager Client] Couldn't send navLog: Neither coordinate nor id given"
+            )
             return
         if success:
             msg = f"Success: Robotino reached target {targetIdentifier}"
@@ -142,7 +151,9 @@ class EvalManagerClient:
         uri = f"{self.baseUri}/textlogger"
         self.__sendRequest(url=uri)
 
-    def evalLogCriticalSector(self, x: int, y: int, localRisk: float, level: str = LoggingLevel.INFO.value):
+    def evalLogCriticalSector(
+        self, x: int, y: int, localRisk: float, level: str = LoggingLevel.INFO.value
+    ):
         """
         Sends a request to the evaluationmanager that Robotino has entered a sector with an potential collision risk
 
@@ -158,7 +169,9 @@ class EvalManagerClient:
         uri = f"{self.baseUri}/textlogger"
         self.__sendRequest(url=uri)
 
-    def evalLogUncriticalSector(self, x: int, y: int, level: str = LoggingLevel.INFO.value):
+    def evalLogUncriticalSector(
+        self, x: int, y: int, level: str = LoggingLevel.INFO.value
+    ):
         """
         Sends a request to the evaluationmanager that Robotino has entered a sector without an potential collision risk
 
@@ -196,7 +209,8 @@ class EvalManagerClient:
         Wrapper for a Post request with a timeout
         """
         try:
-            requests.post(url=url, data=self.payload, timeout=self.timeout)
+            response = requests.post(url=url, json=self.payload, timeout=self.timeout)
+            # print(response.content)
         except requests.exceptions.Timeout:
             return
         except Exception as e:

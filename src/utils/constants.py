@@ -5,10 +5,12 @@ from geometry_msgs.msg import PoseStamped
 
 class Topics(Enum):
     ACML = "/amcl_pose"
+    AMCL_SOURCE = "/amcl_pose_source"
     ANOMALY_DETECTED = "/anomaly_detected"
     BRUTEFORCE_ENABLED = "/bruteforce_enabled"
     EMERGENCY_BRAKE = "/emergency_break"
     GLOBAL_PATH = "/path_global"
+    INJECT_OFFSET = "/inject_offset"
     IMAGE_BB_MOVEABLE = "/image_bb_moveable"
     IMAGE_BB_WS = "/image_bb_ws"
     IMAGE_RAW = "/image_raw"
@@ -17,6 +19,7 @@ class Topics(Enum):
     LIDAR_BREAKDOWN = "/lidar_breakdown"
     LOCALIZATION = "/pose"
     FALLBACK_POSE = "/pose_fallback"
+    FREEZE_OBJECTS = "/freeze_objects"
     MARKERS = "/target_markers"
     MARKERS_COMMON_TRAJ = "/common_traj_markers"
     MARKERS_NAV = "/target_nav_markers"

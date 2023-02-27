@@ -95,10 +95,10 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     """
     global errorDistrDistPath
     global errorDistrAnglePath
-    FIFO_LENGTH = 2
+    FIFO_LENGTH = 3
     THRES_X = 9
     THRES_Y = 9
-    THRES_DIST = 1
+    THRES_DIST = 1.5
     THRES_ANGLE = 1.8
 
     base_info, _ = get_base_info()
@@ -107,7 +107,7 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     distErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     angleErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     while not rospy.is_shutdown():
-        anomalyPub.publish(False)
+        # anomalyPub.publish(False)
 
         imageLoc = rospy.wait_for_message(
             Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped

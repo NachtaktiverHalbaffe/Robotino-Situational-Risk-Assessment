@@ -178,7 +178,12 @@ class MainWindow(QMainWindow):
         self.ui.checkBox_errorDIst.stateChanged.connect(
             lambda: self.activateFeature("error_dist")
         )
-
+        self.ui.checkBox_freezeObjects.stateChanged.connect(
+            lambda: self.activateFeature("freeze_objects")
+        )
+        self.ui.checkBox_Offset.stateChanged.connect(
+            lambda: self.activateFeature("inject_offset")
+        )
         # Make shure roscore is running before starting gui node
         try:
             rostopic.get_topic_class("/rosout")
@@ -220,6 +225,14 @@ class MainWindow(QMainWindow):
             self.errorDistPublisher = rospy.Publisher(
                 Topics.USE_ERRORDIST.value, Bool, queue_size=10, latch=True
             )
+            self.freezeObjectsPub = rospy.Publisher(
+                Topics.FREEZE_OBJECTS.value, Bool, queue_size=10, latch=True
+            )
+            self.injectOffsetPub = rospy.Publisher(
+                Topics.INJECT_OFFSET.value, Bool, queue_size=10, latch=True
+            )
+            self.ui.checkBox_Offset.setChecked(False)
+            self.ui.checkBox_freezeObjects.setChecked(False)
             self.ui.checkBox_LIDAR.setChecked(True)
             self.ui.checkBox_qrScanner.setChecked(True)
             self.ui.checkBox_bruteforce.setChecked(False)
@@ -587,6 +600,18 @@ class MainWindow(QMainWindow):
         elif "error_dist" in feature.lower():
             try:
                 self.errorDistPublisher.publish(self.ui.checkBox_errorDIst.isChecked())
+            except:
+                pass
+        elif "freeze_objects" in feature.lower():
+            try:
+                self.freezeObjectsPub.publish(
+                    self.ui.checkBox_freezeObjects.isChecked()
+                )
+            except:
+                pass
+        elif "inject_offset" in feature.lower():
+            try:
+                self.injectOffsetPub.publish(self.ui.checkBox_Offset.isChecked())
             except:
                 pass
 
