@@ -43,7 +43,7 @@ background-image: url(src/gui/ml_rl_background.jpeg)
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -782,6 +782,13 @@ background-image: url(src/gui/ml_rl_background.jpeg)
              <widget class="QCheckBox" name="checkBox_freezeObjects">
               <property name="text">
                <string>Freeze Objects</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_Offset">
+              <property name="text">
+               <string>Inject Offset</string>
               </property>
              </widget>
             </item>
