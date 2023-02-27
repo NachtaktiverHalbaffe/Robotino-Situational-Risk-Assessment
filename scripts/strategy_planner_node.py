@@ -261,7 +261,7 @@ def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
     global emergencyStop
     global fallbackMode
 
-    if enabled.data:
+    if enabled.data and not fallbackMode:
         if "lidar" in reason:
             rospy.logwarn(
                 "[Strategy Planner] EMERGENCY-STOP: LIDAR has breakdown. Executing fallback behaviour"
