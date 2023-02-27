@@ -779,6 +779,13 @@ background-image: url(src/gui/ml_rl_background.jpeg)
              </widget>
             </item>
             <item>
+             <widget class="QCheckBox" name="checkBox_freezeObjects">
+              <property name="text">
+               <string>Freeze Objects</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QCheckBox" name="checkBox_qrScanner">
               <property name="text">
                <string>Scan QR Codes</string>
