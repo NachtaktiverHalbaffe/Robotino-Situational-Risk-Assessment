@@ -50,11 +50,6 @@ obstacleMarginPub = rospy.Publisher(
 )
 
 
-def setFallbackPose(loc: PoseWithCovarianceStamped):
-    global detectedAngle
-    detectedAngle = loc.pose.pose.orientation.z
-
-
 def _moveBaseCallback(data: MoveBaseFeedback):
     global feedbackValue
 
@@ -185,9 +180,9 @@ def moveBaseClient(pose: PoseStamped) -> int:
             rospy.logwarn(
                 "[Strategy Planner] Move_base client aborted operation because of emergency stop"
             )
-            client.cancel_all_goals()
+            # client.cancel_all_goals()
             client.cancel_goal()
-            return 2
+            return 4
 
         if feedbackValue:
             if (
@@ -215,10 +210,10 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     angleChange, _ = navigateToPoint(target, start, angleAssumption)
 
     new_rotation = angleAssumption + angleChange
-    if new_rotation < (-np.pi):
-        new_rotation = new_rotation + np.pi * 2
-    if new_rotation > (np.pi):
-        new_rotation = new_rotation - np.pi * 2
+    # if new_rotation < (-np.pi):
+    #     new_rotation = new_rotation + np.pi * 2
+    # if new_rotation > (np.pi):
+    #     new_rotation = new_rotation - np.pi * 2
 
     return new_rotation
 
@@ -270,13 +265,14 @@ def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
             rospy.logwarn(
                 "[Strategy Planner] EMERGENCY-STOP: Anomaly detected. Executing fallback behaviour"
             )
+        time.sleep(5)
         # Set event flag so currently exectuing startegies are aborted
         emergencyStop.set()
         # Tell strategy planner that its in fallbackMode
         fallbackMode = True
         # Start fallback behaviour after a short time to let all nodes set the necessary parameters
         executeFallbackMeasures()
-    else:
+    elif not enabled.data:
         rospy.loginfo("[Strategy Planner] EMERGENCY-STOP has been reset")
         # Clear event flag so strategy planner can run under normal behaviour
         emergencyStop.clear()
@@ -290,12 +286,17 @@ def executeFallbackMeasures():
     The strategy is to drive to a safe place when the risk is high enough
     """
     global emergencyStop
+    global detectedAngle
     # Release emergency stop flag so strategy planner can run again if risk values come in
 
     # Start the path planning process to navigate to safe spot
     try:
         # Avoid obstacles in path planning
         obstacleMarginPub.publish(4)
+        fallbackPose = rospy.wait_for_message(
+            Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
+        )
+        detectedAngle = fallbackPose.pose.pose.orientation.z
         targetPub.publish(CommonPositions.SAFE_SPOT.value)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
@@ -305,8 +306,6 @@ def executeFallbackMeasures():
         useErrorDistPub.publish(True)
     except Exception as e:
         rospy.logwarn(f"[Strategy Planner] Couldn't publish safe spot as target: {e}")
-
-    emergencyStop.clear()
 
 
 def fallbackLocalStrategy(
@@ -336,7 +335,9 @@ def fallbackLocalStrategy(
     global trajectory
     global nrOfAttempt
     global detectedAngle
+    global emergencyStop
 
+    emergencyStop.clear()
     if iterationNr in criticalNodes:
         # Critical sector => Executing under safety constraints
         rospy.logdebug("[Strategy Planner] Entering critical sector")
@@ -363,7 +364,7 @@ def fallbackLocalStrategy(
             )
             return
 
-        if np.average(localRisk) < riskStop:
+        if np.average(localRisk) <= riskStop:
             nrOfAttempt = 0
             # Risk is reasonable low enough => Navigate
             angleAssumption = navigate(
@@ -418,7 +419,12 @@ def fallbackLocalStrategy(
 
 
 def standardLocalStrategy(
-    iterationNr: int, criticalNodes: set, criticalSectors, riskStop: float = 100
+    iterationNr: int,
+    criticalNodes: set,
+    criticalSectors,
+    riskStop: float = 100,
+    useMoveBaseClient=True,
+    assumedPosition: PoseWithCovarianceStamped = None,
 ):
     """
     Executes the standard local strategy, which effectiffely uses the move_base client to navigate to the node
@@ -433,6 +439,8 @@ def standardLocalStrategy(
         navResponse (bool): If navigation was successful
     """
     global trajectory
+    global emergencyStop
+
     obstacleMarginPub.publish(0)
 
     if iterationNr in criticalNodes:
@@ -461,13 +469,26 @@ def standardLocalStrategy(
             )
             return False
 
-        if np.average(localRisk) < riskStop:
+        if np.average(localRisk) <= riskStop:
             # Risk is reasonable low enough => Navigate
-            result = moveBaseClient(trajectory.poses[iterationNr])
-            if result >= 4:
-                # move base failed
-                EvalManagerClient().evalLogStop()
-                return False
+            if useMoveBaseClient:
+                result = moveBaseClient(trajectory.poses[iterationNr])
+                if result >= 4:
+                    # move base failed
+                    EvalManagerClient().evalLogStop()
+                    return False
+            else:
+                angleAssumption = assumedPosition.pose.pose.orientation.z
+                poseAssumption = PoseStamped()
+                poseAssumption.pose.position.x = assumedPosition.pose.pose.position.x
+                poseAssumption.pose.position.y = assumedPosition.pose.pose.position.y
+                result, _ = navigate(
+                    trajectory.poses[iterationNr],
+                    poseAssumption,
+                    angleAssumption=angleAssumption,
+                )
+                if result == False:
+                    return False
 
             # Check if emergencystop is set before start moving
             if emergencyStop.is_set():
@@ -539,7 +560,7 @@ def standardGlobalStrategy(
     return True
 
 
-def chooseStrategy(riskEstimation: Risk):
+def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
     """ 
     Plans the behaviour of the robot depending on the given parameters
 
@@ -610,23 +631,39 @@ def chooseStrategy(riskEstimation: Risk):
 
         # ---- Standard strategy -----
         if not fallbackMode:
-            responseLocalStrat = standardLocalStrategy(
-                i,
-                criticalNodes,
-                criticalSectors,
-            )
+            if not useMoveBase:
+                posMsg = rospy.wait_for_message(
+                    Topics.LOCALIZATION.value, PoseWithCovarianceStamped
+                )
+                angleAssumption = posMsg.pose.pose.orientation.z
 
-            if responseLocalStrat == False:
-                return False
+                responseLocalStrat = standardLocalStrategy(
+                    i,
+                    criticalNodes,
+                    criticalSectors,
+                    useMoveBaseClient=False,
+                    assumedPosition=posMsg,
+                )
 
+                if responseLocalStrat == False:
+                    return False
+            else:
+                responseLocalStrat = standardLocalStrategy(
+                    i,
+                    criticalNodes,
+                    criticalSectors,
+                )
+
+                if responseLocalStrat == False:
+                    return False
         # ---- Fallback strategy ----
         else:
             responseLocalStrat, angleAssumption = fallbackLocalStrategy(
                 i, criticalNodes, criticalSectors, angleAssumption
             )
 
-            if responseLocalStrat == False:
-                return False
+        if responseLocalStrat == False:
+            return False
 
         # Check if emergencystop is set before starting navigation to next node
         if emergencyStop.is_set():
@@ -681,12 +718,6 @@ def strategyPlanner(runWithRiskEstimation=True):
     rospy.Subscriber(
         Topics.LIDAR_BREAKDOWN.value, Bool, activateFallbackBehaviour, queue_size=10
     )
-    rospy.Subscriber(
-        Topics.FALLBACK_POSE.value,
-        PoseWithCovarianceStamped,
-        setFallbackPose,
-        queue_size=10,
-    )
 
     # Callbacks of move_base client
     rospy.Subscriber(
@@ -696,7 +727,7 @@ def strategyPlanner(runWithRiskEstimation=True):
         queue_size=10,
     )
 
-    detectHazard()
+    # detectHazard()
     rospy.spin()
 
 
