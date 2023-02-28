@@ -34,7 +34,7 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 PRECISION = 3
 
 locPublisher = rospy.Publisher(
-    Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
+    Topics.LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10, latch=True
 )
 cvPublisher = rospy.Publisher(
     Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped, queue_size=10
@@ -42,9 +42,7 @@ cvPublisher = rospy.Publisher(
 fallbackPosePub = rospy.Publisher(
     Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped, queue_size=10
 )
-amclPub = rospy.Publisher(
-    Topics.ACML.value, PoseWithCovarianceStamped, queue_size=10, latch=True
-)
+amclPub = rospy.Publisher(Topics.ACML.value, PoseWithCovarianceStamped, queue_size=10)
 
 img_glob = []
 odom = Odometry()
@@ -153,15 +151,25 @@ def injectOffset():
         amclPub.publish(amclMsg)
 
 
-def anomalyBehaviour(anomalyDetected: Bool):
+def anomalyBehaviour(anomalyDetected: Bool, useAMCLasFAllback=True):
     global fallbackPose
     global lidarBreakdown
 
     if anomalyDetected.data:
-        # Use next image localization data as fallback pose to start behaviour
-        fallbackPose = rospy.wait_for_message(
-            Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
-        )
+        if not useAMCLasFAllback:
+            print("Use image fallback")
+            # Use next image localization data as fallback pose to start behaviour
+            fallbackPose = rospy.wait_for_message(
+                Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
+            )
+        else:
+            print("Use amcl fallback")
+            poseMsg = PoseWithCovarianceStamped()
+            poseMsg.pose.pose.position.x = real_data[1]
+            poseMsg.pose.pose.position.y = real_data[2]
+            poseMsg.pose.pose.orientation.z = real_data[3]
+            poseMsg.pose.pose.orientation.w = 1
+            fallbackPose = poseMsg
         fallbackPosePub.publish(fallbackPose)
         lidarBreakdown = True
 
@@ -316,7 +324,7 @@ def localization():
     )
     # Saves the acml data to a global variable so the localization can use them
     rospy.Subscriber(
-        Topics.ACML.value, PoseWithCovarianceStamped, setRealData, queue_size=25
+        Topics.AMCL_SOURCE.value, PoseWithCovarianceStamped, setRealData, queue_size=25
     )
     # ROS "setter"
     rospy.Subscriber(Topics.LIDAR_BREAKDOWN.value, Bool, setUseLidar, queue_size=10)
@@ -324,7 +332,7 @@ def localization():
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
     rospy.Subscriber(Topics.INJECT_OFFSET.value, Bool, setInjectOffset, queue_size=10)
     rospy.Subscriber(
-        Topics.ANOMALY_DETECTED.value, Bool, anomalyBehaviour, queue_size=10
+        Topics.ANOMALY_DETECTED.value, Bool, anomalyBehaviour, queue_size=1
     )
 
     # Publish localization

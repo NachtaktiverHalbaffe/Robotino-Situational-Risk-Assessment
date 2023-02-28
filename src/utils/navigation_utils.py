@@ -5,6 +5,7 @@ import numpy as np
 from copy import deepcopy
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Twist, Point
+from std_msgs.msg import Bool
 
 from real_robot_navigation.gridmap import get_obstacles_in_pixel_map
 from real_robot_navigation.move_utils import initialize_map, modify_map
@@ -14,9 +15,17 @@ from real_robot_navigation.move_utils_cords import (
     get_base_info,
 )
 from autonomous_operation.PRM import Node, add_neighbours
+from utils.constants import Topics, Nodes
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..", ""))
 velocity_publisher_robot = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+
+emergencyBrake = False
+
+
+def setEmergencyBreak(isSet: Bool):
+    global emergencyBrake
+    emergencyBrake = isSet.data
 
 
 def createMapRef(mapPath: str):
@@ -160,6 +169,7 @@ def move(dist):
     Returns:
         bool: If it moved successfully to the target (True) or failed (False)
     """
+    global emergencyBrake
     speed = 0.10
     rospy.logdebug(f"[Control] Start moving {dist} meters")
 
@@ -187,8 +197,12 @@ def move(dist):
         velocity_publisher_robot.publish(msg_test_forward)
         t1 = rospy.Time.now().to_sec()
         current_dist = speed * (t1 - t0)
+        if emergencyBrake == True:
+            rospy.logwarn("[CONTROL] EMERGENCY BREAKING")
+            break
 
     velocity_publisher_robot.publish(msg_test_stop)
+    return current_dist
 
 
 def rotate(angle):
@@ -201,6 +215,7 @@ def rotate(angle):
     Returns:
         bool: If it rotated successfully towards the target (True) or failed (False)
     """
+    global emergencyBrake
     rospy.logdebug(f"[Control] Start rotating {angle} radians")
     rot_speed = 10 / (360) * (2 * np.pi)
 
@@ -232,7 +247,12 @@ def rotate(angle):
         t1 = rospy.Time.now().to_sec()
         current_angle = rot_speed * (t1 - t0)
 
+        if emergencyBrake == True:
+            rospy.logwarn("[CONTROL] EMERGENCY BREAKING")
+            break
+
     velocity_publisher_robot.publish(msg_test_stop)
+    return current_angle
 
 
 def navigateToPoint(
@@ -254,8 +274,10 @@ def navigateToPoint(
     """
     comm_angle, comm_dist = calc_command(target, positionAssumption, angleAssumption)
     rospy.loginfo(f"[Control] Started moving to target {target}.")
+    rospy.Subscriber(
+        Topics.EMERGENCY_BRAKE.value, Bool, setEmergencyBreak, queue_size=10
+    )
+    current_angle = rotate(comm_angle)
+    current_dist = move(comm_dist)
 
-    rotate(comm_angle)
-    move(comm_dist)
-
-    return comm_angle, comm_dist
+    return current_angle, current_dist

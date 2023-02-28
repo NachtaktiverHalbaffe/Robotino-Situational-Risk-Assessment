@@ -95,24 +95,39 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     """
     global errorDistrDistPath
     global errorDistrAnglePath
-    FIFO_LENGTH = 3
-    THRES_X = 9
-    THRES_Y = 9
+    FIFO_LENGTH = 10
+    THRES_X = 1.5
+    THRES_Y = 1.5
     THRES_DIST = 1.5
-    THRES_ANGLE = 1.8
+    THRES_ANGLE = np.pi / 4
 
-    base_info, _ = get_base_info()
     xErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     yErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     distErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     angleErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
+    imageLoc = None
+    amclPose = None
     while not rospy.is_shutdown():
         # anomalyPub.publish(False)
-
-        imageLoc = rospy.wait_for_message(
-            Topics.IMG_LOCALIZATION.value, PoseWithCovarianceStamped
-        )
-        amclPose = rospy.wait_for_message(Topics.ACML.value, PoseWithCovarianceStamped)
+        try:
+            imageLoc = rospy.wait_for_message(
+                Topics.IMG_LOCALIZATION.value,
+                PoseWithCovarianceStamped,
+                timeout=rospy.Duration(secs=2),
+            )
+        except:
+            # Timout
+            if imageLoc == None:
+                continue
+        try:
+            amclPose = rospy.wait_for_message(
+                Topics.ACML.value,
+                PoseWithCovarianceStamped,
+                timeout=rospy.Duration(secs=2),
+            )
+        except:
+            if amclPose == None:
+                continue
 
         # Calculating error in localization in x,y, distance and angle
         xErr = float(amclPose.pose.pose.position.x - imageLoc.pose.pose.position.x)

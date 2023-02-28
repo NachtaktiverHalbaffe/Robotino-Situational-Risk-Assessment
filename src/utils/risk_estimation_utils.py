@@ -161,7 +161,7 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
     file = Path(str(path).strip().replace("'", ""))
     if file.exists():
         data = pd.read_csv(path, header=None)
-        probabilities, segments = np.histogram(data, bins=bins)
+        probabilities, segments = np.histogram(data, bins=bins, density=False)
         # segments = np.round(segments, 2)
         probabilities = np.divide(probabilities, len(data))
         probabilities = np.round(probabilities, precision)
@@ -183,8 +183,8 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
 def loadErrorDistributionLIDAR():
     segmentsAngles = [-0.17, -0.08, 0, 0.08, 0.17]
     probabilitiesAngles = [0.0153, 0.175, 0.7, 0.10, 0.008]
-    segmentsDist = [-0.03, -0.02, 0, 0.02, 0.03]
-    probabilitiesDist = [0.02, 0.20, 0.56, 0.20, 0.02]
+    segmentsDist = [-0.063, -0.037, -0.012, 0.012, 0.03]
+    probabilitiesDist = [0.095, 0.2575, 0.29, 0.22, 0.12]
 
     try:
         rostopic.get_topic_class("/rosout")
@@ -198,5 +198,5 @@ def loadErrorDistributionLIDAR():
 
 if __name__ == "__main__":
     loadErrorDistribution(
-        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/test.csv"
+        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/lidar.csv"
     )

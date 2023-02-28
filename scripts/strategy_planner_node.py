@@ -48,6 +48,9 @@ responsePub = rospy.Publisher(
 obstacleMarginPub = rospy.Publisher(
     Topics.OBSTACLE_MARGIN.value, Int16, queue_size=10, latch=True
 )
+emergencyBrakePub = rospy.Publisher(
+    Topics.EMERGENCY_BRAKE.value, Bool, queue_size=10, latch=True
+)
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
@@ -182,7 +185,7 @@ def moveBaseClient(pose: PoseStamped) -> int:
             )
             # client.cancel_all_goals()
             client.cancel_goal()
-            return 4
+            return 2
 
         if feedbackValue:
             if (
@@ -218,32 +221,28 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     return new_rotation
 
 
-def detectHazard():
+def detectHazard(rawReadings: PointCloud):
     """
     Identifies the hazard/collision
     """
     global emergencyStop
     # Distance threshold under which a hazard is detected
-    THRESHOLD_COLLISIONDETECTION_DISTANCE = 0.05
-    THRESHOLD_EMERGENCYSTOP_DISTANCE = 0.13
+    THRESHOLD_COLLISIONDETECTION_DISTANCE = 0.07
+    THRESHOLD_EMERGENCYSTOP_DISTANCE = 0.15
 
-    while not rospy.is_shutdown():
-        try:
-            rawReadings = rospy.wait_for_message(Topics.IR_SENSORS.value, PointCloud)
-            dist = _fetchIRReadings(rawReadings)
-            if np.min(dist) < THRESHOLD_COLLISIONDETECTION_DISTANCE:
-                # Detected collision
-                rospy.loginfo("[Strategy Planner] IR sensors detected collision")
-                EvalManagerClient().evalLogCollision()
-                # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
-            elif np.min(dist) < THRESHOLD_EMERGENCYSTOP_DISTANCE:
-                rospy.loginfo(
-                    "[Strategy Planner] IR sensors detected obstacle and activates emergencybreak"
-                )
-                emergencyStop.set()
-                EvalManagerClient().evalLogStop()
-        except:
-            return
+    dist = _fetchIRReadings(rawReadings)
+    # print(np.min(dist))
+    if np.min(dist) < THRESHOLD_COLLISIONDETECTION_DISTANCE:
+        # Detected collision
+        rospy.loginfo("[Strategy Planner] IR sensors detected collision")
+        EvalManagerClient().evalLogCollision()
+        # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
+    elif np.min(dist) < THRESHOLD_EMERGENCYSTOP_DISTANCE:
+        rospy.loginfo(
+            "[Strategy Planner] IR sensors detected obstacle and activates emergencybreak"
+        )
+        emergencyStop.set()
+        EvalManagerClient().evalLogStop()
 
 
 def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
@@ -265,9 +264,9 @@ def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
             rospy.logwarn(
                 "[Strategy Planner] EMERGENCY-STOP: Anomaly detected. Executing fallback behaviour"
             )
-        time.sleep(5)
         # Set event flag so currently exectuing startegies are aborted
         emergencyStop.set()
+        emergencyBrakePub.publish(True)
         # Tell strategy planner that its in fallbackMode
         fallbackMode = True
         # Start fallback behaviour after a short time to let all nodes set the necessary parameters
@@ -293,6 +292,7 @@ def executeFallbackMeasures():
     try:
         # Avoid obstacles in path planning
         obstacleMarginPub.publish(4)
+        time.sleep(3)
         fallbackPose = rospy.wait_for_message(
             Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
         )
@@ -314,7 +314,7 @@ def fallbackLocalStrategy(
     criticalSectors,
     angleAssumption: float,
     riskStop: float = 100,
-    MAX_ATTEMPTS=3,
+    MAX_ATTEMPTS=2,
 ):
     """
     Executes the fallback strategy, which effectiffely is purely a local strategy because the global strategy\
@@ -333,7 +333,7 @@ def fallbackLocalStrategy(
         angleAssumption (float): The assumed new angle of the robot after navigation
     """
     global trajectory
-    global nrOfAttempt
+    # global nrOfAttempt
     global detectedAngle
     global emergencyStop
 
@@ -373,18 +373,18 @@ def fallbackLocalStrategy(
                 angleAssumption=angleAssumption,
             )
         else:
-            # Risk is too high => Rerun risk estimation
-            if nrOfAttempt <= MAX_ATTEMPTS:
-                # Retry risk estimation
-                nrOfAttempt = nrOfAttempt + 1
-                # So angleAssumption still works in the new run
-                detectedAngle = angleAssumption
-                # Add margin to obstavle so pathplanner avoids this obstacle more
-                obstacleMarginPub.publish(4 * nrOfAttempt)
-                goalPose = trajectory.poses[len(trajectory.poses) - 1]
-                targetPub.publish(goalPose)
+            # # Risk is too high => Rerun risk estimation
+            # if nrOfAttempt <= MAX_ATTEMPTS:
+            #     # Retry risk estimation
+            #     nrOfAttempt = nrOfAttempt + 1
+            #     # So angleAssumption still works in the new run
+            #     detectedAngle = angleAssumption
+            #     # Add margin to obstavle so pathplanner avoids this obstacle more
+            #     obstacleMarginPub.publish(4 * nrOfAttempt)
+            #     goalPose = trajectory.poses[len(trajectory.poses) - 1]
+            #     targetPub.publish(goalPose)
 
-                return False, angleAssumption
+            # return False, angleAssumption
 
             # Finally consider navigation too risky
             rospy.logdebug(
@@ -440,7 +440,6 @@ def standardLocalStrategy(
     """
     global trajectory
     global emergencyStop
-
     obstacleMarginPub.publish(0)
 
     if iterationNr in criticalNodes:
@@ -482,14 +481,11 @@ def standardLocalStrategy(
                 poseAssumption = PoseStamped()
                 poseAssumption.pose.position.x = assumedPosition.pose.pose.position.x
                 poseAssumption.pose.position.y = assumedPosition.pose.pose.position.y
-                result, _ = navigate(
+                _ = navigate(
                     trajectory.poses[iterationNr],
                     poseAssumption,
                     angleAssumption=angleAssumption,
                 )
-                if result == False:
-                    return False
-
             # Check if emergencystop is set before start moving
             if emergencyStop.is_set():
                 responsePub.publish("Error: Trajectory execution did fail")
@@ -520,17 +516,54 @@ def standardLocalStrategy(
             )
             return False
 
-        result = moveBaseClient(trajectory.poses[iterationNr])
-        if result >= 4:
-            # move base failed
-            EvalManagerClient().evalLogStop()
-            return False
+        if useMoveBaseClient:
+            result = moveBaseClient(trajectory.poses[iterationNr])
+            if result >= 4:
+                # move base failed
+                EvalManagerClient().evalLogStop()
+                return False
+        else:
+            angleAssumption = assumedPosition.pose.pose.orientation.z
+            poseAssumption = PoseStamped()
+            poseAssumption.pose.position.x = assumedPosition.pose.pose.position.x
+            poseAssumption.pose.position.y = assumedPosition.pose.pose.position.y
+            _ = navigate(
+                trajectory.poses[iterationNr],
+                poseAssumption,
+                angleAssumption=angleAssumption,
+            )
+
+    return True
+
+
+def fallbackGlobalStrategy(
+    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 2
+):
+    global trajectory
+    global nrOfAttempt
+
+    if (np.average(riskGlobal) > riskStop) and (nrOfAttempt < MAX_ATTEMPTS):
+        rospy.loginfo(
+            f"[Strategy Planner] Risk too high. Restarting risk estimation. Risk: {np.average(riskGlobal)}"
+        )
+        # Retry risk estimation
+        nrOfAttempt = nrOfAttempt + 1
+        obstacleMarginPub.publish(4 * nrOfAttempt)
+        goalPose = trajectory.poses[len(trajectory.poses) - 1]
+        targetPub.publish(goalPose)
+        return False
+    elif (np.average(riskGlobal) > riskStop) and (nrOfAttempt >= MAX_ATTEMPTS):
+        rospy.loginfo(
+            f"[Strategy Planner] Risk too high and maximal number of attemps exceeded. Navigate as far as possible, but don't enter critical sectors. Risk: {np.average(riskGlobal)}"
+        )
+        # Consider navigation finally too risky
+        return True
 
     return True
 
 
 def standardGlobalStrategy(
-    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 3
+    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 2
 ):
     global trajectory
     global nrOfAttempt
@@ -572,7 +605,6 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
     global emergencyStop
     global fallbackMode
     global detectedAngle
-
     riskGlobal = riskEstimation.globalRisks
     criticalSectors = riskEstimation.criticalSectors
 
@@ -596,7 +628,14 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
 
     if not fallbackMode:
         responseGlobalStrat = standardGlobalStrategy(
-            riskGlobal, riskStop=100, MAX_ATTEMPTS=3
+            riskGlobal, riskStop=100, MAX_ATTEMPTS=2
+        )
+
+        if responseGlobalStrat == False:
+            return False
+    else:
+        responseGlobalStrat = fallbackGlobalStrategy(
+            riskGlobal, riskStop=100, MAX_ATTEMPTS=2
         )
 
         if responseGlobalStrat == False:
@@ -607,6 +646,7 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
     #####################################################
     angleAssumption = 0
     emergencyStop.clear()
+    emergencyBrakePub.publish(False)
     EvalManagerClient().evalLogStartedTask()
     EvalManagerClient().evalLogRisk(np.average(riskGlobal))
 
@@ -631,7 +671,8 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
 
         # ---- Standard strategy -----
         if not fallbackMode:
-            if not useMoveBase:
+            if useMoveBase == False:
+                print("use prm")
                 posMsg = rospy.wait_for_message(
                     Topics.LOCALIZATION.value, PoseWithCovarianceStamped
                 )
@@ -648,6 +689,7 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
                 if responseLocalStrat == False:
                     return False
             else:
+                print("use move base")
                 responseLocalStrat = standardLocalStrategy(
                     i,
                     criticalNodes,
@@ -718,6 +760,7 @@ def strategyPlanner(runWithRiskEstimation=True):
     rospy.Subscriber(
         Topics.LIDAR_BREAKDOWN.value, Bool, activateFallbackBehaviour, queue_size=10
     )
+    # rospy.Subscriber(Topics.IR_SENSORS.value, PointCloud, detectHazard, queue_size=10)
 
     # Callbacks of move_base client
     rospy.Subscriber(
@@ -727,7 +770,6 @@ def strategyPlanner(runWithRiskEstimation=True):
         queue_size=10,
     )
 
-    # detectHazard()
     rospy.spin()
 
 

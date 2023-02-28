@@ -330,12 +330,12 @@ def run_crash_and_remove(
             t4 = time.perf_counter()
             prob_collision_brute = run_pruned(env, adv1)
             mcts_total_time += time.perf_counter() - t4
-            rospy.logdebug(
-                f"[Crash and Remove] Brute force prob_collision is: {prob_collision_brute}"
-            )
-            rospy.logdebug(
-                "[Crash and Remove] Brute force results in: {mcts_total_time} seconds"
-            )
+            # rospy.logdebug(
+            #     f"[Crash and Remove] Brute force prob_collision is: {prob_collision_brute}"
+            # )
+            # rospy.logdebug(
+            #     "[Crash and Remove] Brute force results in: {mcts_total_time} seconds"
+            # )
 
             # print("Press enter to start rl loop")
             if replay_on:
@@ -469,15 +469,15 @@ def run_crash_and_remove(
                 wall_discards = wall_discards + 1
                 break
 
-            rospy.logdebug(
-                f"[Crash and Remove] Current_estimate:  {calculate_collosion_order(prob_collision_with_Node)}"
-            )
+            # rospy.logdebug(
+            #     f"[Crash and Remove] Current_estimate:  {calculate_collosion_order(prob_collision_with_Node)}"
+            # )
 
         if not break_out:
             # TODO if len()<3 there might be problems
-            rospy.loginfo(
-                f"[Crash and Remove] Final RL estimate: {calculate_collosion_order(prob_collision_with_Node)}"
-            )
+            # rospy.loginfo(
+            #     f"[Crash and Remove] Final RL estimate: {calculate_collosion_order(prob_collision_with_Node)}"
+            # )
             if use_brute_force_baseline:
                 rospy.logdebug(
                     f"[Crash and Remove] Final brute estimate: {prob_collision_brute}"
@@ -485,9 +485,9 @@ def run_crash_and_remove(
             if replay_on:
                 a = input()
             if temp_disable_replay:
-                rospy.logdebug(
-                    f"[Crash and Remove] The old final RL estimate: {calculate_collosion_order(loaded_run_info['rl_prob'])}",
-                )
+                # rospy.logdebug(
+                #     f"[Crash and Remove] The old final RL estimate: {calculate_collosion_order(loaded_run_info['rl_prob'])}",
+                # )
                 a = input()
 
             rl_list.append(prob_collision_with_Node)

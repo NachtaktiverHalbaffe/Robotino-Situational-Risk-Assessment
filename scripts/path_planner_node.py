@@ -41,6 +41,12 @@ currentPoint.pose.pose.position.y = 1.2
 
 obstacleMargin = 0
 fallbackPlanning = False
+fallbackPose = None
+
+
+def setFallbackPose(pose: PoseWithCovarianceStamped):
+    global fallbackPose
+    fallbackPose = pose
 
 
 def setFallbackPlanning(isInFallbackMode: Bool):
@@ -94,6 +100,7 @@ def runPRM(targetMessage: PoseStamped):
     global pathPlannerConfig
     global obstacleMargin
     global fallbackPlanning
+    global fallbackPose
 
     # Get target from geometry message
     xTarget = targetMessage.pose.position.x
@@ -103,10 +110,8 @@ def runPRM(targetMessage: PoseStamped):
         xCurrent = currentPoint.pose.pose.position.x
         yCurrent = currentPoint.pose.pose.position.y
     else:
-        print("use fallback pose")
-        fallbackPose = rospy.wait_for_message(
-            Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
-        )
+        while fallbackPose == None:
+            rospy.Rate(1).sleep()
         xCurrent = fallbackPose.pose.pose.position.x
         yCurrent = fallbackPose.pose.pose.position.y
     rospy.loginfo(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
@@ -203,6 +208,12 @@ def planner():
     )
     rospy.Subscriber(
         Topics.ANOMALY_DETECTED.value, Bool, setFallbackPlanning, queue_size=10
+    )
+    rospy.Subscriber(
+        Topics.FALLBACK_POSE.value,
+        PoseWithCovarianceStamped,
+        setFallbackPose,
+        queue_size=10,
     )
 
     # Dirty fix to make sure that topics are subscribed and has active connection to corresponding node
