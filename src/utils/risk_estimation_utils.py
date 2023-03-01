@@ -162,7 +162,8 @@ def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
     if file.exists():
         data = pd.read_csv(path, header=None)
         probabilities, segments = np.histogram(data, bins=bins, density=False)
-        # segments = np.round(segments, 2)
+        if len(segments) != bins:
+            segments = segments[1:]
         probabilities = np.divide(probabilities, len(data))
         probabilities = np.round(probabilities, precision)
         try:

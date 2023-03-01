@@ -21,9 +21,9 @@
         <param name="map_ref" value="$(arg path)/maps/FinalGridMapv2cleaned.png"/>
     </node>
     <node pkg="$(arg package_name)" name="strategy_planner" type="strategy_planner_node.py" output="screen" required="true" />
-    <!-- <node pkg="$(arg package_name)" name="fleetias_client" type="fleetias_client_node.py" output="screen">
+    <node pkg="$(arg package_name)" name="fleetias_client" type="fleetias_client_node.py" output="screen">
         <param name="ip" value="$(arg ip)"/>
-    </node> -->
+    </node>
 
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="log">
         <!-- <remap from="cmd_vel" to="/my_cmd_vel" />  -->
