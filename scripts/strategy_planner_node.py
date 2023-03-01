@@ -213,10 +213,10 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     angleChange, _ = navigateToPoint(target, start, angleAssumption)
 
     new_rotation = angleAssumption + angleChange
-    # if new_rotation < (-np.pi):
-    #     new_rotation = new_rotation + np.pi * 2
-    # if new_rotation > (np.pi):
-    #     new_rotation = new_rotation - np.pi * 2
+    if new_rotation < (-np.pi):
+        new_rotation = new_rotation + np.pi * 2
+    if new_rotation > (np.pi):
+        new_rotation = new_rotation - np.pi * 2
 
     return new_rotation
 
@@ -291,8 +291,7 @@ def executeFallbackMeasures():
     # Start the path planning process to navigate to safe spot
     try:
         # Avoid obstacles in path planning
-        obstacleMarginPub.publish(4)
-        time.sleep(3)
+        # obstacleMarginPub.publish(4)
         fallbackPose = rospy.wait_for_message(
             Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
         )
@@ -334,7 +333,6 @@ def fallbackLocalStrategy(
     """
     global trajectory
     # global nrOfAttempt
-    global detectedAngle
     global emergencyStop
 
     emergencyStop.clear()
@@ -365,33 +363,12 @@ def fallbackLocalStrategy(
             return
 
         if np.average(localRisk) <= riskStop:
-            nrOfAttempt = 0
             # Risk is reasonable low enough => Navigate
             angleAssumption = navigate(
                 trajectory.poses[iterationNr],
                 positionAssumption=trajectory.poses[iterationNr - 1],
                 angleAssumption=angleAssumption,
             )
-        else:
-            # # Risk is too high => Rerun risk estimation
-            # if nrOfAttempt <= MAX_ATTEMPTS:
-            #     # Retry risk estimation
-            #     nrOfAttempt = nrOfAttempt + 1
-            #     # So angleAssumption still works in the new run
-            #     detectedAngle = angleAssumption
-            #     # Add margin to obstavle so pathplanner avoids this obstacle more
-            #     obstacleMarginPub.publish(4 * nrOfAttempt)
-            #     goalPose = trajectory.poses[len(trajectory.poses) - 1]
-            #     targetPub.publish(goalPose)
-
-            # return False, angleAssumption
-
-            # Finally consider navigation too risky
-            rospy.logdebug(
-                f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
-            )
-            EvalManagerClient().evalLogStop()
-            return False, angleAssumption
     else:
         # Uncritical sector => Just executing navigation
         rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
@@ -549,8 +526,7 @@ def fallbackGlobalStrategy(
         # Retry risk estimation
         nrOfAttempt = nrOfAttempt + 1
         obstacleMarginPub.publish(4 * nrOfAttempt)
-        goalPose = trajectory.poses[len(trajectory.poses) - 1]
-        targetPub.publish(goalPose)
+        targetPub.publish(CommonPositions.SAFE_SPOT.value)
         return False
     elif (np.average(riskGlobal) > riskStop) and (nrOfAttempt >= MAX_ATTEMPTS):
         rospy.loginfo(
@@ -593,7 +569,7 @@ def standardGlobalStrategy(
     return True
 
 
-def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
+def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
     """ 
     Plans the behaviour of the robot depending on the given parameters
 
@@ -653,6 +629,11 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
     for i in range(len(trajectory.poses)):
         # We assume that we havn't to navigate to start node because were already there
         if i == 0:
+            if fallbackMode and i in criticalNodes:
+                rospy.loginfo(
+                    "[Strategy Planner] First sector is critical sector. Aborting navigation"
+                )
+                return False
             # Purely for logging in evaluationmanager
             collisionProbs = []
             rawProbs = riskEstimation.probs_rl
@@ -672,7 +653,6 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
         # ---- Standard strategy -----
         if not fallbackMode:
             if useMoveBase == False:
-                print("use prm")
                 posMsg = rospy.wait_for_message(
                     Topics.LOCALIZATION.value, PoseWithCovarianceStamped
                 )
@@ -689,7 +669,6 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=False):
                 if responseLocalStrat == False:
                     return False
             else:
-                print("use move base")
                 responseLocalStrat = standardLocalStrategy(
                     i,
                     criticalNodes,

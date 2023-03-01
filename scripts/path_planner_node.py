@@ -114,6 +114,7 @@ def runPRM(targetMessage: PoseStamped):
             rospy.Rate(1).sleep()
         xCurrent = fallbackPose.pose.pose.position.x
         yCurrent = fallbackPose.pose.pose.position.y
+        print(f"Use Fallbacl pose({xCurrent},{yCurrent})")
     rospy.loginfo(f"[Path Planner] Starting PRM with target ({xTarget},{yTarget})")
 
     # Get configuration

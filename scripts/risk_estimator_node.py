@@ -436,6 +436,7 @@ def estimateRisk(globalPath: Path):
     COST_COLLISION = 200
     COST_PRODUCTION_STOP = 100
     COST_COLLISIONSTOP = COST_COLLISION + COST_PRODUCTION_STOP
+    QUANTIFIED_DEVIATION = 16
 
     ###################################################
     # --------------- Run probability estimator ------------------
@@ -587,15 +588,17 @@ def estimateRisk(globalPath: Path):
         # riskCollisionStop.append(
         #     calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP
         # )
-        print(
-            (calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP)
-            == riskCollisionStopProb
-        )
+        # print(
+        #     (calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP)
+        #     == riskCollisionStopProb
+        # )
         riskCollisionStop.append(riskCollisionStopProb)
         riskMsg.criticalSectors.append(criticalSectorsMsg)
         riskMsg.probs_rl.append(probabilitiesMsg)
         # Calculate global risk
-        riskMsg.globalRisks.append(riskCollision[i] + riskCollisionStop[i])
+        riskMsg.globalRisks.append(
+            riskCollision[i] + riskCollisionStop[i] + QUANTIFIED_DEVIATION
+        )
         # rospy.logdebug(
         #     f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
         # )

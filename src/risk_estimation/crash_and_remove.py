@@ -444,7 +444,7 @@ def run_crash_and_remove(
                         rospy.logdebug(
                             "[Crash and Remove] There was a crash without an obstacle"
                         )
-                        break_out = True
+                        # break_out = True
                         if replay_on:
                             rospy.logdebug(
                                 "[Crash and Remove] \U0001F4C0 obstacles not remove"

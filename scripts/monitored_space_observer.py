@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-from real_robot_navigation.move_utils_cords import (
-    get_base_info,
-    get_pixel_location_from_acml,
-)
 import rospy
 import csv
 import os
@@ -96,10 +92,11 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
     global errorDistrDistPath
     global errorDistrAnglePath
     FIFO_LENGTH = 10
+    MAX_WAIT_TIME = 1
     THRES_X = 1.5
     THRES_Y = 1.5
     THRES_DIST = 1.5
-    THRES_ANGLE = np.pi / 4
+    THRES_ANGLE = np.pi / 5
 
     xErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
     yErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
@@ -113,7 +110,7 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
             imageLoc = rospy.wait_for_message(
                 Topics.IMG_LOCALIZATION.value,
                 PoseWithCovarianceStamped,
-                timeout=rospy.Duration(secs=2),
+                timeout=rospy.Duration(secs=MAX_WAIT_TIME),
             )
         except:
             # Timout
@@ -123,7 +120,7 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
             amclPose = rospy.wait_for_message(
                 Topics.ACML.value,
                 PoseWithCovarianceStamped,
-                timeout=rospy.Duration(secs=2),
+                timeout=rospy.Duration(secs=MAX_WAIT_TIME),
             )
         except:
             if amclPose == None:
@@ -134,7 +131,7 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         yErr = float(amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y)
 
         distErr = float(np.sqrt(np.square(xErr) + np.square(yErr)))
-        if xErr > 0:
+        if (xErr < 0 and xErr > yErr) or (yErr < 0 and yErr > xErr):
             distErr = -1 * distErr
         angleErr = float(
             amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
@@ -163,9 +160,11 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         # if np.abs(yErrMedian) > THRES_Y:
         #     _executeAnomalyMeasures(yErrMedian, "y-space")
         if np.abs(distErrMedian) > THRES_DIST:
+            print(distErrFIFO)
             _executeAnomalyMeasures(distErrMedian, "distance-space")
             return
         if np.abs(angleErrMedian) > THRES_ANGLE:
+            print(angleErrFIFO)
             _executeAnomalyMeasures(angleErrMedian, "angle-space")
             return
 

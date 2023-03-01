@@ -198,5 +198,5 @@ def loadErrorDistributionLIDAR():
 
 if __name__ == "__main__":
     loadErrorDistribution(
-        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/lidar.csv"
+        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/localization_error_dist.csv"
     )

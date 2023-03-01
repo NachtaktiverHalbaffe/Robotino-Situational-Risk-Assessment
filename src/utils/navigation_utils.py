@@ -169,6 +169,9 @@ def move(dist):
     Returns:
         bool: If it moved successfully to the target (True) or failed (False)
     """
+    # Little offset because its always a little to long
+    OFFSET = 0.1
+
     global emergencyBrake
     speed = 0.10
     rospy.logdebug(f"[Control] Start moving {dist} meters")
@@ -193,13 +196,14 @@ def move(dist):
     current_dist = 0
     dist = np.abs(dist)
 
-    while current_dist < dist:
-        velocity_publisher_robot.publish(msg_test_forward)
-        t1 = rospy.Time.now().to_sec()
-        current_dist = speed * (t1 - t0)
+    while current_dist < dist - OFFSET:
         if emergencyBrake == True:
             rospy.logwarn("[CONTROL] EMERGENCY BREAKING")
             break
+
+        velocity_publisher_robot.publish(msg_test_forward)
+        t1 = rospy.Time.now().to_sec()
+        current_dist = speed * (t1 - t0)
 
     velocity_publisher_robot.publish(msg_test_stop)
     return current_dist
@@ -215,6 +219,9 @@ def rotate(angle):
     Returns:
         bool: If it rotated successfully towards the target (True) or failed (False)
     """
+    # Little offset because its always a little to less rotation
+    OFFSET = 0.01
+
     global emergencyBrake
     rospy.logdebug(f"[Control] Start rotating {angle} radians")
     rot_speed = 10 / (360) * (2 * np.pi)
@@ -242,14 +249,14 @@ def rotate(angle):
     current_angle = 0
     angle = np.abs(angle)
 
-    while current_angle < angle:
-        velocity_publisher_robot.publish(msg_test_rotate)
-        t1 = rospy.Time.now().to_sec()
-        current_angle = rot_speed * (t1 - t0)
-
+    while current_angle < angle + OFFSET:
         if emergencyBrake == True:
             rospy.logwarn("[CONTROL] EMERGENCY BREAKING")
             break
+
+        velocity_publisher_robot.publish(msg_test_rotate)
+        t1 = rospy.Time.now().to_sec()
+        current_angle = rot_speed * (t1 - t0)
 
     velocity_publisher_robot.publish(msg_test_stop)
     return current_angle

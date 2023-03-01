@@ -101,15 +101,19 @@ def setUseLidar(isUsed: Bool):
 
     lidarBreakdown = isUsed.data
 
-    if not lidarBreakdown:
+    if lidarBreakdown:
+        print("ffssdfsdf")
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
         # Use last LIDAR Data as fallback pose because it is
         # assumed that a lidar breakdown happens instantly and so last lidar data should be okay
-        poseMsg = PoseWithCovarianceStamped()
-        poseMsg.pose.pose.position.x = real_data[1]
-        poseMsg.pose.pose.position.y = real_data[2]
-        poseMsg.pose.pose.orientation.z = real_data[3]
-        poseMsg.pose.pose.orientation.w = 1
+        # poseMsg = PoseWithCovarianceStamped()
+        # poseMsg.pose.pose.position.x = real_data[1]
+        # poseMsg.pose.pose.position.y = real_data[2]
+        # poseMsg.pose.pose.orientation.z = real_data[3]
+        # poseMsg.pose.pose.orientation.w = 1
+        poseMsg = rospy.wait_for_message(
+            Topics.AMCL_SOURCE.value, PoseWithCovarianceStamped
+        )
         fallbackPose = poseMsg
         fallbackPosePub.publish(poseMsg)
 
@@ -140,13 +144,16 @@ def injectOffset():
     global injectOffsetEnabled
 
     while not rospy.is_shutdown():
-        amclMsg = rospy.wait_for_message(
+        amclMsg = PoseWithCovarianceStamped()
+        amclSourceMsg = rospy.wait_for_message(
             Topics.AMCL_SOURCE.value, PoseWithCovarianceStamped
         )
 
         if injectOffsetEnabled:
-            amclMsg.pose.pose.position.x += 2
-            amclMsg.pose.pose.position.x += 2
+            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + 2
+            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + 2
+        else:
+            amclMsg = amclSourceMsg
 
         amclPub.publish(amclMsg)
 
