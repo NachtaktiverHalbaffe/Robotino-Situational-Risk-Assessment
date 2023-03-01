@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Map1/Planner1
+        - /PolygonArray1
       Splitter Ratio: 0.5
     Tree Height: 207
   - Class: rviz/Selection
@@ -497,14 +498,14 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Class: jsk_rviz_plugin/PolygonArray
-      Color: 25; 255; 0
+      Color: 0; 0; 255
       Enabled: true
       Name: PolygonArray
       Queue Size: 10
       Topic: /obstacles_visu
       Unreliable: false
       Value: true
-      coloring: Auto
+      coloring: Flat color
       enable lighting: true
       normal length: 0.10000000149011612
       only border: true
