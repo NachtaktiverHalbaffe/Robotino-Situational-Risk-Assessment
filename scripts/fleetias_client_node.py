@@ -3,7 +3,7 @@ import json
 import rospy
 import socket
 from threading import Thread
-from std_msgs.msg import Int16, Bool, String
+from std_msgs.msg import Int16, Bool, String, Float32
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 from utils.constants import Topics, Nodes
@@ -16,6 +16,10 @@ targetCorPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
 lidarFeaturePub = rospy.Publisher(
     Topics.LIDAR_BREAKDOWN.value, Bool, queue_size=10, latch=True
 )
+injectOffsetEnabledPub = rospy.Publisher(
+    Topics.INJECT_OFFSET.value, Bool, queue_size=10, latch=True
+)
+offsetPub = rospy.Publisher(Topics.OFFSET.value, Float32, queue_size=10, latch=True)
 
 
 def activateFeature(feature: str, enabled: bool):
@@ -57,20 +61,15 @@ def addOffset(offset: list, feature: str):
         str: Response message
     """
     if feature == "Localization":
-        # Create message
-        data = rospy.wait_for_message(
-            Topics.LOCALIZATION.value, PoseWithCovarianceStamped
-        )
-        data.pose.pose.position.x += offset[0]
-        data.pose.pose.position.y += offset[1]
-        # Publish message
-        topic = Topics.ACML.value
-        publisher = rospy.Publisher(PoseWithCovarianceStamped, topic, queue_size=10)
         try:
-            publisher.publish(data)
+            injectOffsetEnabledPub.publish(True)
+            offsetPub.publish(float(offset[0]))
             return f"Success: Added offset {offset} to feature {feature}"
         except:
             return f"Error: Couldn't publish offset {offset} to feature {feature}"
+    else:
+        injectOffsetEnabledPub.publish(False)
+        offsetPub.publish(0)
 
 
 def pushTarget(id=0, coordinate=(0, 0), type="workstation"):

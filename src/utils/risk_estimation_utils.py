@@ -1,11 +1,8 @@
 import numpy as np
-import pandas as pd
 import rospy
-import rostopic
-from pathlib import Path
+
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
-
 from utils.constants import Topics
 
 
@@ -143,61 +140,3 @@ def closestNode(node, nodes):
     nodes = np.asarray(nodes)
     dist_2 = np.sum((nodes - node) ** 2, axis=1)
     return np.argmin(dist_2)
-
-
-def loadErrorDistribution(path: str, bins: int = 5, precision: int = 8):
-    """
-    Loads error values from a CSV file and creates a error distribution from them
-
-    Args:
-        path (str): The path to the CSV file
-        bins (int, optional): Number of segments into which the error distribution should be divided
-        precision (int, optional): The number of decimal places to which the probabilities are rounded
-
-    Returns:
-        segments (list of float): The segments from the error distribution
-        probabilities (list of float): The corresponding probability of each segment
-    """
-    file = Path(str(path).strip().replace("'", ""))
-    if file.exists():
-        data = pd.read_csv(path, header=None)
-        probabilities, segments = np.histogram(data, bins=bins, density=False)
-        if len(segments) != bins:
-            segments = segments[1:]
-        probabilities = np.divide(probabilities, len(data))
-        probabilities = np.round(probabilities, precision)
-        try:
-            rostopic.get_topic_class("/rosout")
-            rospy.logdebug(
-                f"[Crash and Remove] Loaded error distribution from {path}.\nSegments: {segments}\nProbabilities of segments: {probabilities}"
-            )
-        except:
-            print(
-                f"[Crash and Remove] Loaded error distribution from {path}.\nSegments: {segments}\nProbabilities of segments: {probabilities}"
-            )
-
-        return segments, probabilities
-    else:
-        raise FileExistsError("Error distribution doesn't exist")
-
-
-def loadErrorDistributionLIDAR():
-    segmentsAngles = [-0.17, -0.08, 0, 0.08, 0.17]
-    probabilitiesAngles = [0.0153, 0.175, 0.7, 0.10, 0.008]
-    segmentsDist = [-0.063, -0.037, -0.012, 0.012, 0.03]
-    probabilitiesDist = [0.095, 0.2575, 0.29, 0.22, 0.12]
-
-    try:
-        rostopic.get_topic_class("/rosout")
-        rospy.logdebug(
-            f"[Crash and Remove] Loaded error distribution with LIDAR values."
-        )
-    except:
-        print(f"[Crash and Remove] Loaded error distribution with LIDAR values.")
-    return segmentsAngles, probabilitiesAngles, segmentsDist, probabilitiesDist
-
-
-if __name__ == "__main__":
-    loadErrorDistribution(
-        "/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/localization_error_dist.csv"
-    )

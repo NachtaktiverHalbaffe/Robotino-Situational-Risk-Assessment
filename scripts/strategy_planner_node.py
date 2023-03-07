@@ -41,7 +41,6 @@ detectedAngle = 0
 # Publisher
 useErrorDistPub = rospy.Publisher(Topics.USE_ERRORDIST.value, Bool, queue_size=10)
 targetPub = rospy.Publisher(Topics.TARGET.value, PoseStamped, queue_size=10)
-navPub = rospy.Publisher(Topics.NAV_POINT.value, Point, queue_size=10)
 responsePub = rospy.Publisher(
     Topics.STRATEGY_PLANNER_RESPONSE.value, String, queue_size=10
 )
@@ -291,7 +290,7 @@ def executeFallbackMeasures():
     # Start the path planning process to navigate to safe spot
     try:
         # Avoid obstacles in path planning
-        # obstacleMarginPub.publish(4)
+        obstacleMarginPub.publish(4)
         fallbackPose = rospy.wait_for_message(
             Topics.FALLBACK_POSE.value, PoseWithCovarianceStamped
         )
@@ -313,7 +312,6 @@ def fallbackLocalStrategy(
     criticalSectors,
     angleAssumption: float,
     riskStop: float = 100,
-    MAX_ATTEMPTS=2,
 ):
     """
     Executes the fallback strategy, which effectiffely is purely a local strategy because the global strategy\
@@ -372,7 +370,6 @@ def fallbackLocalStrategy(
     else:
         # Uncritical sector => Just executing navigation
         rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
-        nrOfAttempt = 0
 
         if emergencyStop.is_set():
             rospy.logwarn(
@@ -417,7 +414,7 @@ def standardLocalStrategy(
     """
     global trajectory
     global emergencyStop
-    obstacleMarginPub.publish(0)
+    obstacleMarginPub.publish(2)
 
     if iterationNr in criticalNodes:
         # Critical sector => Executing under safety constraints
@@ -629,11 +626,6 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
     for i in range(len(trajectory.poses)):
         # We assume that we havn't to navigate to start node because were already there
         if i == 0:
-            if fallbackMode and i in criticalNodes:
-                rospy.loginfo(
-                    "[Strategy Planner] First sector is critical sector. Aborting navigation"
-                )
-                return False
             # Purely for logging in evaluationmanager
             collisionProbs = []
             rawProbs = riskEstimation.probs_rl
@@ -648,6 +640,11 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
         # Set initial angle from which the angle starts gets started to be interpolated
         # depending on the navigation responses
         if i == 1 and fallbackMode:
+            if (i in criticalNodes) and fallbackMode:
+                rospy.loginfo(
+                    "[Strategy Planner] First sector is critical sector. Aborting navigation"
+                )
+                return False
             angleAssumption = detectedAngle
 
         # ---- Standard strategy -----

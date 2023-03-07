@@ -100,6 +100,7 @@ chmod+x /path/to/script.py
 
 # Basic Project Documentation
 ## Manual
+### Run Prototype
 - Navigate to **workspace**
 - Run ``source devel/setup.sh`` in terminal
 - Either:
@@ -111,7 +112,18 @@ chmod+x /path/to/script.py
       - Each launchFile has own purpose
       - prototype.launch: Launches whole prototype stack
       - autonomousOperation.launch: Launches the autonomous part of the Robotino without risk estimation
-      - identifyAndMap.launch:
+      - identifyAndMap.launch: Legacy method when running most python scripts from terminal and not as ROS Nodes
+
+### Generate Error distribution
+- Make shure to have error values saved in a CSV file
+- Use ``monitored_space_observer_utils.py`` to generate distributions:
+  - ``generateErrorDistributionDistance()`` for generating distributions for distance (how its used) in RL agent)
+  - ``generateErrorDistributionAngle()`` for generating distributions for angle
+  - ``loadErrorValues()`` to just create error distribution without modifications for RL agent (distance errors e.g. are only positive)
+- Use ``plotErrorDist()`` to plot the segments and probabilities (which you get from the previous mentioned functions) to generate a bar chart
+- The node ``/monitored_space_observer`` does this automatically on shutdown:
+  - In ``logs/error_dist_csvs/hist/`` the plots are stored
+  - In ``logs/error_dist_csvs/dumps`` the error values are dumped (you have to generate the error distributions by yourself)
 
 ## Technical Docs
 ### ROS Topics

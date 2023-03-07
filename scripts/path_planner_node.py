@@ -39,7 +39,7 @@ currentPoint = PoseWithCovarianceStamped()
 currentPoint.pose.pose.position.x = -3.2
 currentPoint.pose.pose.position.y = 1.2
 
-obstacleMargin = 0
+obstacleMargin = 4
 fallbackPlanning = False
 fallbackPose = None
 

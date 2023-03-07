@@ -8,7 +8,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, String, Float32
 from tf.transformations import (
     quaternion_from_euler,
     euler_from_quaternion,
@@ -48,6 +48,7 @@ img_glob = []
 odom = Odometry()
 lidarBreakdown = False
 injectOffsetEnabled = False
+offset = 2.0
 fallbackPose = None
 real_data = ["real_data", 0, 0, 0]
 
@@ -60,6 +61,11 @@ def setOdom(newOdom: Odometry):
 def setInjectOffset(enabled: Bool):
     global injectOffsetEnabled
     injectOffsetEnabled = enabled.data
+
+
+def setOffset(offsetValue: Float32):
+    global offset
+    offset = offsetValue.data
 
 
 def setImage(rawImage: Image):
@@ -102,7 +108,6 @@ def setUseLidar(isUsed: Bool):
     lidarBreakdown = isUsed.data
 
     if lidarBreakdown:
-        print("ffssdfsdf")
         rospy.logdebug_throttle(10, "[Localization] Use LIDAR")
         # Use last LIDAR Data as fallback pose because it is
         # assumed that a lidar breakdown happens instantly and so last lidar data should be okay
@@ -142,6 +147,7 @@ def createOdom(currentPose: PoseWithCovarianceStamped):
 
 def injectOffset():
     global injectOffsetEnabled
+    global offset
 
     while not rospy.is_shutdown():
         amclMsg = PoseWithCovarianceStamped()
@@ -150,8 +156,8 @@ def injectOffset():
         )
 
         if injectOffsetEnabled:
-            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + 2
-            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + 2
+            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + offset
+            amclMsg.pose.pose.position.x = amclSourceMsg.pose.pose.position.x + offset
         else:
             amclMsg = amclSourceMsg
 
@@ -338,6 +344,7 @@ def localization():
     rospy.Subscriber(Topics.IMAGE_RAW.value, Image, setImage, queue_size=25)
     rospy.Subscriber(Topics.ODOM_ROBOTINO.value, Odometry, setOdom, queue_size=25)
     rospy.Subscriber(Topics.INJECT_OFFSET.value, Bool, setInjectOffset, queue_size=10)
+    rospy.Subscriber(Topics.OFFSET.value, Float32, setOffset, queue_size=10)
     rospy.Subscriber(
         Topics.ANOMALY_DETECTED.value, Bool, anomalyBehaviour, queue_size=1
     )

@@ -436,7 +436,8 @@ def estimateRisk(globalPath: Path):
     COST_COLLISION = 200
     COST_PRODUCTION_STOP = 100
     COST_COLLISIONSTOP = COST_COLLISION + COST_PRODUCTION_STOP
-    QUANTIFIED_DEVIATION = 16
+    # Quantification error we assume on the risk estimation
+    QUANTIFIED_ESTIMATION_ERROR = 0.08
 
     ###################################################
     # --------------- Run probability estimator ------------------
@@ -506,8 +507,8 @@ def estimateRisk(globalPath: Path):
     filteredProbs, _ = getUniqueCollisons(estimation)
 
     if len(filteredProbs) == 0:
-        riskCollision.append(0)
-        riskCollisionStop.append(0)
+        riskCollision.append(COST_COLLISION * QUANTIFIED_ESTIMATION_ERROR)
+        riskCollisionStop.append(COST_COLLISIONSTOP * QUANTIFIED_ESTIMATION_ERROR)
 
     for i in range(len(filteredProbs)):
         ###########################################
@@ -550,7 +551,10 @@ def estimateRisk(globalPath: Path):
             probabilitiesMsg.probabilities.append(singleProbMsg)
 
             # Calculate risk of collision in critical sector
-            criticalSector.risk_collision = np.multiply(rawProb, COST_COLLISION)
+            criticalSector.risk_collision = (
+                np.multiply(rawProb, COST_COLLISION)
+                + COST_COLLISION * QUANTIFIED_ESTIMATION_ERROR
+            )
 
             # Calculate risk of collision and stop
             for edge in commonTraj:
@@ -585,20 +589,17 @@ def estimateRisk(globalPath: Path):
             )
             criticalSectorsMsg.sectors.append(criticalSector)
 
+        riskCollisionStop.append(
+            calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP
+            + COST_COLLISIONSTOP * QUANTIFIED_ESTIMATION_ERROR
+        )
         # riskCollisionStop.append(
-        #     calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP
+        #     riskCollisionStopProb + COST_COLLISIONSTOP * QUANTIFIED_DEVIATION
         # )
-        # print(
-        #     (calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP)
-        #     == riskCollisionStopProb
-        # )
-        riskCollisionStop.append(riskCollisionStopProb)
         riskMsg.criticalSectors.append(criticalSectorsMsg)
         riskMsg.probs_rl.append(probabilitiesMsg)
         # Calculate global risk
-        riskMsg.globalRisks.append(
-            riskCollision[i] + riskCollisionStop[i] + QUANTIFIED_DEVIATION
-        )
+        riskMsg.globalRisks.append(riskCollision[i] + riskCollisionStop[i])
         # rospy.logdebug(
         #     f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
         # )
@@ -609,7 +610,7 @@ def estimateRisk(globalPath: Path):
     # Logging in Evaluationmanager
     # Publish ros message
     rospy.loginfo(
-        f"[Risk Estimator] Finished global risk estimation.\nRisk collision: {np.average(riskCollision)}\nRisk collision&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
+        f"[Risk Estimator] Finished global risk estimation with risk.\nRisk collision: {np.average(riskCollision)}\nRisk collision&stop: {np.average(riskCollisionStop)}\nRisk combined: {np.average(riskCollision)+np.average(riskCollisionStop)}"
     )
     try:
         publisherRL.publish(riskMsg)
