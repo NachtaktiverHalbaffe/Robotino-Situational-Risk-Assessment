@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
+import datetime
 import rospy
 import csv
 import os
 import collections
 import numpy as np
+import pandas as pd
 from std_msgs.msg import Bool, String
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
 from utils.constants import Topics, Nodes, Paths
 from utils.ros_logger import set_rospy_log_lvl
+from utils.monitored_space_observer_utils import loadErrorValues, plotErrorDist
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
@@ -52,6 +55,50 @@ def __clearStandardCSVs():
     f.close()
     f = open(Paths.ERRORDIST_DIST.value, "w+")
     f.close()
+
+
+def __createDump():
+    global errorDistrDistPath
+    global errorDistrAnglePath
+
+    rospy.loginfo("[Monitored Space Observer] Shutting down node. Creating data dumps")
+
+    currentTime = datetime.datetime.now().replace(microsecond=0).isoformat()
+    distPath = f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/dumps/localization_error_dist_{currentTime}"
+    anglePath = f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/dumps/localization_error_angle_{currentTime}"
+
+    df = pd.read_csv(errorDistrDistPath)
+    df.to_csv(distPath)
+    df = pd.read_csv(errorDistrAnglePath)
+    df.to_csv(anglePath)
+
+    plotErrorDist(
+        "Fehlerverteilung Distanz",
+        "Abweichung Distanz [m]",
+        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/dist.png",
+        *loadErrorValues(distPath),
+    )
+    plotErrorDist(
+        "Fehlerverteilung Distanz",
+        "Abweichung Distanz [m]",
+        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/angle.png",
+        *loadErrorValues(anglePath),
+    )
+
+    plotErrorDist(
+        "Fehlerverteilung Distanz",
+        "Abweichung Distanz [m]",
+        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/dist_{currentTime}.png",
+        *loadErrorValues(distPath),
+    )
+    plotErrorDist(
+        "Fehlerverteilung Distanz",
+        "Abweichung Distanz [m]",
+        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/angle_{currentTime}.png",
+        *loadErrorValues(anglePath),
+    )
+
+    return distPath, anglePath
 
 
 def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
@@ -192,6 +239,7 @@ def monitorSpace():
 
 if __name__ == "__main__":
     try:
+        rospy.on_shutdown(__createDump)
         monitorSpace()
     except:
         rospy.loginfo(f"Shutdown node {Nodes.MONITORED_SPACE_OBSERVER.value}")

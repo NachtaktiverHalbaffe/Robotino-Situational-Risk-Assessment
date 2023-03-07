@@ -19,18 +19,21 @@ from gym import spaces
 import numpy as np
 from PIL import Image
 
+
 try:
     # Import when running from  roslaunch
     from risk_estimation.Environment import *
-    from utils.risk_estimation_utils import (
-        loadErrorDistribution,
+    from utils.monitored_space_observer_utils import (
+        generateErrorDistributionAngle,
+        generateErrorDistributionDistance,
         loadErrorDistributionLIDAR,
     )
 except:
     # Import when running as python script
     from Environment import *
-    from utils.risk_estimation_utils import (
-        loadErrorDistribution,
+    from utils.monitored_space_observer_utils import (
+        generateErrorDistributionAngle,
+        generateErrorDistributionDistance,
         loadErrorDistributionLIDAR,
     )
 
@@ -156,11 +159,11 @@ class RoboEnv_gym_2(gym.Env):
             try:
                 # load dynamically from CSV file
                 if errorDistrDistPath != None and not useLidar:
-                    self.dists, self.dist_probs = loadErrorDistribution(
+                    self.dists, self.dist_probs = generateErrorDistributionDistance(
                         errorDistrDistPath, bins=self.actions_per_dimension
                     )
                 if errorDistrAnglePath != None and not useLidar:
-                    self.angles, self.angle_probs = loadErrorDistribution(
+                    self.angles, self.angle_probs = generateErrorDistributionAngle(
                         errorDistrAnglePath, bins=self.actions_per_dimension
                     )
             except:

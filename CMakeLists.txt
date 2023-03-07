@@ -133,7 +133,6 @@ catkin_install_python(PROGRAMS
                   scripts/workstation_mapper_node.py 
                   scripts/localization_node.py 
                   scripts/object_detection_node.py
-                  scripts/control_node.py
                   scripts/risk_estimator_node.py
                   scripts/strategy_planner_node.py
                   scripts/image_capture.py
