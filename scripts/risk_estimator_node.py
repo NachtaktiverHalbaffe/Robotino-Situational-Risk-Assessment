@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import numpy as np
 import pandas as pd
 import rospy
@@ -25,6 +26,7 @@ from risk_estimation.crash_and_remove import (
     run_crash_and_remove,
 )
 from prototype.msg import (
+    CriticalObjects,
     Risk,
     ProbabilityRL,
     ProbabilitiesRL,
@@ -45,62 +47,86 @@ INIT_CRITICALOBS = {
     "box": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "klapp": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "hocker": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "robotino": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "generic": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "geofenced": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws1": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws2": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws3": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws4": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws5": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
     "ws6": {
         "collisions": 0,
         "risks": [],
+        "averageRisk": 0,
         "relativeOccurence": 0,
+        "obstacleRisk": 0,
     },
 }
 
@@ -120,6 +146,9 @@ publisherRL = rospy.Publisher(
     Topics.RISK_ESTIMATION_RL.value,
     Risk,
     queue_size=10,  # latch=True
+)
+publisherObstacleRisk = rospy.Publisher(
+    Topics.CRITICAL_OBJECTS.value, CriticalObjects, queue_size=10
 )
 
 
@@ -171,7 +200,41 @@ def __getErrorDistPaths():
         return None, None, True
 
 
-def getUniqueCollisons(
+def __markObstaclesWithCollisionRisk(
+    obstacleRiskDict: dict, markInRviz: bool = True, markInBB: bool = True
+):
+    rvizMsg = CriticalObjects()
+    bbData = dict()
+    for key in obstacleRiskDict.keys():
+        entry = obstacleRiskDict[key]
+        if entry["collisions"] > 0:
+            # Obstacle has a risk of collision
+            # -- Mark so Rviz visualizes it --
+            if markInRviz:
+                rvizMsg.labels.append(key)
+                rvizMsg.averageRisks.append(entry["averageRisk"])
+                rvizMsg.relativeOccurence.append(entry["relativeOccurence"])
+                rvizMsg.obstacleRisk.append(entry["obstacleRisk"])
+            # -- Mark so bounding boxes in object detection gets marked --
+            if markInBB:
+                bbData[key] = {
+                    "averageRisk": entry["averageRisk"],
+                    "relativeOccurence": entry["relativeOccurence"],
+                    "obstacleRisk": entry["obstacleRisk"],
+                }
+
+    if markInBB:
+        print(f"{PATH}/maps/criticalObjects.json")
+        with open(f"{PATH}/maps/criticalObjects.json", "w") as jsonfile:
+            json.dump(bbData, jsonfile, sort_keys=True, indent=4)
+    if markInRviz:
+        try:
+            publisherObstacleRisk.publish(rvizMsg)
+        except Exception as e:
+            rospy.logerr(f"[Risk Estimator] Couldn't publish critical objects: {e}")
+
+
+def __getUniqueCollisons(
     estimationDict: dict, initialCriticalObjects: dict = None, nrTotalRuns: int = 1
 ):
     """
@@ -241,10 +304,24 @@ def getUniqueCollisons(
                 )
                 criticalObstacles[obstacle.label]["risks"].append(risk)
 
-    # Calculate relativeOccurence of collisions (only meaningful if nrTotalRuns != 0)
     for key in criticalObstacles.keys():
+        # Calculate relativeOccurence of collisions (only meaningful if nrTotalRuns != 0)
         criticalObstacles[key]["relativeOccurence"] = (
             criticalObstacles[key]["collisions"] / nrTotalRuns
+        )
+        # Calculate average collision probability
+        if len(criticalObstacles[key]["risks"]) != 0:
+            cummRisk = 0
+            for probability in criticalObstacles[key]["risks"]:
+                cummRisk = cummRisk + probability[0]
+            criticalObstacles[key]["averageRisk"] = cummRisk / len(
+                criticalObstacles[key]["risks"]
+            )
+
+        # calculate risk which originates from obstacle
+        criticalObstacles[key]["obstacleRisk"] = (
+            criticalObstacles[key]["averageRisk"]
+            * criticalObstacles[key]["relativeOccurence"]
         )
 
     return filteredProbs, criticalObstacles
@@ -356,7 +433,7 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     # In this dict the results are saved
     criticalObstacles = INIT_CRITICALOBS
     for run in runs:
-        _, criticalObstacles = getUniqueCollisons(run, criticalObstacles, nrTotalRuns)
+        _, criticalObstacles = __getUniqueCollisons(run, criticalObstacles, nrTotalRuns)
 
     # estimationObstacles = sorted(criticalObstacles.items(), key=lambda t: t[1])[-1][0]
     rospy.loginfo(
@@ -367,11 +444,11 @@ def estimateRiskOfObjects(nrOfRuns: Int16, operationMode="commonTasks"):
     df_currentRun = pd.DataFrame(criticalObstacles)
     try:
         df_oldRuns = pd.read_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
-        df_oldRuns.append(df_currentRun, ignore_index=True).to_csv(
-            Paths.RISK_ESTIMATION_OBSTACLES.value
+        df_oldRuns.append(df_currentRun).to_csv(
+            Paths.RISK_ESTIMATION_OBSTACLES.value, index=False
         )
     except:
-        df_currentRun.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value)
+        df_currentRun.to_csv(Paths.RISK_ESTIMATION_OBSTACLES.value, index=False)
 
     return criticalObstacles
 
@@ -504,8 +581,7 @@ def estimateRisk(globalPath: Path):
     commonTraj = getCommonTraj()
 
     # Filter out probabilities where a single collision was detected twice
-    filteredProbs, _ = getUniqueCollisons(estimation)
-
+    filteredProbs, criticalObs = __getUniqueCollisons(estimation)
     if len(filteredProbs) == 0:
         riskCollision.append(COST_COLLISION * QUANTIFIED_ESTIMATION_ERROR)
         riskCollisionStop.append(COST_COLLISIONSTOP * QUANTIFIED_ESTIMATION_ERROR)
@@ -551,10 +627,7 @@ def estimateRisk(globalPath: Path):
             probabilitiesMsg.probabilities.append(singleProbMsg)
 
             # Calculate risk of collision in critical sector
-            criticalSector.risk_collision = (
-                np.multiply(rawProb, COST_COLLISION)
-                + COST_COLLISION * QUANTIFIED_ESTIMATION_ERROR
-            )
+            criticalSector.risk_collision = np.multiply(rawProb, COST_COLLISION)
 
             # Calculate risk of collision and stop
             for edge in commonTraj:
@@ -591,7 +664,6 @@ def estimateRisk(globalPath: Path):
 
         riskCollisionStop.append(
             calculate_collosion_order(collStopProb) * COST_COLLISIONSTOP
-            + COST_COLLISIONSTOP * QUANTIFIED_ESTIMATION_ERROR
         )
         # riskCollisionStop.append(
         #     riskCollisionStopProb + COST_COLLISIONSTOP * QUANTIFIED_DEVIATION
@@ -599,7 +671,10 @@ def estimateRisk(globalPath: Path):
         riskMsg.criticalSectors.append(criticalSectorsMsg)
         riskMsg.probs_rl.append(probabilitiesMsg)
         # Calculate global risk
-        riskMsg.globalRisks.append(riskCollision[i] + riskCollisionStop[i])
+        riskMsg.globalRisks.append(
+            (riskCollision[i] + riskCollisionStop[i])
+            + (riskCollision[i] + riskCollisionStop[i]) * QUANTIFIED_ESTIMATION_ERROR
+        )
         # rospy.logdebug(
         #     f"[Risk Estimator] Finished global risk estimation for run {i}.\nRisk collision: {riskCollision[i]}\nRisk collision&stop: {riskCollisionStop[i]}\nRisk combined: {riskCollision[i]+riskCollisionStop[i]}"
         # )
@@ -614,6 +689,7 @@ def estimateRisk(globalPath: Path):
     )
     try:
         publisherRL.publish(riskMsg)
+        __markObstaclesWithCollisionRisk(criticalObs)
     except Exception as e:
         rospy.logwarn(f"[Risk Estimator] Couldn't publish message. Exception: {e}")
 

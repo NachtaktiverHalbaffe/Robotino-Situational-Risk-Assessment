@@ -8,6 +8,7 @@ class Topics(Enum):
     AMCL_SOURCE = "/amcl_pose_source"
     ANOMALY_DETECTED = "/anomaly_detected"
     BRUTEFORCE_ENABLED = "/bruteforce_enabled"
+    CRITICAL_OBJECTS = "/critical_objects"
     EMERGENCY_BRAKE = "/emergency_break"
     GLOBAL_PATH = "/path_global"
     INJECT_OFFSET = "/inject_offset"
