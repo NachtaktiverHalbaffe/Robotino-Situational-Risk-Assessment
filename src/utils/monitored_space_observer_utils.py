@@ -24,9 +24,12 @@ def plotErrorDist(
     plt.ylabel("Wahrscheinlichkeit")
     plt.title(title)
     plt.savefig(savePath)
+    plt.close()
+    plt.cla()
+    plt.clf()
 
 
-def loadErrorValues(path: str, bins: int = 5, precision: int = 8):
+def loadErrorValues(path: str, bins: int = 5, precision: int = 8, useUpperBins=False):
     """
     Loads error values from a CSV file and creates a histogram from them
 
@@ -44,7 +47,10 @@ def loadErrorValues(path: str, bins: int = 5, precision: int = 8):
         data = pd.read_csv(path, header=None)
         probabilities, segments = np.histogram(data, bins=bins, density=False)
         if len(segments) != bins:
-            segments = segments[: len(segments) - 1]
+            if useUpperBins:
+                segments = segments[1:]
+            else:
+                segments = segments[: len(segments) - 1]
         probabilities = np.divide(probabilities, len(data))
         probabilities = np.round(probabilities, precision)
 

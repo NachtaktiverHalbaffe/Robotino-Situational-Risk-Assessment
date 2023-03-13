@@ -64,38 +64,42 @@ def __createDump():
     rospy.loginfo("[Monitored Space Observer] Shutting down node. Creating data dumps")
 
     currentTime = datetime.datetime.now().replace(microsecond=0).isoformat()
-    distPath = f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/dumps/localization_error_dist_{currentTime}"
-    anglePath = f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/dumps/localization_error_angle_{currentTime}"
+    distPath = (
+        f"{PATH}/logs/error_dist_csvs/dumps/localization_error_dist_{currentTime}"
+    )
+    anglePath = (
+        f"{PATH}/logs/error_dist_csvs/dumps/localization_error_angle_{currentTime}"
+    )
 
     df = pd.read_csv(errorDistrDistPath)
-    df.to_csv(distPath)
+    df.to_csv(f"{distPath}.csv", index=False)
     df = pd.read_csv(errorDistrAnglePath)
-    df.to_csv(anglePath)
+    df.to_csv(f"{anglePath}.csv", index=False)
 
     plotErrorDist(
         "Fehlerverteilung Distanz",
         "Abweichung Distanz [m]",
-        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/dist.png",
-        *loadErrorValues(distPath),
+        f"{PATH}/logs/error_dist_csvs/hist/dist.png",
+        *loadErrorValues(f"{distPath}.csv", useUpperBins=True),
     )
     plotErrorDist(
-        "Fehlerverteilung Distanz",
-        "Abweichung Distanz [m]",
-        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/angle.png",
-        *loadErrorValues(anglePath),
+        "Fehlerverteilung Winkel",
+        "Abweichung Winkel [radians]",
+        f"{PATH}/logs/error_dist_csvs/hist/angle.png",
+        *loadErrorValues(f"{anglePath}.csv", useUpperBins=True),
     )
 
     plotErrorDist(
         "Fehlerverteilung Distanz",
         "Abweichung Distanz [m]",
-        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/dist_{currentTime}.png",
-        *loadErrorValues(distPath),
+        f"{distPath.replace('/dumps', '/hist')}.png",
+        *loadErrorValues(f"{distPath}.csv", useUpperBins=True),
     )
     plotErrorDist(
-        "Fehlerverteilung Distanz",
-        "Abweichung Distanz [m]",
-        f"/home/ros/catkin_ws/src/robotino/logs/error_dist_csvs/hist/angle_{currentTime}.png",
-        *loadErrorValues(anglePath),
+        "Fehlerverteilung Winkel",
+        "Abweichung Winkel [radians]",
+        f"{anglePath.replace('/dumps', '/hist')}.png",
+        *loadErrorValues(f"{anglePath}.csv", useUpperBins=True),
     )
 
     return distPath, anglePath
@@ -130,7 +134,10 @@ def _executeAnomalyMeasures(errorValue: float, anomalySource: str):
         )
 
 
-def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_error"):
+def spaceObserver(
+    savePath: str = f"{PATH}/logs/error_dist_csvs/localization_error",
+    disableAnomalyDetection=False,
+):
     """
     Tracks/saves the error distribution between localization with LIDAR (amcl) and camera
 
@@ -178,8 +185,6 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         yErr = float(amclPose.pose.pose.position.y - imageLoc.pose.pose.position.y)
 
         distErr = float(np.sqrt(np.square(xErr) + np.square(yErr)))
-        if (xErr < 0 and xErr > yErr) or (yErr < 0 and yErr > xErr):
-            distErr = -1 * distErr
         angleErr = float(
             amclPose.pose.pose.orientation.z - imageLoc.pose.pose.orientation.z
         )
@@ -202,21 +207,22 @@ def spaceObserver(savePath: str = f"{PATH}/logs/error_dist_csvs/localization_err
         angleErrMedian = np.median(angleErrFIFO)
 
         # Anomaly detection
-        # if np.abs(xErrMedian) > THRES_X:
-        #     _executeAnomalyMeasures(xErrMedian, "x-space")
-        # if np.abs(yErrMedian) > THRES_Y:
-        #     _executeAnomalyMeasures(yErrMedian, "y-space")
-        if np.abs(distErrMedian) > THRES_DIST:
-            print(distErrFIFO)
-            _executeAnomalyMeasures(distErrMedian, "distance-space")
-            return
-        if np.abs(angleErrMedian) > THRES_ANGLE:
-            print(angleErrFIFO)
-            _executeAnomalyMeasures(angleErrMedian, "angle-space")
-            return
+        if not disableAnomalyDetection:
+            # if np.abs(xErrMedian) > THRES_X:
+            #     _executeAnomalyMeasures(xErrMedian, "x-space")
+            # if np.abs(yErrMedian) > THRES_Y:
+            #     _executeAnomalyMeasures(yErrMedian, "y-space")
+            if np.abs(distErrMedian) > THRES_DIST:
+                print(distErrFIFO)
+                _executeAnomalyMeasures(distErrMedian, "distance-space")
+                return
+            if np.abs(angleErrMedian) > THRES_ANGLE:
+                print(angleErrFIFO)
+                _executeAnomalyMeasures(angleErrMedian, "angle-space")
+                return
 
 
-def monitorSpace():
+def monitorSpace(disableAnomalyDetection=False):
     """
     Runs the node itself. This node is responsible for tracking the deviation of measurements i.e. in this case\
     the difference between the localization with LIDAR (AMCL) and camera based localization
@@ -234,12 +240,12 @@ def monitorSpace():
 
     __clearStandardCSVs()
 
-    spaceObserver()
+    spaceObserver(disableAnomalyDetection=disableAnomalyDetection)
 
 
 if __name__ == "__main__":
     try:
         rospy.on_shutdown(__createDump)
-        monitorSpace()
+        monitorSpace(disableAnomalyDetection=True)
     except:
         rospy.loginfo(f"Shutdown node {Nodes.MONITORED_SPACE_OBSERVER.value}")
