@@ -173,7 +173,6 @@ def detect(log_detection_error=True):
         detec_movables_obstacles = []
         rotations_detected = []
         index_names = []
-
         for detec_m in detec_movables:
             index_names.append(config["names_movables"].index(detec_m["label"]))
             detec_movables_obstacle = get_obstacles_from_detection(
@@ -287,7 +286,7 @@ def objectDetection():
     config = initCV(
         rospy.get_param(
             "~weights_path",
-            default=f"{PATH}/src/yolov7/weights/statedict_tiny10_hocker.pt",
+            default=f"{PATH}/src/yolov7/weights/statedict_tiny_robotino.pt",
         ),
         rospy.get_param("map_path", default=f"{PATH}/maps/FinalGridMapv2cleaned.png"),
     )
@@ -319,8 +318,8 @@ def objectDetection():
 
 
 if __name__ == "__main__":
-    # try:
-    objectDetection()
-# except Exception as e:
-#     print(e)
-#     rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")
+    try:
+        objectDetection()
+    except Exception as e:
+        print(e)
+        rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")

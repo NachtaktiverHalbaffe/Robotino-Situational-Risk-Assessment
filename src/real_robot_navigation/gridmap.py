@@ -55,6 +55,12 @@ def get_box_and_klapp():
         "location": np.array([0 + 0.16, 0.0, 1.80 - 0.16]),
         "angle": 0,
     }
+    robotino = {
+        "name": "robotino",
+        "size": np.array([1.04, 0.70, 0.70]),
+        "location": np.array([0.6, 0.0, 1.80]),
+        "angle": 0,
+    }
     # chair = {'name': 'chair',
     #         'size': np.array([1.04, 0.70, 0.70]),
     #         'location': np.array([0.6, 0.0, 1.80]),
@@ -62,6 +68,7 @@ def get_box_and_klapp():
     objects.append(klapp)
     objects.append(box)
     objects.append(hocker)
+    objects.append(robotino)
 
     names = [object["name"] for object in objects]
     return objects, names

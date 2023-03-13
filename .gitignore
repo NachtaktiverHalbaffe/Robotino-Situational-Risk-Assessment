@@ -294,3 +294,5 @@ maps/map_traj.png
 maps/prot_obs.png
 maps/map_graph.png
 maps/map_nodes.png
+logs/error_dist_csvs/dumps
+logs/error_dist_csvs/hist

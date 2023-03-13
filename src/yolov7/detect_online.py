@@ -337,7 +337,7 @@ def loaded_detect(
                 if highest_conf_hocker < detection["conf"]:
                     highest_conf_hocker = detection["conf"]
                     index_highest_conf_hocker = i
-            if detection["label"][0:-2] in ["robotino"]:
+            if detection["label"] in ["robotino"]:
                 if highest_conf_robotino < detection["conf"]:
                     highest_conf_robotino = detection["conf"]
                     index_highest_conf_robotino = i
