@@ -1,0 +1,13 @@
+#goal definition
+geometry_msgs/Point target
+geometry_msgs/Point positionAssumption
+float32 angleAssumption
+---
+#result definition
+bool result 
+float32 currentAngle
+float32 currentDist
+---
+#feedback
+float32 currentAngle
+float32 currentDist

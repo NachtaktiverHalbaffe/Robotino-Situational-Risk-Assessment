@@ -15,7 +15,13 @@ from std_msgs.msg import Bool, String, Int16
 from nav_msgs.msg import Path
 from threading import Event
 
-from prototype.msg import Risk
+from prototype.msg import (
+    Risk,
+    PRMNavigationGoal,
+    PRMNavigationResult,
+    PRMNavigationFeedback,
+    PRMNavigationAction,
+)
 from utils.constants import Topics, Nodes, CommonPositions
 from utils.ros_logger import set_rospy_log_lvl
 from utils.evalmanager_client import EvalManagerClient
@@ -27,7 +33,8 @@ doneFeedback = -1
 """Feedback from move_base. 2 and 3 are success, greater than 4 a failure"""
 trajectory = []
 """The trajectory the robotino plans to drive. Given by path planner node"""
-feedbackValue = []
+feedbackValueMoveBase = []
+feedbackValuePRMNavigation = PRMNavigationFeedback()
 """Feedback of the move_base during execution"""
 emergencyStop = Event()
 """An event flag indicating if all current navigation tasks should be aborted"""
@@ -53,12 +60,17 @@ emergencyBrakePub = rospy.Publisher(
 
 
 def _moveBaseCallback(data: MoveBaseFeedback):
-    global feedbackValue
+    global feedbackValueMoveBase
 
-    feedbackValue = []
-    feedbackValue.append(data.base_position.pose.position.x)
-    feedbackValue.append(data.base_position.pose.position.y)
-    feedbackValue.append(data.base_position.pose.position.z)
+    feedbackValueMoveBase = []
+    feedbackValueMoveBase.append(data.base_position.pose.position.x)
+    feedbackValueMoveBase.append(data.base_position.pose.position.y)
+    feedbackValueMoveBase.append(data.base_position.pose.position.z)
+
+
+def _prmNavigationCallback(data: PRMNavigationFeedback):
+    global feedbackValuePRMNavigation
+    feedbackValuePRMNavigation = data
 
 
 def _moveBaseActionDoneCallback(data: MoveBaseActionResult):
@@ -153,7 +165,7 @@ def moveBaseClient(pose: PoseStamped) -> int:
     Args:
         path (nav_msgs.Path): The path to drive
     """
-    global feedbackValue
+    global feedbackValueMoveBase
     global emergencyStop
     rospy.logdebug("[Strategy Planner] Starting navigation with move_base client")
 
@@ -186,10 +198,13 @@ def moveBaseClient(pose: PoseStamped) -> int:
             client.cancel_goal()
             return 2
 
-        if feedbackValue:
+        if feedbackValueMoveBase:
             if (
-                (abs(feedbackValue[0] - goal.target_pose.pose.position.x) < 0.1)
-                and (abs(feedbackValue[1] - goal.target_pose.pose.position.y) < 0.1)
+                (abs(feedbackValueMoveBase[0] - goal.target_pose.pose.position.x) < 0.1)
+                and (
+                    abs(feedbackValueMoveBase[1] - goal.target_pose.pose.position.y)
+                    < 0.1
+                )
                 or doneFeedback >= 2
             ):
                 client.cancel_goal()
@@ -201,6 +216,9 @@ def moveBaseClient(pose: PoseStamped) -> int:
 
 
 def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption):
+    global emergencyStop
+    global feedbackValuePRMNavigation
+
     target = Point()
     target.x = pose.pose.position.x
     target.y = pose.pose.position.y
@@ -208,6 +226,28 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     start = Point()
     start.x = positionAssumption.pose.position.x
     start.y = positionAssumption.pose.position.y
+    client = actionlib.SimpleActionClient(Nodes.CONTROL.value, PRMNavigationAction)
+    # Creates a new goal with the MoveBaseGoal constructor
+    goal = PRMNavigationGoal()
+    goal.angleAssumption = angleAssumption
+    goal.positionAssumption = start
+    goal.target = target
+
+    # client.wait_for_server()
+    # # Sends the goal to the action server.
+    # client.send_goal(goal, feedback_cb=_prmNavigationCallback)
+
+    # while not rospy.is_shutdown():
+    #     if emergencyStop.is_set():
+    #         rospy.logwarn(
+    #             "[Strategy Planner] Move_base client aborted operation because of emergency stop"
+    #         )
+    #         # client.cancel_all_goals()
+    #         client.cancel_goal()
+    #         return feedbackValuePRMNavigation.currentAngle
+
+    # result = client.get_result()
+    # angleChange = result.currentAngle
 
     angleChange, _ = navigateToPoint(target, start, angleAssumption)
 

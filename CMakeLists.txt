@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   jsk_recognition_msgs
   message_generation
+  actionlib_msgs
 )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -69,11 +70,10 @@ add_message_files(
 # )
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  FILES
+  PRMNavigation.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
@@ -82,6 +82,7 @@ generate_messages(
   geometry_msgs
   nav_msgs
   jsk_recognition_msgs
+  actionlib_msgs
 )
 
 ################################################
@@ -126,6 +127,8 @@ catkin_package(
     tf2_msgs
     cv_bridge
     message_runtime
+    actionlib_msgs
+    action_lib
 )
 
 catkin_install_python(PROGRAMS 
@@ -138,6 +141,7 @@ catkin_install_python(PROGRAMS
                   scripts/strategy_planner_node.py
                   scripts/image_capture.py
                   scripts/monitored_space_observer.py
+                  scripts/control.py
                   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ###########

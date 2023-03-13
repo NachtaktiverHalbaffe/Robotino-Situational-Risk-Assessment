@@ -711,7 +711,7 @@ def riskEstimator(latchBB: bool = True):
         latchBB (bool, optional): If bounding boxes of critical objects from last risk estimation should be kept on a system restart. Defaults to True
     """
     rospy.init_node(Nodes.RISK_ESTIMATOR.value)
-    set_rospy_log_lvl(rospy.DEBUG)
+    set_rospy_log_lvl(rospy.INFO)
     rospy.loginfo(f"Starting node {Nodes.RISK_ESTIMATOR.value}")
 
     # Risk estimators

@@ -25,6 +25,7 @@
         <param name="ip" value="$(arg ip)"/>
     </node> -->
 
+    <node pkg="$(arg package_name)" name="control" type="control.py" output="screen" />
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="log">
         <!-- <remap from="cmd_vel" to="/my_cmd_vel" />  -->
         <rosparam file="$(arg path)/cfg/costmap_common_params.yaml" command="load" ns="global_costmap" />
