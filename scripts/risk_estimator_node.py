@@ -201,8 +201,18 @@ def __getErrorDistPaths():
 
 
 def __markObstaclesWithCollisionRisk(
-    obstacleRiskDict: dict, markInRviz: bool = True, markInBB: bool = True
+    obstacleRiskDict: dict,
+    markInRviz: bool = True,
+    markInBB: bool = True,
 ):
+    """
+    Creates a visualization message (for Rviz) and a JSOn file (for drawing bounding boxes onto camera image) with the objects that have a potential collision probabilty
+
+    Args:
+        obstacleRiskDict (dict): The dictionary with the obstacles with a risk in it. Must be in format of criticalObstacles of __getUniqueCollisons()
+        markInRviz (bool, optional): If visualization in rviz should be enabled. Defaults to true
+        markInBB (bool, optional): If bounding boxes of critical objects should be marked. Defaults to true
+    """
     rvizMsg = CriticalObjects()
     bbData = dict()
     for key in obstacleRiskDict.keys():
@@ -224,7 +234,6 @@ def __markObstaclesWithCollisionRisk(
                 }
 
     if markInBB:
-        print(f"{PATH}/maps/criticalObjects.json")
         with open(f"{PATH}/maps/criticalObjects.json", "w") as jsonfile:
             json.dump(bbData, jsonfile, sort_keys=True, indent=4)
     if markInRviz:
@@ -694,9 +703,12 @@ def estimateRisk(globalPath: Path):
         rospy.logwarn(f"[Risk Estimator] Couldn't publish message. Exception: {e}")
 
 
-def riskEstimator():
+def riskEstimator(latchBB: bool = True):
     """
     Runs the node itself. This node is responsible for estimating a risk for a given trajectory
+
+    Args:
+        latchBB (bool, optional): If bounding boxes of critical objects from last risk estimation should be kept on a system restart. Defaults to True
     """
     rospy.init_node(Nodes.RISK_ESTIMATOR.value)
     set_rospy_log_lvl(rospy.DEBUG)
@@ -726,6 +738,10 @@ def riskEstimator():
         Topics.USE_ERRORDIST.value, Bool, setUseCustomErroDist, queue_size=10
     )
 
+    if not latchBB:
+        with open(f"{PATH}/maps/criticalObjects.json", "w") as jsonfile:
+            json.dump({}, jsonfile, sort_keys=True, indent=4)
+
     # while not rospy.is_shutdown():
     #     visualizeCommonTraj()
     #     rospy.Rate(1).sleep()
@@ -736,7 +752,7 @@ def riskEstimator():
 
 if __name__ == "__main__":
     try:
-        riskEstimator()
+        riskEstimator(latchBB=True)
     except Exception as e:
         print(e)
         rospy.loginfo(f"Shutting down node {Nodes.RISK_ESTIMATOR.value}")

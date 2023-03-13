@@ -170,7 +170,7 @@ def move(dist):
         bool: If it moved successfully to the target (True) or failed (False)
     """
     # Little offset because its always a little to long
-    OFFSET = 0.1
+    OFFSET = 0.2
 
     global emergencyBrake
     speed = 0.10
@@ -220,7 +220,7 @@ def rotate(angle):
         bool: If it rotated successfully towards the target (True) or failed (False)
     """
     # Little offset because its always a little to less rotation
-    OFFSET = 0.01
+    OFFSET = 0.005
 
     global emergencyBrake
     rospy.logdebug(f"[Control] Start rotating {angle} radians")

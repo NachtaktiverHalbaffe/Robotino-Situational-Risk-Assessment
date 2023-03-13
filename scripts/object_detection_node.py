@@ -10,7 +10,7 @@ from std_msgs.msg import Bool
 from jsk_recognition_msgs.msg import PolygonArray
 from copy import deepcopy
 
-from prototype.msg import ObstacleMsg, ObstacleList
+from prototype.msg import ObstacleMsg, ObstacleList, CriticalObjects
 from utils.constants import Nodes, Topics
 from utils.cv_utils import get_obstacles_from_detection, initCV
 from utils.ros_logger import set_rospy_log_lvl
@@ -22,10 +22,16 @@ img_glob = []
 geofencedObs = None
 freezeObjects = False
 detectedObstacles = []
+criticalObs = None
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../", ""))
 
 visuPub = rospy.Publisher(Topics.OBSTACLES_VISU.value, PolygonArray, queue_size=10)
 objectDetecPub = rospy.Publisher(Topics.OBSTACLES.value, ObstacleList, queue_size=10)
+
+
+def setCriticalObstacles(obs: CriticalObjects):
+    global criticalObs
+    criticalObs = obs
 
 
 def setFreezeObjects(areFreezed: Bool):
@@ -72,18 +78,18 @@ def visualizeObstacles():
     global geofencedObs
     global config
     global freezeObjects
+    global criticalObs
 
     while not rospy.is_shutdown():
-        if freezeObjects:
-            continue
-        modify_map(
-            config["map_ref"],
-            [],
-            detectedObstacles,
-            color=(255, 255, 255),
-            convert_back_to_grey=True,
-            savePath=f"{PATH}/maps/map_obstacles.png",
-        )
+        if not freezeObjects:
+            modify_map(
+                config["map_ref"],
+                [],
+                detectedObstacles,
+                color=(255, 255, 255),
+                convert_back_to_grey=True,
+                savePath=f"{PATH}/maps/map_obstacles.png",
+            )
 
         msg = PolygonArray()
         msg.header.frame_id = "map"
@@ -97,8 +103,19 @@ def visualizeObstacles():
                 polygon.polygon.points.append(
                     Point32(transformedCor[0], transformedCor[1], 0.2)
                 )
-
+            # Set collision probability in field likelihood if risk estimator estimated a collision potential with this obstacle
+            if criticalObs != None:
+                if obstacle.label in criticalObs.labels:
+                    for i in range(len(criticalObs.labels)):
+                        if obstacle.label == criticalObs.labels[i]:
+                            msg.likelihood.append(criticalObs.averageRisks[i])
+                else:
+                    msg.likelihood.append(0.0)
+            else:
+                msg.likelihood.append(0.0)
             msg.polygons.append(polygon)
+
+        # Publishing topic
         try:
             visuPub.publish(msg)
         except Exception as e:
@@ -310,6 +327,12 @@ def objectDetection():
         Topics.OBSTACLES_GEOFENCED.value, ObstacleMsg, setGeofencedObj, queue_size=10
     )
     rospy.Subscriber(Topics.FREEZE_OBJECTS.value, Bool, setFreezeObjects, queue_size=10)
+    rospy.Subscriber(
+        Topics.CRITICAL_OBJECTS.value,
+        CriticalObjects,
+        setCriticalObstacles,
+        queue_size=10,
+    )
     Thread(target=visualizeObstacles).start()
     detect()
 
@@ -318,8 +341,8 @@ def objectDetection():
 
 
 if __name__ == "__main__":
-    try:
-        objectDetection()
-    except Exception as e:
-        print(e)
-        rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")
+    # try:
+    objectDetection()
+# except Exception as e:
+#     print(e)
+#     rospy.loginfo(f"Shutdown node {Nodes.OBJECT_DETECTION.value}")

@@ -1,4 +1,5 @@
 import argparse
+import json
 import time
 import rospy
 import sys, os
@@ -237,6 +238,7 @@ def loaded_detect(
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
                     label = f"{names[int(cls)]} {conf:.2f}"
+                    color, prob, printLabel = getBBColors(label)
                     # TODO REMOVE  next line and indent once chair no longer an object
                     if not label[0:3] == "cha":
                         if calc_3d:
@@ -244,27 +246,33 @@ def loaded_detect(
                                 xyxy, im0, label
                             )
                         if view_img:  # Add bbox to image
+                            if color == None:
+                                color = colors[int(cls)]
+                                tl = 1
+                            else:
+                                tl = -1
                             plot_one_box(
                                 xyxy,
                                 im0,
-                                label=label,
-                                color=colors[int(cls)],
-                                line_thickness=1,
+                                label=f"{printLabel}: {prob}",
+                                color=color,
+                                line_thickness=tl,
                             )
                         if calc_3d and not boundry:
                             for options in corners_3d:
                                 # plot_3d_box(corners_3d, im0, p_matrix, label=label,color=colors[int(cls)], line_thickness=1)
                                 if view_img and plot_3d:  # Add bbox to image
+                                    if color == None:
+                                        color = [
+                                            random.randint(0, 255),
+                                            random.randint(0, 255),
+                                            random.randint(0, 255),
+                                        ]
                                     plot_3d_box(
                                         options,
                                         im0,
                                         p_matrix,
-                                        label=label,
-                                        color=[
-                                            random.randint(0, 255),
-                                            random.randint(0, 255),
-                                            random.randint(0, 255),
-                                        ],
+                                        color=color,
                                         line_thickness=1,
                                     )
                                     if show:
@@ -454,6 +462,24 @@ def get_conf_and_model(weights="yolov7/weights/ws_tiny5.pt"):
 
     conf = detect_args_parse(args)
     return conf
+
+
+def getBBColors(label: str):
+    file = f"{PATH}/maps/criticalObjects.json"
+    color = None
+    prob = 0
+    printLabel = label
+    if os.path.isfile(file):
+        with open(file) as jsonfile:
+            criticalObs = json.load(jsonfile)
+
+        for key in criticalObs.keys():
+            if key in label:
+                color = [255, 0, 0]
+                prob = criticalObs[key]["averageRisk"]
+                printLabel = key
+
+    return color, prob, printLabel
 
 
 if __name__ == "__main__":

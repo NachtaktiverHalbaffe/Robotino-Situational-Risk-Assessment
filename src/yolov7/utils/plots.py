@@ -31,7 +31,9 @@ def color_list():
     def hex2rgb(h):
         return tuple(int(h[1 + i : 1 + i + 2], 16) for i in (0, 2, 4))
 
-    return [hex2rgb(h) for h in matplotlib.colors.TABLEAU_COLORS.values()]  # or BASE_ (8), CSS4_ (148), XKCD_ (949)
+    return [
+        hex2rgb(h) for h in matplotlib.colors.TABLEAU_COLORS.values()
+    ]  # or BASE_ (8), CSS4_ (148), XKCD_ (949)
 
 
 def hist2d(x, y, n=100):
@@ -56,7 +58,9 @@ def butter_lowpass_filtfilt(data, cutoff=1500, fs=50000, order=5):
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=3):
     # Plots one bounding box on image img
-    tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
+    tl = (
+        line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1
+    )  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
@@ -70,7 +74,7 @@ def plot_one_box(x, img, color=None, label=None, line_thickness=3):
             label,
             (c1[0], c1[1] - 2),
             0,
-            tl / 3,
+            1,
             [225, 255, 255],
             thickness=tf,
             lineType=cv2.LINE_AA,
@@ -79,7 +83,9 @@ def plot_one_box(x, img, color=None, label=None, line_thickness=3):
 
 def plot_3d_box(corners_3D, img, p, color=None, label=None, line_thickness=3):
     # Plots one bounding box on image img
-    tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
+    tl = (
+        line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1
+    )  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
     # c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     rvec = np.array([0, 0, 0], float)  # rotation vector
@@ -97,6 +103,7 @@ def plot_3d_box(corners_3D, img, p, color=None, label=None, line_thickness=3):
     cv2.line(img, c[1], c[2], color, thickness=tl, lineType=cv2.LINE_AA)
     cv2.line(img, c[2], c[3], color, thickness=tl, lineType=cv2.LINE_AA)
     cv2.line(img, c[3], c[0], color, thickness=tl, lineType=cv2.LINE_AA)
+
     # backface
     cv2.line(img, c[4], c[5], color, thickness=tl, lineType=cv2.LINE_AA)
     cv2.line(img, c[5], c[6], color, thickness=tl, lineType=cv2.LINE_AA)
@@ -110,9 +117,18 @@ def plot_3d_box(corners_3D, img, p, color=None, label=None, line_thickness=3):
     # if label:
     #     tf = max(tl - 1, 1)  # font thickness
     #     t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
-    #     c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
-    #     cv2.rectangle(img, c1, c2, color, -1, cv2.LINE_AA)  # filled
-    #     cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
+    #     c2 = c[0] + t_size[0], c[1] - t_size[1] - 3
+    #     cv2.rectangle(img, c, c2, color, -1, cv2.LINE_AA)  # filled
+    #     cv2.putText(
+    #         img,
+    #         label,
+    #         (c[0], c[1] - 2),
+    #         0,
+    #         tl / 3,
+    #         [225, 255, 255],
+    #         thickness=tf,
+    #         lineType=cv2.LINE_AA,
+    #     )
 
 
 def plot_one_box_PIL(box, img, color=None, label=None, line_thickness=None):
@@ -128,7 +144,9 @@ def plot_one_box_PIL(box, img, color=None, label=None, line_thickness=None):
             [box[0], box[1] - txt_height + 4, box[0] + txt_width, box[1]],
             fill=tuple(color),
         )
-        draw.text((box[0], box[1] - txt_height + 1), label, fill=(255, 255, 255), font=font)
+        draw.text(
+            (box[0], box[1] - txt_height + 1), label, fill=(255, 255, 255), font=font
+        )
     return np.asarray(img)
 
 
@@ -212,7 +230,9 @@ def plot_images(
             boxes = xywh2xyxy(image_targets[:, 2:6]).T
             classes = image_targets[:, 1].astype("int")
             labels = image_targets.shape[1] == 6  # labels if no conf column
-            conf = None if labels else image_targets[:, 6]  # check for confidence presence (label vs pred)
+            conf = (
+                None if labels else image_targets[:, 6]
+            )  # check for confidence presence (label vs pred)
 
             if boxes.shape[1]:
                 if boxes.max() <= 1.01:  # if normalized with tolerance 0.01
@@ -228,7 +248,9 @@ def plot_images(
                 cls = names[cls] if names else cls
                 if labels or conf[j] > 0.25:  # 0.25 conf thresh
                     label = "%s" % cls if labels else "%s %.1f" % (cls, conf[j])
-                    plot_one_box(box, mosaic, label=label, color=color, line_thickness=tl)
+                    plot_one_box(
+                        box, mosaic, label=label, color=color, line_thickness=tl
+                    )
 
         # Draw image filename labels
         if paths:
@@ -256,7 +278,9 @@ def plot_images(
 
     if fname:
         r = min(1280.0 / max(h, w) / ns, 1.0)  # ratio to limit image size
-        mosaic = cv2.resize(mosaic, (int(ns * w * r), int(ns * h * r)), interpolation=cv2.INTER_AREA)
+        mosaic = cv2.resize(
+            mosaic, (int(ns * w * r), int(ns * h * r)), interpolation=cv2.INTER_AREA
+        )
         # cv2.imwrite(fname, cv2.cvtColor(mosaic, cv2.COLOR_BGR2RGB))  # cv2 save
         Image.fromarray(mosaic).save(fname)  # PIL save
     return mosaic
@@ -400,7 +424,9 @@ def plot_labels(labels, names=(), save_dir=Path(""), loggers=None):
     labels[:, 1:] = xywh2xyxy(labels[:, 1:]) * 2000
     img = Image.fromarray(np.ones((2000, 2000, 3), dtype=np.uint8) * 255)
     for cls, *box in labels[:1000]:
-        ImageDraw.Draw(img).rectangle(box, width=1, outline=colors[int(cls) % 10])  # plot
+        ImageDraw.Draw(img).rectangle(
+            box, width=1, outline=colors[int(cls) % 10]
+        )  # plot
     ax[1].imshow(img)
     ax[1].axis("off")
 
@@ -416,7 +442,12 @@ def plot_labels(labels, names=(), save_dir=Path(""), loggers=None):
     for k, v in loggers.items() or {}:
         if k == "wandb" and v:
             v.log(
-                {"Labels": [v.Image(str(x), caption=x.name) for x in save_dir.glob("*labels*.jpg")]},
+                {
+                    "Labels": [
+                        v.Image(str(x), caption=x.name)
+                        for x in save_dir.glob("*labels*.jpg")
+                    ]
+                },
                 commit=False,
             )
 
@@ -437,7 +468,9 @@ def plot_evolution(
         # mu = (y * weights).sum() / weights.sum()  # best weighted result
         mu = y[f.argmax()]  # best single result
         plt.subplot(6, 5, i + 1)
-        plt.scatter(y, f, c=hist2d(y, f, 20), cmap="viridis", alpha=0.8, edgecolors="none")
+        plt.scatter(
+            y, f, c=hist2d(y, f, 20), cmap="viridis", alpha=0.8, edgecolors="none"
+        )
         plt.plot(mu, f.max(), "k+", markersize=15)
         plt.title("%s = %.3g" % (k, mu), fontdict={"size": 9})  # limit to 40 characters
         if i % 5 != 0:
@@ -494,7 +527,9 @@ def profile_idetection(start=0, stop=0, labels=(), save_dir=""):
     plt.savefig(Path(save_dir) / "idetection_profile.png", dpi=200)
 
 
-def plot_results_overlay(start=0, stop=0):  # from utils.plots import *; plot_results_overlay()
+def plot_results_overlay(
+    start=0, stop=0
+):  # from utils.plots import *; plot_results_overlay()
     # Plot training 'results*.txt', overlaying train and val losses
     s = [
         "train",
@@ -509,7 +544,9 @@ def plot_results_overlay(start=0, stop=0):  # from utils.plots import *; plot_re
         "mAP@0.5:0.95",
     ]  # legends
     t = ["Box", "Objectness", "Classification", "P-R", "mAP-F1"]  # titles
-    for f in sorted(glob.glob("results*.txt") + glob.glob("../../Downloads/results*.txt")):
+    for f in sorted(
+        glob.glob("results*.txt") + glob.glob("../../Downloads/results*.txt")
+    ):
         results = np.loadtxt(f, usecols=[2, 3, 4, 8, 9, 12, 13, 14, 10, 11], ndmin=2).T
         n = results.shape[1]  # number of rows
         x = range(start, min(stop, n) if stop else n)
@@ -547,14 +584,20 @@ def plot_results(start=0, stop=0, bucket="", id=(), labels=(), save_dir=""):
     if bucket:
         # files = ['https://storage.googleapis.com/%s/results%g.txt' % (bucket, x) for x in id]
         files = ["results%g.txt" % x for x in id]
-        c = ("gsutil cp " + "%s " * len(files) + ".") % tuple("gs://%s/results%g.txt" % (bucket, x) for x in id)
+        c = ("gsutil cp " + "%s " * len(files) + ".") % tuple(
+            "gs://%s/results%g.txt" % (bucket, x) for x in id
+        )
         os.system(c)
     else:
         files = list(Path(save_dir).glob("results*.txt"))
-    assert len(files), "No results.txt files found in %s, nothing to plot." % os.path.abspath(save_dir)
+    assert len(
+        files
+    ), "No results.txt files found in %s, nothing to plot." % os.path.abspath(save_dir)
     for fi, f in enumerate(files):
         try:
-            results = np.loadtxt(f, usecols=[2, 3, 4, 8, 9, 12, 13, 14, 10, 11], ndmin=2).T
+            results = np.loadtxt(
+                f, usecols=[2, 3, 4, 8, 9, 12, 13, 14, 10, 11], ndmin=2
+            ).T
             n = results.shape[1]  # number of rows
             x = range(start, min(stop, n) if stop else n)
             for i in range(10):
@@ -642,7 +685,9 @@ def plot_skeleton_kpts(im, kpts, steps, orig_shape=None):
         [5, 7],
     ]
 
-    pose_limb_color = palette[[9, 9, 9, 9, 7, 7, 7, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16]]
+    pose_limb_color = palette[
+        [9, 9, 9, 9, 7, 7, 7, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16]
+    ]
     pose_kpt_color = palette[[16, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9]]
     radius = 5
     num_kpts = len(kpts) // steps
@@ -655,7 +700,9 @@ def plot_skeleton_kpts(im, kpts, steps, orig_shape=None):
                 conf = kpts[steps * kid + 2]
                 if conf < 0.5:
                     continue
-            cv2.circle(im, (int(x_coord), int(y_coord)), radius, (int(r), int(g), int(b)), -1)
+            cv2.circle(
+                im, (int(x_coord), int(y_coord)), radius, (int(r), int(g), int(b)), -1
+            )
 
     for sk_id, sk in enumerate(skeleton):
         r, g, b = pose_limb_color[sk_id]

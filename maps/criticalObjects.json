@@ -1,7 +1,7 @@
 {
-    "geofenced": {
-        "averageRisk": 0.8889,
-        "obstacleRisk": 0.8889,
+    "klapp": {
+        "averageRisk": 1.0,
+        "obstacleRisk": 1.0,
         "relativeOccurence": 1.0
     }
 }
