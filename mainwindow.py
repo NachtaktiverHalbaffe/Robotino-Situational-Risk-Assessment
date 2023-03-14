@@ -639,9 +639,8 @@ class MainWindow(QMainWindow):
         """
         Stops the worker which runs the adversary
         """
-        for thread in self.thread:
-            if thread.is_running == False:
-                thread.stop()
+        if self.thread[1].is_running == False:
+            self.thread[1].stop()
 
         # Enable test/train buttons so adversaries can be restarted
         self.ui.Train.setEnabled(True)

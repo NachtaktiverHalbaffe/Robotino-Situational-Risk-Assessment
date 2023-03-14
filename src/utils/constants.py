@@ -39,7 +39,7 @@ class Topics(Enum):
     PATH_ERRORDIST_DIST = "/path_errordistr_dist"
     PATH_ERRORDISTR_ANGLE = "/path_errordistr_angle"
     RISK_ESTIMATION_BRUTE = "/risk_estimation_brute"
-    RISK_ESTIMATION_RL = "/risk_estimation_rl"
+    RISK_ESTIMATION_RL = "/risk_estimation"
     RISK_ESTIMATION_SOTA = "/risk_estimation_sota"
     SOTA_ENABLED = "/sota_enabled"
     STRATEGY_PLANNER_RESPONSE = "/strategy_planner_response"
