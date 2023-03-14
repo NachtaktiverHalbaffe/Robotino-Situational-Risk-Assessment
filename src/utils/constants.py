@@ -61,6 +61,7 @@ class Nodes(Enum):
     RISK_ESTIMATOR = "risk_estimator"
     MOVE_BASE = "move_base"
     MONITORED_SPACE_OBSERVER = "monitored_space_observer"
+    SCRIPT = "script"
 
 
 class Metrics(Enum):

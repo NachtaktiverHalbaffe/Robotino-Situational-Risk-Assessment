@@ -210,7 +210,7 @@ def moveBaseClient(pose: PoseStamped) -> int:
                 client.cancel_goal()
                 break
 
-    time.sleep(0.5)
+    time.sleep(0.2)
 
     return doneFeedback
 
@@ -651,6 +651,9 @@ def standardGlobalStrategy(
         # Consider navigation finally too risky
         nrOfAttempt = 1
         obstacleMarginPub.publish(2 * nrOfAttempt)
+        responsePub.publish(
+            f"Error: Risk of {np.average(riskGlobal)} too high. Cancelling navigation task"
+        )
         if evalLoggingEnabled:
             EvalManagerClient().evalLogStartedTask()
             EvalManagerClient().evalLogRisk(np.average(riskGlobal))
@@ -701,14 +704,14 @@ def chooseStrategy(
 
     if not fallbackMode:
         responseGlobalStrat = standardGlobalStrategy(
-            riskGlobal, riskStop=100, MAX_ATTEMPTS=2
+            riskGlobal, riskStop=100, MAX_ATTEMPTS=3
         )
 
         if responseGlobalStrat == False:
             return False
     else:
         responseGlobalStrat = fallbackGlobalStrategy(
-            riskGlobal, riskStop=100, MAX_ATTEMPTS=2
+            riskGlobal, riskStop=100, MAX_ATTEMPTS=3
         )
 
         if responseGlobalStrat == False:
