@@ -703,7 +703,7 @@ def estimateRisk(globalPath: Path):
         rospy.logwarn(f"[Risk Estimator] Couldn't publish message. Exception: {e}")
 
 
-def riskEstimator(latchBB: bool = True):
+def riskEstimator(latchBB: bool = False):
     """
     Runs the node itself. This node is responsible for estimating a risk for a given trajectory
 
@@ -752,7 +752,7 @@ def riskEstimator(latchBB: bool = True):
 
 if __name__ == "__main__":
     try:
-        riskEstimator(latchBB=True)
+        riskEstimator(latchBB=False)
     except Exception as e:
         print(e)
         rospy.loginfo(f"Shutting down node {Nodes.RISK_ESTIMATOR.value}")

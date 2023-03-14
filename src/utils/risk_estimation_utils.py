@@ -105,22 +105,22 @@ def getIntersection(a1, a2, b1, b2):
          x,y-tuple: Intersection point of two edges or infinite if lines are parallel
          bool: If line is intersecting
     """
-    THRES = 0.2
+    THRES = 0.3
 
     a = np.array([a1, a2])
     b = np.array([b1, b2])
 
     # t is scalar for a, s for b
     t, s = np.linalg.solve(np.array([a[1] - a[0], b[0] - b[1]]).T, b[0] - a[0])
+    pointIntersect = (1 - t) * a[0] + t * a[1]
+    dist = np.linalg.norm(a2 - pointIntersect)
 
-    # print(f"t: {t} s:{s}")
-    # s and t must be between 0 and 1 in general, otherwise the intersection is outside the edges
-    # s is the sclaing factor for the vector of common edge onto which the proprietary robotinos drive
-    # t is from the trajectory driven by the ego-robotino. So it must be between 0<= t <= THRES and
-    # 1-THRES (=THRES_UPPER) <= t <=1 so only intersections in a certain range to the start and goal nodes,
-    # where the robotino would collide or stop and lead to a production stop, are considered
-    if (s <= 1 and s >= 0) and (t <= 1 and t >= (1 - THRES)):
-        return (1 - t) * a[0] + t * a[1], True
+    # Robotino has a diameter of approx 45 cm. For infering when a intersection would suggest that a collision
+    # would also lead to a production stop, the radius and a little margin is used as the threshold. A intersection
+    # above this threshold means that other robotinos can drive around that robotino which collided. A intersection under
+    # this threshold means that the other robotinos also have to stop because they cant drive around the collison => production stop
+    if dist < THRES:
+        return pointIntersect, True
     else:
         return np.inf, False
 
