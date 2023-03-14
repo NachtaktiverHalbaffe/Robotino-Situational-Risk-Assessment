@@ -55,7 +55,7 @@ The installing system should be an Ubuntu operating system. As gazebo best used 
 
    - Install the above deb files using gdebi
 
-4. It is recommended to install gazebo and check for proper installation. Either:
+4. It is recommended to install gazebo and jsk-recognition and check for proper installation. Either:
 
 - Follow the link
 [http://gazebosim.org/tutorials?tut=install_ubuntu&amp;cat=install](http://gazebosim.org/tutorials?tut=install_ubuntu&cat=install)
@@ -63,6 +63,8 @@ The installing system should be an Ubuntu operating system. As gazebo best used 
    ```bash
    sudo apt-get install gazebo11
    sudo apt-get install libgazebo11-dev
+   sudo apt-get install ros-noetic-jsk-recognition-msgs 
+   sudo apt-get install ros-noetic-jsk-rviz-plugins
    ```
 5. Then install ros package gazebo_ros_pkgs. Either:
    - Follow instructions from link
@@ -113,6 +115,7 @@ chmod+x /path/to/script.py
       - prototype.launch: Launches whole prototype stack
       - autonomousOperation.launch: Launches the autonomous part of the Robotino without risk estimation
       - identifyAndMap.launch: Legacy method when running most python scripts from terminal and not as ROS Nodes
+  - Start GUI: ``python3 src/robotino/mainwindow.py`` and launch ros from gui
 
 ### Generate Error distribution
 - Make shure to have error values saved in a CSV file
