@@ -227,9 +227,13 @@ def calculate_edge_costs(map_ref, edges, obstacles=None, prot=False, obstacleMar
                 rounded_edge_points = np.round(np.array(edge.edge_points)).astype(int)
                 rounded_edge_points_x = rounded_edge_points[:, 0]
                 rounded_edge_points_y = rounded_edge_points[:, 1]
-                grayscale_vals = map_matrix[
-                    rounded_edge_points_y, rounded_edge_points_x
-                ]
+                # Sometimes rounded_edge_points are out of index range => skip iteration as a drity fix
+                try:
+                    grayscale_vals = map_matrix[
+                        rounded_edge_points_y, rounded_edge_points_x
+                    ]
+                except:
+                    continue
 
             for edge_point in edge.edge_points:
                 distances = []

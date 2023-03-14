@@ -40,7 +40,7 @@ emergencyStop = Event()
 """An event flag indicating if all current navigation tasks should be aborted"""
 fallbackMode = False
 """If robotino has detected a anomaly or lidar breakdown and is now executing in fallback mode"""
-nrOfAttempt = 0
+nrOfAttempt = 1
 """Number of the current attempt in planning and executing a strategy for a given trajecotry and risk estimation"""
 detectedAngle = 0
 """The last known angle of the robotino. Needed when the robotino enters fallback mode"""
@@ -216,6 +216,15 @@ def moveBaseClient(pose: PoseStamped) -> int:
 
 
 def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption):
+    """
+    Uses the PRM navigation method to navigate. It basically rotates towards the target and then drives forward.\
+    This method doesn't use the lidar and works with position assumptions
+
+    Args:
+        pose (PoseStamped): The target to which the robotino should drive
+        positionAssumption (PoseStamped): The current position of the robotino
+        angleassumption (float): The current angle of the robotino
+    """
     global emergencyStop
     global feedbackValuePRMNavigation
 
@@ -260,9 +269,17 @@ def navigate(pose: PoseStamped, positionAssumption: PoseStamped, angleAssumption
     return new_rotation
 
 
-def detectHazard(rawReadings: PointCloud):
+def detectHazard(
+    rawReadings: PointCloud,
+    evalLoggingEnabled: bool = False,
+):
     """
-    Identifies the hazard/collision
+    Uses the IR readings to activate a emergency stop if robotino is too near to an obstacle
+
+    Args:
+        rawReadings (PointCloud): The readings from the IR sensors
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                        thesis, not neccessary for normal operation). Defaults to False
     """
     global emergencyStop
     # Distance threshold under which a hazard is detected
@@ -274,14 +291,16 @@ def detectHazard(rawReadings: PointCloud):
     if np.min(dist) < THRESHOLD_COLLISIONDETECTION_DISTANCE:
         # Detected collision
         rospy.loginfo("[Strategy Planner] IR sensors detected collision")
-        EvalManagerClient().evalLogCollision()
+        if evalLoggingEnabled:
+            EvalManagerClient().evalLogCollision()
         # rospy.Publisher(Topics.EMERGENCY_BRAKE.value, Bool).publish(True)
     elif np.min(dist) < THRESHOLD_EMERGENCYSTOP_DISTANCE:
         rospy.loginfo(
             "[Strategy Planner] IR sensors detected obstacle and activates emergencybreak"
         )
         emergencyStop.set()
-        EvalManagerClient().evalLogStop()
+        if evalLoggingEnabled:
+            EvalManagerClient().evalLogStop()
 
 
 def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
@@ -289,7 +308,9 @@ def activateFallbackBehaviour(enabled: Bool, reason: str = "lidarbreakdown"):
     It activates/ deactives fallback behaviour and starts fallback Behaviour strategies
 
     Args:
-        lidarEnabled:
+        enabled (bool): If fallback behaviour should be enabled
+        reason (str, optional): The reason why the fallback behaviour is activated.\
+                                Either "lidarbreakdown" or "anomalyDetected". Defaults to first one
     """
     global emergencyStop
     global fallbackMode
@@ -352,6 +373,7 @@ def fallbackLocalStrategy(
     criticalSectors,
     angleAssumption: float,
     riskStop: float = 100,
+    evalLoggingEnabled: bool = False,
 ):
     """
     Executes the fallback strategy, which effectiffely is purely a local strategy because the global strategy\
@@ -362,9 +384,9 @@ def fallbackLocalStrategy(
         criticalNodes (list): A list of node indexes where a collision could potentially happen
         critivalSectors (list of CriticalSector): All known critical sectors in trajectory
         angleAssumption (float): The assumed current angle of the ego-robotino
-        riskStop (float, optional): The threshold risk which determines if robotino should drive or stop
-        MAX_ATTEMPS (int, optional): Maximal number of replannings before robotino finally considers navigation too risky      
-
+        riskStop (float, optional): The threshold risk which determines if robotino should drive or stop 
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                            thesis, not neccessary for normal operation). Defaults to False
     Returns:
         navResponse (bool): If navigation was successful
         angleAssumption (float): The assumed new angle of the robot after navigation
@@ -385,12 +407,13 @@ def fallbackLocalStrategy(
                     localRisk.append(node.risk)
                     break
 
-        # Logging in Evaluationmanager
-        EvalManagerClient().evalLogCriticalSector(
-            x=trajectory.poses[iterationNr].pose.position.x,
-            y=trajectory.poses[iterationNr].pose.position.y,
-            localRisk=np.average(localRisk),
-        )
+        if evalLoggingEnabled:
+            # Logging in Evaluationmanager
+            EvalManagerClient().evalLogCriticalSector(
+                x=trajectory.poses[iterationNr].pose.position.x,
+                y=trajectory.poses[iterationNr].pose.position.y,
+                localRisk=np.average(localRisk),
+            )
 
         # Check if emergencystop is set before start moving
         if emergencyStop.is_set():
@@ -417,11 +440,12 @@ def fallbackLocalStrategy(
             )
             return False, angleAssumption
 
-        # Logging in Evaluationmanager
-        EvalManagerClient().evalLogUncriticalSector(
-            x=trajectory.poses[iterationNr].pose.position.x,
-            y=trajectory.poses[iterationNr].pose.position.y,
-        )
+        if evalLoggingEnabled:
+            # Logging in Evaluationmanager
+            EvalManagerClient().evalLogUncriticalSector(
+                x=trajectory.poses[iterationNr].pose.position.x,
+                y=trajectory.poses[iterationNr].pose.position.y,
+            )
 
         angleAssumption = navigate(
             trajectory.poses[iterationNr],
@@ -439,6 +463,7 @@ def standardLocalStrategy(
     riskStop: float = 100,
     useMoveBaseClient=True,
     assumedPosition: PoseWithCovarianceStamped = None,
+    evalLoggingEnabled: bool = False,
 ):
     """
     Executes the standard local strategy, which effectiffely uses the move_base client to navigate to the node
@@ -448,7 +473,8 @@ def standardLocalStrategy(
         criticalNodes (list): A list of node indexes where a collision could potentially happen
         critivalSectors (list of CriticalSector): All known critical sectors in trajectory
         riskStop (float, optional): The threshold risk which determines if robotino should drive or stop
-
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                            thesis, not neccessary for normal operation). Defaults to False
     Returns:
         navResponse (bool): If navigation was successful
     """
@@ -467,12 +493,13 @@ def standardLocalStrategy(
                     localRisk.append(node.risk)
                     break
 
-        # Logging in Evaluationmanager
-        EvalManagerClient().evalLogCriticalSector(
-            x=trajectory.poses[iterationNr].pose.position.x,
-            y=trajectory.poses[iterationNr].pose.position.y,
-            localRisk=np.average(localRisk),
-        )
+        if evalLoggingEnabled:
+            # Logging in Evaluationmanager
+            EvalManagerClient().evalLogCriticalSector(
+                x=trajectory.poses[iterationNr].pose.position.x,
+                y=trajectory.poses[iterationNr].pose.position.y,
+                localRisk=np.average(localRisk),
+            )
 
         # Check if emergencystop is set before start moving
         if emergencyStop.is_set():
@@ -512,16 +539,18 @@ def standardLocalStrategy(
             rospy.logdebug(
                 f"[Strategy Planner] Aborting navigation, risk is too high. Local risk:{np.average(localRisk)}"
             )
-            EvalManagerClient().evalLogStop()
+            if evalLoggingEnabled:
+                EvalManagerClient().evalLogStop()
             return False
     else:
         # Uncritical sector => Just executing navigation
         rospy.logdebug("[Strategy Planner] Moving in uncritical sector")
-        # Logging in Evaluationmanager
-        EvalManagerClient().evalLogUncriticalSector(
-            x=trajectory.poses[iterationNr].pose.position.x,
-            y=trajectory.poses[iterationNr].pose.position.y,
-        )
+        if evalLoggingEnabled:
+            # Logging in Evaluationmanager
+            EvalManagerClient().evalLogUncriticalSector(
+                x=trajectory.poses[iterationNr].pose.position.x,
+                y=trajectory.poses[iterationNr].pose.position.y,
+            )
 
         if emergencyStop.is_set():
             responsePub.publish("Error: Trajectory execution did fail")
@@ -534,7 +563,8 @@ def standardLocalStrategy(
             result = moveBaseClient(trajectory.poses[iterationNr])
             if result >= 4:
                 # move base failed
-                EvalManagerClient().evalLogStop()
+                if evalLoggingEnabled:
+                    EvalManagerClient().evalLogStop()
                 return False
         else:
             angleAssumption = assumedPosition.pose.pose.orientation.z
@@ -551,8 +581,17 @@ def standardLocalStrategy(
 
 
 def fallbackGlobalStrategy(
-    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 2
+    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 3
 ):
+    """
+    The global strategy when operating under fallback behaviour. Basically the same as standard global strategy,
+    but the robotino drives as far as possible without risk, even if global risk is above threshold after maximum number of replannings
+
+    Args:
+        riskGlobal (list of float): The global risks from the risk estimator
+        riskStop (float, optional): The threshold under which the risk is viable
+        MAX_ATTEMTPS (int, optional): The maximum number of replannings. After this, this navigation is cancelled
+    """
     global trajectory
     global nrOfAttempt
 
@@ -562,7 +601,7 @@ def fallbackGlobalStrategy(
         )
         # Retry risk estimation
         nrOfAttempt = nrOfAttempt + 1
-        obstacleMarginPub.publish(4 * nrOfAttempt)
+        obstacleMarginPub.publish(2 * nrOfAttempt)
         targetPub.publish(CommonPositions.SAFE_SPOT.value)
         return False
     elif (np.average(riskGlobal) > riskStop) and (nrOfAttempt >= MAX_ATTEMPTS):
@@ -576,8 +615,22 @@ def fallbackGlobalStrategy(
 
 
 def standardGlobalStrategy(
-    riskGlobal: list, riskStop: float = 100, MAX_ATTEMPTS: int = 2
+    riskGlobal: list,
+    riskStop: float = 100,
+    MAX_ATTEMPTS: int = 3,
+    evalLoggingEnabled: bool = False,
 ):
+    """
+    The global strategy when operating under normal circumstances. Just checks if risk is under threshold,
+    otherwise restart replanning with increased margin to obstacles until maximal number of replannings is reached
+
+    Args:
+        riskGlobal (list of float): The global risks from the risk estimator
+        riskStop (float, optional): The threshold under which the risk is viable
+        MAX_ATTEMTPS (int, optional): The maximum number of replannings. After this, this navigation is cancelled
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                            thesis, not neccessary for normal operation). Defaults to False
+    """
     global trajectory
     global nrOfAttempt
 
@@ -587,7 +640,7 @@ def standardGlobalStrategy(
         )
         # Retry risk estimation
         nrOfAttempt = nrOfAttempt + 1
-        obstacleMarginPub.publish(4 * nrOfAttempt)
+        obstacleMarginPub.publish(2 * nrOfAttempt)
         goalPose = trajectory.poses[len(trajectory.poses) - 1]
         targetPub.publish(goalPose)
         return False
@@ -596,23 +649,30 @@ def standardGlobalStrategy(
             f"[Strategy Planner] Risk too high and maximal number of attemps exceeded. Abort navigation task. Risk: {np.average(riskGlobal)}"
         )
         # Consider navigation finally too risky
-        nrOfAttempt = 0
-        obstacleMarginPub.publish(4 * nrOfAttempt)
-        EvalManagerClient().evalLogStartedTask()
-        EvalManagerClient().evalLogRisk(np.average(riskGlobal))
-        EvalManagerClient().evalLogStop()
+        nrOfAttempt = 1
+        obstacleMarginPub.publish(2 * nrOfAttempt)
+        if evalLoggingEnabled:
+            EvalManagerClient().evalLogStartedTask()
+            EvalManagerClient().evalLogRisk(np.average(riskGlobal))
+            EvalManagerClient().evalLogStop()
         return False
 
     return True
 
 
-def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
+def chooseStrategy(
+    riskEstimation: Risk,
+    useMoveBase=True,
+    evalLoggingEnabled: bool = False,
+):
     """ 
     Plans the behaviour of the robot depending on the given parameters
 
     Args:
         riskEstimation (custom risk-message): The risk parameters. Gets passed by the subscriber who\
                                              calls this function as a callback function
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                             thesis, not neccessary for normal operation). Defaults to False
     """
     global trajectory
     global emergencyStop
@@ -660,8 +720,9 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
     angleAssumption = 0
     emergencyStop.clear()
     emergencyBrakePub.publish(False)
-    EvalManagerClient().evalLogStartedTask()
-    EvalManagerClient().evalLogRisk(np.average(riskGlobal))
+    if evalLoggingEnabled:
+        EvalManagerClient().evalLogStartedTask()
+        EvalManagerClient().evalLogRisk(np.average(riskGlobal))
 
     for i in range(len(trajectory.poses)):
         # We assume that we havn't to navigate to start node because were already there
@@ -675,7 +736,8 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
                         (singleProb.probability, singleProb.nodeIndex)
                     )
             cummulativeProb = calculate_collosion_order(collisionProbs)
-            EvalManagerClient().evalLogCollisionProb(cummulativeProb)
+            if evalLoggingEnabled:
+                EvalManagerClient().evalLogCollisionProb(cummulativeProb)
             continue
         # Set initial angle from which the angle starts gets started to be interpolated
         # depending on the navigation responses
@@ -732,7 +794,8 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
             return False
 
     try:
-        EvalManagerClient().evalLogSuccessfulTask()
+        if evalLoggingEnabled:
+            EvalManagerClient().evalLogSuccessfulTask()
         responsePub.publish("Success")
     except Exception as e:
         print(e)
@@ -740,13 +803,18 @@ def chooseStrategy(riskEstimation: Risk, useMoveBase=True):
     rospy.loginfo("[Strategy Planner] Finished strategy execution")
 
 
-def strategyPlanner(runWithRiskEstimation=True):
+def strategyPlanner(
+    runWithRiskEstimation=True,
+    evalLoggingEnabled: bool = False,
+):
     """
     Runs the node itself and subscribes to all necessary topics.
 
     Args:
         runWithRiskEstimation (bool, optional): If it should run after risk estimation (True) or after a\
                                                 trajectory is planned (False). Defaults to True 
+        evalLoggingEnabled (bool, optional): If evaluation metrics should be send to evaluationmanager (mainly used in Felix Brugger
+                                             thesis, not neccessary for normal operation). Defaults to False
     """
     rospy.init_node(Nodes.STRATEGY_PLANNER.value)
     set_rospy_log_lvl(rospy.DEBUG)
@@ -762,7 +830,11 @@ def strategyPlanner(runWithRiskEstimation=True):
         rospy.Subscriber(Topics.GLOBAL_PATH.value, Path, _setTrajectory, queue_size=10)
         # Start driving when the risk values come in
         rospy.Subscriber(
-            Topics.RISK_ESTIMATION_RL.value, Risk, chooseStrategy, queue_size=10
+            Topics.RISK_ESTIMATION_RL.value,
+            Risk,
+            chooseStrategy,
+            queue_size=10,
+            callback_args=[evalLoggingEnabled],
         )
 
     # For fallback behaviour
@@ -790,8 +862,8 @@ def strategyPlanner(runWithRiskEstimation=True):
 
 
 if __name__ == "__main__":
-    try:
-        strategyPlanner(runWithRiskEstimation=True)
-    except Exception as e:
-        print(e)
-        rospy.loginfo(f"Shutting down node {Nodes.STRATEGY_PLANNER.value}")
+    # try:
+    strategyPlanner(runWithRiskEstimation=True, evalLoggingEnabled=False)
+# except Exception as e:
+#     print(e)
+#     rospy.loginfo(f"Shutting down node {Nodes.STRATEGY_PLANNER.value}")
