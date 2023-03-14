@@ -246,6 +246,6 @@ def monitorSpace(disableAnomalyDetection=False):
 if __name__ == "__main__":
     try:
         rospy.on_shutdown(__createDump)
-        monitorSpace(disableAnomalyDetection=True)
+        monitorSpace(disableAnomalyDetection=False)
     except:
         rospy.loginfo(f"Shutdown node {Nodes.MONITORED_SPACE_OBSERVER.value}")

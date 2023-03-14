@@ -65,8 +65,8 @@ def addOffset(offset: list, feature: str):
             injectOffsetEnabledPub.publish(True)
             offsetPub.publish(float(offset[0]))
             return f"Success: Added offset {offset} to feature {feature}"
-        except:
-            return f"Error: Couldn't publish offset {offset} to feature {feature}"
+        except Exception as e:
+            return f"Error: Couldn't publish offset {offset} to feature {feature}: {e}"
     else:
         injectOffsetEnabledPub.publish(False)
         offsetPub.publish(0)
@@ -134,7 +134,7 @@ def processMessage(data: dict):
         response = activateFeature(feature=data["feature"], enabled=data["value"])
     elif data["command"].lower() == "addoffset":
         rospy.logdebug(
-            f'[FleetIAS-Client] Received command "AddOffset" for feature {data["feature"]} with offset {data["value"]}'
+            f'[FleetIAS-Client] Received command "AddOffset" for feature {data["feature"]} with offset {data["offset"]}'
         )
         response = addOffset(data["offset"], data["feature"])
     else:
