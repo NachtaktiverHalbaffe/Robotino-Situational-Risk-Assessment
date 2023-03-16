@@ -149,7 +149,7 @@ def spaceObserver(
     MAX_WAIT_TIME = 1
     THRES_X = 1.5
     THRES_Y = 1.5
-    THRES_DIST = 1.5
+    THRES_DIST = 2
     THRES_ANGLE = np.pi / 5
 
     xErrFIFO = collections.deque(FIFO_LENGTH * [0], FIFO_LENGTH)
@@ -246,6 +246,6 @@ def monitorSpace(disableAnomalyDetection=False):
 if __name__ == "__main__":
     try:
         rospy.on_shutdown(__createDump)
-        monitorSpace(disableAnomalyDetection=False)
+        monitorSpace(disableAnomalyDetection=True)
     except:
         rospy.loginfo(f"Shutdown node {Nodes.MONITORED_SPACE_OBSERVER.value}")
