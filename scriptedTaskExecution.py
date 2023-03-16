@@ -60,7 +60,7 @@ def __startROS():
     launch_files_v = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "launch/", "")
     )
-    launch_file = f"{launch_files_v}/prototype.launch"
+    launch_file = f"{launch_files_v}/prototype.launch" #"{launch_files_v}/prototype.launch"
     # create CLI command
     program = f"roslaunch {launch_file}"
     # Start ros via CLI

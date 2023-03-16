@@ -152,8 +152,11 @@ def moveBaseClientPath(path: Path) -> MoveBaseActionResult:
         if response >= 4:
             # Error behaviour if move base didnt reach node
             print("[Strategy Planner] Error")
+
+            responsePub.publish("Error")
             break
 
+    responsePub.publish("Success")
     return response
 
 
@@ -210,7 +213,7 @@ def moveBaseClient(pose: PoseStamped) -> int:
                 client.cancel_goal()
                 break
 
-    time.sleep(0.2)
+    time.sleep(0.5)
 
     return doneFeedback
 
@@ -866,7 +869,7 @@ def strategyPlanner(
 
 if __name__ == "__main__":
     # try:
-    strategyPlanner(runWithRiskEstimation=True, evalLoggingEnabled=False)
+    strategyPlanner(runWithRiskEstimation=True, evalLoggingEnabled=False) # strategyPlanner(runWithRiskEstimation=True, evalLoggingEnabled=False) 
 # except Exception as e:
 #     print(e)
 #     rospy.loginfo(f"Shutting down node {Nodes.STRATEGY_PLANNER.value}")

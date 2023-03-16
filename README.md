@@ -100,16 +100,16 @@ chmod+x /path/to/script.py
 - Start roscore:
     - If using one of the following methods, this is automatically done
     - Run ``roscore`` in terminal
-- Either:
+- **Either:**
   - Start a launch configuration:
     - Run ``roslaunch prototype <launchfile>`` in terminal
       - Each launchFile has own purpose
-      - prototype.launch: Launches whole prototype stack
+      - **prototype.launch: Launches whole prototype stack**
       - autonomousOperation.launch: Launches the autonomous part of the Robotino without risk estimation
       - identifyAndMap.launch: Legacy method when running most python scripts from terminal and not as ROS Nodes
   - Start GUI: ``python3 src/robotino/mainwindow.py`` and launch ros from gui
     - This basically starts ROS with launch files in the background, so basically the same as starting with launch configuration, but gui is also started
-  - Use script with automated task execution: ``python3 scriptedTaskExecution.py``
+  - Use script with automated task execution: ``python3 src/robotino/scriptedTaskExecution.py``
     - Follow the prompts from the terminal. Everything is explained there
 
 ### Generate Error distribution
