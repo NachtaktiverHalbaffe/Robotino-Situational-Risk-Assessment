@@ -170,7 +170,7 @@ The prototype mainly communicates over ROS and it's Topics (implementation by Fe
 | /workstation_mapper_enabled | Bool                             | ENabled/Disables the QR Code scanner of the workstation mapper                                                                      |
 
 # License
-Copyright 2023 NachtaktiverHalbaffe
+Copyright 2023 Institute of Industrial Automation and Software Engineering, University of Stuttgart
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
